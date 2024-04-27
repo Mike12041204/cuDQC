@@ -623,6 +623,8 @@ void search(CPU_Graph& hg, ofstream& temp_results)
 
 
     // TODO - divide work and move to cpu, how should this be done?
+    // TODO - for now doing block shift, change later
+    // TODO - remove CPU MODE as it is not used anyways
     // TRANSFER TO GPU
     if (!CPU_MODE) {
         move_to_gpu(hd, dd);
@@ -1227,18 +1229,75 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
     (*hd.current_level)++;
 }
 
+// CURSOR - verify this method works
+// NEW - changed to distribute work amongst processes
 void move_to_gpu(CPU_Data& hd, GPU_Data& dd)
 {
-    if (CPU_LEVELS % 2 == 1) {
-        chkerr(cudaMemcpy(dd.tasks1_count, hd.tasks1_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(dd.tasks1_offset, hd.tasks1_offset, (EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(dd.tasks1_vertices, hd.tasks1_vertices, (TASKS_SIZE) * sizeof(Vertex), cudaMemcpyHostToDevice));
+    uint64_t* tasks_count;
+    uint64_t* tasks_offset;
+    Vertex* tasks_vertices;
+
+    uint64_t block_size;
+    uint64_t block_start;
+
+    uint64_t offset_start;
+
+    // split tasks
+    // get proper read location for level
+    if(CPU_LEVELS % 2 == 1){
+        tasks_count = hd.tasks1_count;
+        tasks_offset = hd.tasks1_offset;
+        tasks_vertices = hd.tasks1_vertices;
     }
-    else {
-        chkerr(cudaMemcpy(dd.tasks2_count, hd.tasks2_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(dd.tasks2_offset, hd.tasks2_offset, (EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(dd.tasks2_vertices, hd.tasks2_vertices, (TASKS_SIZE) * sizeof(Vertex), cudaMemcpyHostToDevice));
+    else{
+        tasks_count = hd.tasks2_count;
+        tasks_offset = hd.tasks2_offset;
+        tasks_vertices = hd.tasks2_vertices;
     }
+
+    // get work size for tasks
+    block_size = tasks_count / NUMBER_OF_PROCESSESS;
+    block_start = block_size * grank;
+    if(grank == NUMBER_OF_PROCESSESS - 1){
+        block_size += tasks_count % NUMBER_OF_PROCESSESS;
+    }
+
+    // rearange tasks
+    memcpy(tasks_count, &block_size, sizeof(uint64_t));
+    memcpy(tasks_offset, tasks_offset + block_start, sizeof(uint64_t) * (block_size + 1));
+    memcpy(tasks_vertices, tasks_vertices + tasks_offset[0], sizeof(Vertex) * (tasks_offset[block_size] - tasks_offset[0]));
+
+    // revalue tasks
+    offset_start = tasks_offset[0];
+    for(int i = 0; i < block_size; i++){
+        tasks_offset[i] -= offset_start;
+    }
+
+    // get work size for buffer
+    block_size = hd.buffer_count / NUMBER_OF_PROCESSESS;
+    block_start = block_size * grank;
+    if(grank == NUMBER_OF_PROCESSESS - 1){
+        block_size += hd.buffer_count % NUMBER_OF_PROCESSESS;
+    }
+
+    // rearange buffer
+    memcpy(hd.buffer_count, &block_size, sizeof(uint64_t));
+    memcpy(hd.buffer_offset, hd.buffer_offset + block_start, sizeof(uint64_t) * (block_size + 1);
+    memcpy(hd.buffer_vertices, hd.buffer_vertices + hd.buffer_offset[0], sizeof(Vertex) * (hd.buffer_offset[block_size] - hd.buffer_offset[0]));
+
+    // revalue buffer
+    offset_start = hd.buffer_offset[0];
+    for(int i = 0; i < block_size; i++){
+        hd.buffer_offset[i] -= offset_start;
+    }
+
+    // condense tasks
+    h_fill_from_buffer(hd, tasks_count, tasks_offset, tasks_vertices, EXPAND_THRESHOLD);
+
+    // move to GPU
+    chkerr(cudaMemcpy(dd.tasks1_count, tasks_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(dd.tasks1_offset, tasks_offset, (EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(dd.tasks1_vertices, tasks_vertices, (TASKS_SIZE) * sizeof(Vertex), cudaMemcpyHostToDevice));
 
     chkerr(cudaMemcpy(dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(dd.buffer_offset, hd.buffer_offset, (BUFFER_OFFSET_SIZE) * sizeof(uint64_t), cudaMemcpyHostToDevice));
