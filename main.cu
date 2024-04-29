@@ -67,7 +67,7 @@ using namespace std;
 #define DEBUG_TOGGLE 0
 
 // MPI SETTINGS
-#define NUMBER_OF_PROCESSESS 8
+#define NUMBER_OF_PROCESSESS 4
 #define MAX_MESSAGE 1000000000
 
 
@@ -401,7 +401,7 @@ __device__ void d_print_vertices(Vertex* vertices, int size);
 // - in degree pruning see if we can remove failed_found by consolidating with success
 // - see whether it's possible to parallelize some of calculate_LU_bounds
 // - remove device expand level code duplication by using a method
-// - dont need 2 tasks
+// - dont need 2 tasks on GPU
 
 
 
@@ -445,7 +445,7 @@ int main(int argc, char* argv[])
 
 
     // TIME
-    auto start2 = std::chrono::high_resolution_clock::now();
+    auto start2 = chrono::high_resolution_clock::now();
 
 
 
@@ -459,52 +459,64 @@ int main(int argc, char* argv[])
     // ENSURE PROPER USAGE
     if (argc != 6) {
         printf("Usage: ./main <graph_file> <gamma> <min_size> <output_file.txt> <scheduling toggle 0-dyanmic/1-static>\n");
+        MPI_Finalize();
         return 1;
     }
     ifstream graph_stream(argv[1], ios::in);
     if (!graph_stream.is_open()) {
         printf("invalid graph file\n");
+        MPI_Finalize();
         return 1;
     }
     minimum_degree_ratio = atof(argv[2]);
     if (minimum_degree_ratio < .5 || minimum_degree_ratio>1) {
         printf("minimum degree ratio must be between .5 and 1 inclusive\n");
+        MPI_Finalize();
         return 1;
     }
     minimum_clique_size = atoi(argv[3]);
     if (minimum_clique_size <= 1) {
         printf("minimum size must be greater than 1\n");
+        MPI_Finalize();
         return 1;
     }
     scheduling_toggle = atoi(argv[5]);
     if (!(scheduling_toggle == 0 || scheduling_toggle == 1)) {
         cout << "scheduling toggle must be 0 or 1" << endl;
+        MPI_Finalize();
+        return 1;
     }
     if (CPU_EXPAND_THRESHOLD > EXPAND_THRESHOLD) {
         cout << "CPU_EXPAND_THRESHOLD must be less than the EXPAND_THRESHOLD" << endl;
+        MPI_Finalize();
         return 1;
     }
 
 
 
     // TIME
-    auto start = std::chrono::high_resolution_clock::now();
+    auto start = chrono::high_resolution_clock::now();
 
 
 
     // GRAPH / MINDEGS
-    cout << ">:PRE-PROCESSING" << endl;
+    if(grank == 0){
+        cout << ">:PRE-PROCESSING" << endl;
+    }
     CPU_Graph hg(graph_stream);
     graph_stream.close();
     calculate_minimum_degrees(hg);
-    ofstream temp_results("temp.txt");
+    string temp_filename = "temp_DcuQC_" + to_string(grank) + ".txt";
+    ofstream temp_results(temp_filename);
 
 
 
     // TIME
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+    if(grank == 0){
+        cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
+    }
 
 
 
@@ -523,27 +535,59 @@ int main(int argc, char* argv[])
 
 
     // TIME
-    auto start1 = std::chrono::high_resolution_clock::now();
+    auto start1 = chrono::high_resolution_clock::now();
 
 
 
-    // RM NON-MAX
-    RemoveNonMax("temp.txt", argv[4]);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(grank == 0){
+
+        // COMBINE RESULTS
+        ofstream all_temp("temp_DcuQC.txt");
+        for (int i = 0; i < NUMBER_OF_PROCESSESS; ++i) {
+            string temp_filename = "temp_DcuQC_" + to_string(i) + ".txt";
+            ifstream temp_file(temp_filename);
+            string line;
+            while (getline(temp_file, line)) {
+                all_temp << line << endl;
+            }
+            temp_file.close();
+        }
+
+        // Check if the temp file is empty
+        bool temp_empty = false;
+        if (all_temp.tellp() == ofstream::pos_type(0)) {
+            temp_empty = true;
+        }
+        all_temp.close();
+
+        // RM NON-MAX
+        if(!temp_empty){
+            RemoveNonMax("temp_DcuQC.txt", argv[4]);
+        }
+        else{
+            cout << ">:NUMBER OF MAXIMAL CLIQUES: 0" << endl;
+        }
+    }
 
 
 
     // TIME
-    auto stop1 = std::chrono::high_resolution_clock::now();
-    auto duration1 = std::chrono::duration_cast<std::chrono::milliseconds>(stop1 - start1);
-    cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
+    auto stop1 = chrono::high_resolution_clock::now();
+    auto duration1 = chrono::duration_cast<chrono::milliseconds>(stop1 - start1);
+    if(grank == 0){
+        cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
+    }
+    auto stop2 = chrono::high_resolution_clock::now();
+    auto duration2 = chrono::duration_cast<chrono::milliseconds>(stop2 - start2);
+    if(grank == 0){
+        cout << "--->:TOTAL TIME: " << duration2.count() << " ms" << endl;
+        cout << ">:PROGRAM END" << endl;
+    }
 
-    auto stop2 = std::chrono::high_resolution_clock::now();
-    auto duration2 = std::chrono::duration_cast<std::chrono::milliseconds>(stop2 - start2);
-    cout << "--->:TOTAL TIME: " << duration2.count() << " ms" << endl;
 
 
-
-    cout << ">:PROGRAM END" << endl;
+    // END
     MPI_Finalize();
     return 0;
 }
@@ -578,12 +622,14 @@ void search(CPU_Graph& hg, ofstream& temp_results)
 
 
     // TIME
-    auto start = std::chrono::high_resolution_clock::now();
+    auto start = chrono::high_resolution_clock::now();
 
 
 
     // INITIALIZE TASKS
-    cout << ">:INITIALIZING TASKS" << endl;
+    if(grank == 0){
+        cout << ">:INITIALIZING TASKS" << endl;
+    }
     initialize_tasks(hg, hd);
 
 
@@ -622,6 +668,7 @@ void search(CPU_Graph& hg, ofstream& temp_results)
     flush_cliques(hc, temp_results);
 
 
+
     // TODO - divide work and move to cpu, how should this be done?
     // TODO - for now doing block shift, change later
     // TODO - remove CPU MODE as it is not used anyways
@@ -633,13 +680,11 @@ void search(CPU_Graph& hg, ofstream& temp_results)
 
 
 
-    // DEBUG
-    return;
-
-
     // TODO - use cuTS distributed loop
     // EXPAND LEVEL
-    cout << ">:BEGINNING EXPANSION" << endl;
+    if(grank == 0){
+        cout << ">:BEGINNING EXPANSION" << endl;
+    }
     while (!(*hd.maximal_expansion))
     {
         (*(hd.maximal_expansion)) = true;
@@ -719,9 +764,12 @@ void search(CPU_Graph& hg, ofstream& temp_results)
 
 
     // TIME
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    cout << "--->:ENUMERATION TIME: " << duration.count() << " ms" << endl;
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(grank == 0){
+        cout << "--->:ENUMERATION TIME: " << duration.count() << " ms" << endl;
+    }
 
 
 
@@ -1193,7 +1241,8 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
 
 
             // CHECK FOR CLIQUE
-            if (number_of_members >= minimum_clique_size) {
+            // all processes will do this, to prevent duplicates only process 0 will save cpu results
+            if (grank == 0 && number_of_members >= minimum_clique_size) {
                 h_check_for_clique(hc, vertices, number_of_members);
             }
 
@@ -1234,7 +1283,6 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
     (*hd.current_level)++;
 }
 
-// CURSOR - verify this method works
 // NEW - changed to distribute work amongst processes
 void move_to_gpu(CPU_Data& hd, GPU_Data& dd)
 {
@@ -1247,13 +1295,7 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& dd)
 
     uint64_t offset_start;
 
-    
 
-    // DEBUG
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(grank == 0){
-        print_CPU_Data(hd);
-    }
 
     // split tasks
     // get proper read location for level
@@ -1276,13 +1318,13 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& dd)
     }
 
     // rearange tasks
-    memcpy(tasks_count, &block_size, sizeof(uint64_t));
-    memcpy(tasks_offset, tasks_offset + block_start, sizeof(uint64_t) * (block_size + 1));
-    memcpy(tasks_vertices, tasks_vertices + tasks_offset[0], sizeof(Vertex) * (tasks_offset[block_size] - tasks_offset[0]));
+    memmove(tasks_count, &block_size, sizeof(uint64_t));
+    memmove(tasks_offset, tasks_offset + block_start, sizeof(uint64_t) * (block_size + 1));
+    memmove(tasks_vertices, tasks_vertices + tasks_offset[0], sizeof(Vertex) * (tasks_offset[block_size] - tasks_offset[0]));
 
     // revalue tasks
     offset_start = tasks_offset[0];
-    for(int i = 0; i < block_size; i++){
+    for(int i = 0; i <= block_size; i++){
         tasks_offset[i] -= offset_start;
     }
 
@@ -1294,39 +1336,37 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& dd)
     }
 
     // rearange buffer
-    memcpy(hd.buffer_count, &block_size, sizeof(uint64_t));
-    memcpy(hd.buffer_offset, hd.buffer_offset + block_start, sizeof(uint64_t) * (block_size + 1));
-    memcpy(hd.buffer_vertices, hd.buffer_vertices + hd.buffer_offset[0], sizeof(Vertex) * (hd.buffer_offset[block_size] - hd.buffer_offset[0]));
+    memmove(hd.buffer_count, &block_size, sizeof(uint64_t));
+    memmove(hd.buffer_offset, hd.buffer_offset + block_start, sizeof(uint64_t) * (block_size + 1));
+    memmove(hd.buffer_vertices, hd.buffer_vertices + hd.buffer_offset[0], sizeof(Vertex) * (hd.buffer_offset[block_size] - hd.buffer_offset[0]));
 
     // revalue buffer
     offset_start = hd.buffer_offset[0];
-    for(int i = 0; i < block_size; i++){
+    for(int i = 0; i <= block_size; i++){
         hd.buffer_offset[i] -= offset_start;
     }
 
     // condense tasks
     h_fill_from_buffer(hd, tasks_vertices, tasks_offset, tasks_count, EXPAND_THRESHOLD);
 
+    // TODO - only copy whats needed
     // move to GPU
-    chkerr(cudaMemcpy(dd.tasks1_count, tasks_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.tasks1_offset, tasks_offset, (EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.tasks1_vertices, tasks_vertices, (TASKS_SIZE) * sizeof(Vertex), cudaMemcpyHostToDevice));
+    if (CPU_LEVELS % 2 == 1) {
+        chkerr(cudaMemcpy(dd.tasks1_count, hd.tasks1_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(dd.tasks1_offset, hd.tasks1_offset, (EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(dd.tasks1_vertices, hd.tasks1_vertices, (TASKS_SIZE) * sizeof(Vertex), cudaMemcpyHostToDevice));
+    }
+    else{
+        chkerr(cudaMemcpy(dd.tasks2_count, hd.tasks2_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(dd.tasks2_offset, hd.tasks2_offset, (EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(dd.tasks2_vertices, hd.tasks2_vertices, (TASKS_SIZE) * sizeof(Vertex), cudaMemcpyHostToDevice));
+    }
 
     chkerr(cudaMemcpy(dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(dd.buffer_offset, hd.buffer_offset, (BUFFER_OFFSET_SIZE) * sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(dd.buffer_vertices, hd.buffer_vertices, (BUFFER_SIZE) * sizeof(int), cudaMemcpyHostToDevice));
 
     chkerr(cudaMemcpy(dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
-
-
-
-    // DEBUG
-    for(int i = 0; i < NUMBER_OF_PROCESSESS; i++){
-        if(grank == i){
-            print_CPU_Data(hd);
-        }
-        MPI_Barrier(MPI_COMM_WORLD);
-    }
 }
 
 void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
@@ -2315,7 +2355,7 @@ inline void chkerr(cudaError_t code)
 {
     if (code != cudaSuccess)
     {
-        cout << cudaGetErrorString(code) << std::endl;
+        cout << cudaGetErrorString(code) << endl;
         exit(-1);
     }
 }
