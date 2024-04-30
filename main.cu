@@ -64,7 +64,7 @@ using namespace std;
 #define CPU_MODE 0
 
 // debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 0
+#define DEBUG_TOGGLE 1
 
 // MPI SETTINGS
 #define NUMBER_OF_PROCESSESS 4
@@ -302,7 +302,7 @@ struct Local_Data
 // METHODS
 // general
 void calculate_minimum_degrees(CPU_Graph& hg);
-void search(CPU_Graph& hg, ofstream& temp_results);
+void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file);
 void allocate_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, CPU_Graph& hg);
 void initialize_tasks(CPU_Graph& hg, CPU_Data& hd);
 void move_to_gpu(CPU_Data& hd, GPU_Data& dd);
@@ -342,16 +342,16 @@ void print_WTask_Buffers(GPU_Data& dd);
 void print_WClique_Buffers(GPU_Data& dd);
 void print_GPU_Cliques(GPU_Data& dd); 
 void print_CPU_Cliques(CPU_Cliques& hc);
-bool print_Data_Sizes(GPU_Data& dd);
-void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc);
+bool print_Data_Sizes(GPU_Data& dd, ofstream& output_file);
+void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc, ofstream& output_file);
 void print_vertices(Vertex* vertices, int size);
-bool print_Data_Sizes_Every(GPU_Data& dd, int every);
-bool print_Warp_Data_Sizes(GPU_Data& dd);
+bool print_Data_Sizes_Every(GPU_Data& dd, int every, ofstream& output_file);
+bool print_Warp_Data_Sizes(GPU_Data& dd, ofstream& output_file);
 void print_All_Warp_Data_Sizes(GPU_Data& dd);
-bool print_Warp_Data_Sizes_Every(GPU_Data& dd, int every);
+bool print_Warp_Data_Sizes_Every(GPU_Data& dd, int every, ofstream& output_file);
 void print_All_Warp_Data_Sizes_Every(GPU_Data& dd, int every);
 void initialize_maxes();
-void print_maxes();
+void print_maxes(ofstream& output_file);
 
 
 
@@ -402,6 +402,9 @@ __device__ void d_print_vertices(Vertex* vertices, int size);
 // - see whether it's possible to parallelize some of calculate_LU_bounds
 // - remove device expand level code duplication by using a method
 // - dont need 2 tasks on GPU
+// - remove cmd line input for results
+// - remove intersection toggle in cmd line
+// - remove cpu mode
 
 
 
@@ -431,6 +434,43 @@ bool global_free_list[NUMBER_OF_PROCESSESS];
 // MAIN
 int main(int argc, char* argv[])
 {
+    // TIME
+    auto start2 = chrono::high_resolution_clock::now();
+
+
+
+    // ENSURE PROPER USAGE
+    if (argc != 6) {
+        printf("Usage: ./main <graph_file> <gamma> <min_size> <output_file.txt> <scheduling toggle 0-dyanmic/1-static>\n");
+        return 1;
+    }
+    ifstream graph_stream(argv[1], ios::in);
+    if (!graph_stream.is_open()) {
+        printf("invalid graph file\n");
+        return 1;
+    }
+    minimum_degree_ratio = atof(argv[2]);
+    if (minimum_degree_ratio < .5 || minimum_degree_ratio>1) {
+        printf("minimum degree ratio must be between .5 and 1 inclusive\n");
+        return 1;
+    }
+    minimum_clique_size = atoi(argv[3]);
+    if (minimum_clique_size <= 1) {
+        printf("minimum size must be greater than 1\n");
+        return 1;
+    }
+    scheduling_toggle = atoi(argv[5]);
+    if (!(scheduling_toggle == 0 || scheduling_toggle == 1)) {
+        cout << "scheduling toggle must be 0 or 1" << endl;
+        return 1;
+    }
+    if (CPU_EXPAND_THRESHOLD > EXPAND_THRESHOLD) {
+        cout << "CPU_EXPAND_THRESHOLD must be less than the EXPAND_THRESHOLD" << endl;
+        return 1;
+    }
+
+
+
     // MPI
     MPI_Init(&argc,&argv);
     // number of cpu threads
@@ -444,52 +484,12 @@ int main(int argc, char* argv[])
 
 
 
-    // TIME
-    auto start2 = chrono::high_resolution_clock::now();
-
-
-
     // DEBUG
+    string output_filename = "output_DcuQC_" + to_string(grank) + ".txt";
+    ofstream output_file(output_filename);
     if (DEBUG_TOGGLE) {
+        output_file << "Output from process " << grank << endl << endl;
         initialize_maxes();
-    }
-
-
-
-    // ENSURE PROPER USAGE
-    if (argc != 6) {
-        printf("Usage: ./main <graph_file> <gamma> <min_size> <output_file.txt> <scheduling toggle 0-dyanmic/1-static>\n");
-        MPI_Finalize();
-        return 1;
-    }
-    ifstream graph_stream(argv[1], ios::in);
-    if (!graph_stream.is_open()) {
-        printf("invalid graph file\n");
-        MPI_Finalize();
-        return 1;
-    }
-    minimum_degree_ratio = atof(argv[2]);
-    if (minimum_degree_ratio < .5 || minimum_degree_ratio>1) {
-        printf("minimum degree ratio must be between .5 and 1 inclusive\n");
-        MPI_Finalize();
-        return 1;
-    }
-    minimum_clique_size = atoi(argv[3]);
-    if (minimum_clique_size <= 1) {
-        printf("minimum size must be greater than 1\n");
-        MPI_Finalize();
-        return 1;
-    }
-    scheduling_toggle = atoi(argv[5]);
-    if (!(scheduling_toggle == 0 || scheduling_toggle == 1)) {
-        cout << "scheduling toggle must be 0 or 1" << endl;
-        MPI_Finalize();
-        return 1;
-    }
-    if (CPU_EXPAND_THRESHOLD > EXPAND_THRESHOLD) {
-        cout << "CPU_EXPAND_THRESHOLD must be less than the EXPAND_THRESHOLD" << endl;
-        MPI_Finalize();
-        return 1;
     }
 
 
@@ -521,7 +521,7 @@ int main(int argc, char* argv[])
 
 
     // SEARCH
-    search(hg, temp_results);
+    search(hg, temp_results, output_file);
 
     temp_results.close();
 
@@ -529,8 +529,9 @@ int main(int argc, char* argv[])
 
     // DEBUG
     if (DEBUG_TOGGLE) {
-        print_maxes();
+        print_maxes(output_file);
     }
+    output_file.close();
 
 
 
@@ -563,7 +564,7 @@ int main(int argc, char* argv[])
 
         // RM NON-MAX
         if(!temp_empty){
-            RemoveNonMax("temp_DcuQC.txt", argv[4]);
+            RemoveNonMax("temp_DcuQC.txt", "results_DcuQC.txt");
         }
         else{
             cout << ">:NUMBER OF MAXIMAL CLIQUES: 0" << endl;
@@ -606,7 +607,7 @@ void calculate_minimum_degrees(CPU_Graph& hg)
     }
 }
 
-void search(CPU_Graph& hg, ofstream& temp_results) 
+void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file) 
 {
     // DATA STRUCTURES
     CPU_Data hd;
@@ -641,7 +642,7 @@ void search(CPU_Graph& hg, ofstream& temp_results)
             cout << "!!! VERTICES SIZE ERROR !!!" << endl;
             return;
         }
-        h_print_Data_Sizes(hd, hc);
+        h_print_Data_Sizes(hd, hc, output_file);
     }
 
 
@@ -661,7 +662,7 @@ void search(CPU_Graph& hg, ofstream& temp_results)
 
         // DEBUG
         if (DEBUG_TOGGLE) {
-            h_print_Data_Sizes(hd, hc);
+            h_print_Data_Sizes(hd, hc, output_file);
         }
     }
 
@@ -699,7 +700,7 @@ void search(CPU_Graph& hg, ofstream& temp_results)
 
         // DEBUG
         if (DEBUG_TOGGLE) {
-            if (print_Warp_Data_Sizes_Every(dd, 1)) { break; }
+            if (print_Warp_Data_Sizes_Every(dd, 1, output_file)) { break; }
         }
 
 
@@ -757,7 +758,7 @@ void search(CPU_Graph& hg, ofstream& temp_results)
 
         // DEBUG
         if (DEBUG_TOGGLE) {
-            if (print_Data_Sizes_Every(dd, 1)) { break; }
+            if (print_Data_Sizes_Every(dd, 1, output_file)) { break; }
         }
     }
 
@@ -2645,7 +2646,7 @@ void print_GPU_Data(GPU_Data& dd)
 }
 
 // returns true if warp buffer was too small causing error
-bool print_Warp_Data_Sizes(GPU_Data& dd)
+bool print_Warp_Data_Sizes(GPU_Data& dd, ofstream& output_file)
 {
     uint64_t* tasks_counts = new uint64_t[NUMBER_OF_WARPS];
     uint64_t* tasks_sizes = new uint64_t[NUMBER_OF_WARPS];
@@ -2686,7 +2687,7 @@ bool print_Warp_Data_Sizes(GPU_Data& dd)
         }
     }
 
-    cout << "WTasks( TC: " << tasks_tcount << " TS: " << tasks_tsize << " MC: " << tasks_mcount << " MS: " << tasks_msize << ") WCliques ( TC: " << cliques_tcount << " TS: " << cliques_tsize << " MC: " << cliques_mcount << " MS: " << cliques_msize << ")" << endl;
+    output_file << "WTasks( TC: " << tasks_tcount << " TS: " << tasks_tsize << " MC: " << tasks_mcount << " MS: " << tasks_msize << ") WCliques ( TC: " << cliques_tcount << " TS: " << cliques_tsize << " MC: " << cliques_mcount << " MS: " << cliques_msize << ")" << endl;
 
     if (tasks_mcount > wto) {
         wto = tasks_mcount;
@@ -2702,7 +2703,7 @@ bool print_Warp_Data_Sizes(GPU_Data& dd)
     }
 
     if (tasks_mcount > WTASKS_OFFSET_SIZE || tasks_msize > WTASKS_SIZE || cliques_mcount > WCLIQUES_OFFSET_SIZE || cliques_msize > WCLIQUES_SIZE) {
-        cout << "!!! WBUFFER SIZE ERROR !!!" << endl;
+        output_file << "!!! WARP STRUCTURE SIZE ERROR !!!" << endl;
         return true;
     }
 
@@ -2743,13 +2744,13 @@ void print_All_Warp_Data_Sizes(GPU_Data& dd)
     delete cliques_sizes;
 }
 
-bool print_Warp_Data_Sizes_Every(GPU_Data& dd, int every)
+bool print_Warp_Data_Sizes_Every(GPU_Data& dd, int every, ofstream& output_file)
 {
     bool result = false;
     int level;
     chkerr(cudaMemcpy(&level, dd.current_level, sizeof(int), cudaMemcpyDeviceToHost));
     if (level % every == 0) {
-        result = print_Warp_Data_Sizes(dd);
+        result = print_Warp_Data_Sizes(dd, output_file);
     }
     return result;
 }
@@ -2763,18 +2764,18 @@ void print_All_Warp_Data_Sizes_Every(GPU_Data& dd, int every)
     }
 }
 
-bool print_Data_Sizes_Every(GPU_Data& dd, int every)
+bool print_Data_Sizes_Every(GPU_Data& dd, int every, ofstream& output_file)
 {
     bool result = false;
     int level;
     chkerr(cudaMemcpy(&level, dd.current_level, sizeof(int), cudaMemcpyDeviceToHost));
     if (level % every == 0) {
-        result = print_Data_Sizes(dd);
+        result = print_Data_Sizes(dd, output_file);
     }
     return result;
 }
 
-bool print_Data_Sizes(GPU_Data& dd)
+bool print_Data_Sizes(GPU_Data& dd, ofstream& output_file)
 {
     uint64_t* current_level = new uint64_t;
     uint64_t* tasks1_count = new uint64_t;
@@ -2796,7 +2797,7 @@ bool print_Data_Sizes(GPU_Data& dd)
     chkerr(cudaMemcpy(buffer_size, dd.buffer_offset + (*buffer_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_size, dd.cliques_offset + (*cliques_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
-    cout << "L: " << (*current_level) << " T1: " << (*tasks1_count) << " " << (*tasks1_size) << " T2: " << (*tasks2_count) << " " << (*tasks2_size) << " B: " << (*buffer_count) << " " << (*buffer_size) << " C: " << 
+    output_file << "L: " << (*current_level) << " T1: " << (*tasks1_count) << " " << (*tasks1_size) << " T2: " << (*tasks2_count) << " " << (*tasks2_size) << " B: " << (*buffer_count) << " " << (*buffer_size) << " C: " << 
         (*cliques_count) << " " << (*cliques_size) << endl << endl;
 
     if (*tasks1_size > mts) {
@@ -2820,7 +2821,7 @@ bool print_Data_Sizes(GPU_Data& dd)
 
     if ((*tasks1_count) > EXPAND_THRESHOLD || (*tasks1_size) > TASKS_SIZE || (*tasks2_count) > EXPAND_THRESHOLD || (*tasks2_size) > TASKS_SIZE || (*buffer_count) > BUFFER_OFFSET_SIZE || (*buffer_size) > BUFFER_SIZE || (*cliques_count) > CLIQUES_OFFSET_SIZE ||
         (*cliques_size) > CLIQUES_SIZE) {
-        cout << "!!! ARRAY SIZE ERROR !!!" << endl;
+        output_file << "!!! GLOBAL STRUCTURE SIZE ERROR !!!" << endl;
         return true;
     }
 
@@ -2837,9 +2838,9 @@ bool print_Data_Sizes(GPU_Data& dd)
     return false;
 }
 
-void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc)
+void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc, ofstream& output_file)
 {
-    cout << "L: " << (*hd.current_level) << " T1: " << (*hd.tasks1_count) << " " << (*(hd.tasks1_offset + (*hd.tasks1_count))) << " T2: " << (*hd.tasks2_count) << " " << 
+    output_file << "L: " << (*hd.current_level) << " T1: " << (*hd.tasks1_count) << " " << (*(hd.tasks1_offset + (*hd.tasks1_count))) << " T2: " << (*hd.tasks2_count) << " " << 
         (*(hd.tasks2_offset + (*hd.tasks2_count))) << " B: " << (*hd.buffer_count) << " " << (*(hd.buffer_offset + (*hd.buffer_count))) << " C: " << 
         (*hc.cliques_count) << " " << (*(hc.cliques_offset + (*hc.cliques_count))) << endl;
 
@@ -3044,9 +3045,9 @@ void initialize_maxes()
     mvs = 0;
 }
 
-void print_maxes()
+void print_maxes(ofstream& output_file)
 {
-    cout << endl
+    output_file << endl
         << "TASKS SIZE: " << mts << endl
         << "BUFFER SIZE: " << mbs << endl
         << "BUFFER OFFSET SIZE: " << mbo << endl
