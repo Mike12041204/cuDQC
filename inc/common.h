@@ -296,5 +296,4 @@ struct Local_Data
     Vertex* vertices;
 };
 
-
 #endif // DCUQC_COMMON_H
