@@ -296,4 +296,19 @@ struct Local_Data
     Vertex* vertices;
 };
 
+// DEBUG - MAX TRACKER VARIABLES
+extern uint64_t mts, mbs, mbo, mcs, mco, wts, wto, wcs, wco, mvs;
+
+// COMMAND LINE INPUT VARIABLES
+extern double minimum_degree_ratio;
+extern int minimum_clique_size;
+extern int* minimum_degrees;
+extern int scheduling_toggle;
+
+// MPI VARIABLES
+extern int wsize;
+extern int grank;
+
+inline void chkerr(cudaError_t code);
+
 #endif // DCUQC_COMMON_H
