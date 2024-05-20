@@ -3,43 +3,50 @@ CXX = g++
 NVCC = nvcc
 
 # Compiler flags
+NVCCFLAGS = -O3 -std=c++11 -arch=sm_70
+CXXFLAGS = -O3 -std=c++11
 LDFLAGS := -lmpi
-INCLUDES = -Ilib
+INCLUDES = -Iinc
 
+SOURCES = main.cu src/common.cpp src/host_general.cu src/host_expansion.cpp src/host_helper.cpp src/host_debug.cpp src/device_general.cu src/device_expansion.cu src/device_helper.cu src/device_debug.cu src/Quick_rmnonmax.cpp
+OBJECTS = main.o src/common.o src/host_general.o src/host_expansion.o src/host_helper.o src/host_debug.o src/device_general.o src/device_expansion.o src/device_helper.o src/device_debug.o src/Quick_rmnonmax.o
 TARGET = DcuQC
 
-$(TARGET): main.o common.o host_general.o host_expansion.o host_helper.o host_debug.o device_general.o device_expansion.o device_helper.o device_debug.o Quick_rmnonmax.o
+$(TARGET): $(OBJECTS)
 	$(NVCC) $^ -o $@ $(LDFLAGS)
 
-main.o: main.cpp common.h host_general.h host_debug.h Quick_rmnonmax.h
-	$(NVCC) $(INCLUDES) -c $< -o $@ $(LDFLAGS)
+main.o: main.cu inc/common.h inc/host_general.h inc/host_debug.h inc/Quick_rmnonmax.h
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
-common.o: common.cpp common.h
-	$(CXX) $(INCLUDES) -c $< -o $@ $(LDFLAGS)
+src/common.o: src/common.cpp inc/common.h
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-host_general.o: host_general.cpp common.h host_general.h host_expansion.h host_helper.h host_debug.h device_general.h
-	$(NVCC) $(INCLUDES) -c $< -o $@ $(LDFLAGS)
+src/host_general.o: src/host_general.cu inc/common.h inc/host_general.h inc/host_expansion.h inc/host_helper.h inc/host_debug.h inc/device_general.h
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
-host_expansion.o: host_expansion.cpp common.h host_expansion.h host_helper.h host_debug.h
-	$(CXX) $(INCLUDES) -c $< -o $@ $(LDFLAGS)
+src/host_expansion.o: src/host_expansion.cpp inc/common.h inc/host_expansion.h inc/host_helper.h inc/host_debug.h
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-host_helper.o: host_helper.cpp common.h host_debug.h
-	$(CXX) $(INCLUDES) -c $< -o $@ $(LDFLAGS)
+src/host_helper.o: src/host_helper.cpp inc/common.h inc/host_debug.h
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-host_debug.o: host_debug.cpp common.h host_debug.h
-	$(CXX) $(INCLUDES) -c $< -o $@ $(LDFLAGS)
+src/host_debug.o: src/host_debug.cpp inc/common.h inc/host_debug.h
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-device_general.o: device_general.cpp common.h device_general.h device_expansion.h device_helper.h device_debug.h
-	$(NVCC) $(INCLUDES) -c $< -o $@ $(LDFLAGS)
+src/device_general.o: src/device_general.cu inc/common.h inc/device_general.h inc/device_expansion.h inc/device_helper.h inc/device_debug.h
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
-device_expansion.o: device_expansion.cpp common.h device_expansion.h device_helper.h
-	$(NVCC) $(INCLUDES) -c $< -o $@ $(LDFLAGS)
+src/device_expansion.o: src/device_expansion.cu inc/common.h inc/device_expansion.h inc/device_helper.h inc/device_debug.h
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
-device_helper.o: device_helper.cpp common.h device_helper.h device_debug.h
-	$(NVCC) $(INCLUDES) -c $< -o $@ $(LDFLAGS)
+src/device_helper.o: src/device_helper.cu inc/common.h inc/device_helper.h inc/device_debug.h
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
-device_debug.o: device_debug.cpp common.h device_debug.h
-	$(NVCC) $(INCLUDES) -c $< -o $@ $(LDFLAGS)
+src/device_debug.o: src/device_debug.cu inc/common.h inc/device_debug.h
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
-Quick_rmnonmax.o: Quick_rmnonmax.cpp common.h Quick_rmnonmax.h
-	$(CXX) $(INCLUDES) -c $< -o $@ $(LDFLAGS)
+src/Quick_rmnonmax.o: src/Quick_rmnonmax.cpp inc/common.h inc/Quick_rmnonmax.h
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+clean:
+	rm $(OBJECTS) $(TARGET)

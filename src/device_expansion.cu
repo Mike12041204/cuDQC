@@ -1,8 +1,9 @@
 #include "../inc/common.h"
 #include "../inc/device_expansion.h"
 #include "../inc/device_helper.h"
+#include "../inc/device_debug.h"
 
-// returns 1 if lookahead succesful, 0 otherwise 
+// returns 1 if lookahead succesful, 0 otherwise  
 __device__ int d_lookahead_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 {
     int pvertexid;

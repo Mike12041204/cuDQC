@@ -19,6 +19,8 @@
 // - make global variables local
 // - make cuTS mpi its own file
 // - move device expand_level to device expansion header filer and source
+// - inline some gpu methods
+// - inline host sort methods and improve their style
 
 // MAIN
 int main(int argc, char* argv[])

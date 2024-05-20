@@ -12,12 +12,3 @@ int scheduling_toggle;
 // MPI VARIABLES
 int wsize;
 int grank;
-
-inline void chkerr(cudaError_t code)
-{
-    if (code != cudaSuccess)
-    {
-        cout << cudaGetErrorString(code) << endl;
-        exit(-1);
-    }
-}

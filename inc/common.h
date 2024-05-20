@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <sstream>
 #include <cmath>
+#include <cstring>
 #include <time.h>
 #include <chrono>
 #include <sys/timeb.h>
@@ -309,6 +310,13 @@ extern int scheduling_toggle;
 extern int wsize;
 extern int grank;
 
-inline void chkerr(cudaError_t code);
+inline void chkerr(cudaError_t code)
+{
+    if (code != cudaSuccess)
+    {
+        cout << cudaGetErrorString(code) << endl;
+        exit(-1);
+    }
+}
 
 #endif // DCUQC_COMMON_H
