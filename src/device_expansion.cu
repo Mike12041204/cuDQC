@@ -73,7 +73,7 @@ __device__ int d_lookahead_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 }
 
 // returns 1 if failed found after removing, 0 otherwise
-__device__ int d_remove_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld) 
+__device__ int d_remove_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 {
     int pvertexid;
     int phelper1;
@@ -117,7 +117,7 @@ __device__ int d_remove_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 }
 
 // returns 1 if failed found or invalid bound, 0 otherwise
-__device__ int d_add_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld) 
+__device__ int d_add_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 {
     int pvertexid;
     int phelper1;

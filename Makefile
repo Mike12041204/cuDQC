@@ -3,13 +3,13 @@ CXX = g++
 NVCC = nvcc
 
 # Compiler flags
-NVCCFLAGS = -O3 -std=c++11 -arch=sm_70
-CXXFLAGS = -O3 -std=c++11
+NVCCFLAGS = #-O3
+CXXFLAGS = #-O3
 LDFLAGS := -lmpi
 INCLUDES = -Iinc
 
 SOURCES = main.cu src/common.cpp src/host_general.cu src/host_expansion.cpp src/host_helper.cpp src/host_debug.cpp src/device_general.cu src/device_expansion.cu src/device_helper.cu src/device_debug.cu src/Quick_rmnonmax.cpp
-OBJECTS = main.o src/common.o src/host_general.o src/host_expansion.o src/host_helper.o src/host_debug.o src/device_general.o src/device_expansion.o src/device_helper.o src/device_debug.o src/Quick_rmnonmax.o
+OBJECTS = src/common.o src/host_debug.o src/device_debug.o src/Quick_rmnonmax.o src/device_helper.o src/device_expansion.o src/host_helper.o src/host_expansion.o src/host_general.o main.o src/device_general.o
 TARGET = DcuQC
 
 $(TARGET): $(OBJECTS)
@@ -27,7 +27,7 @@ src/host_general.o: src/host_general.cu inc/common.h inc/host_general.h inc/host
 src/host_expansion.o: src/host_expansion.cpp inc/common.h inc/host_expansion.h inc/host_helper.h inc/host_debug.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-src/host_helper.o: src/host_helper.cpp inc/common.h inc/host_debug.h
+src/host_helper.o: src/host_helper.cpp inc/common.h inc/host_helper.h inc/host_debug.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 src/host_debug.o: src/host_debug.cpp inc/common.h inc/host_debug.h
@@ -49,4 +49,4 @@ src/Quick_rmnonmax.o: src/Quick_rmnonmax.cpp inc/common.h inc/Quick_rmnonmax.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
-	rm $(OBJECTS) $(TARGET)
+	rm -f $(OBJECTS) $(TARGET)
