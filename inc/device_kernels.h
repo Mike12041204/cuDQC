@@ -1,12 +1,14 @@
-#ifndef DCUQC_DEVICE_GENERAL_H
-#define DCUQC_DEVICE_GENERAL_H
+#ifndef DCUQC_DEVICE_KERNELS_H
+#define DCUQC_DEVICE_KERNELS_H
 
 #include "./common.h"
 
+// --- PRIMARY KERNELS ---
 __global__ void d_expand_level(GPU_Data dd);
 __global__ void transfer_buffers(GPU_Data dd);
 __global__ void fill_from_buffer(GPU_Data dd);
 
+// --- SECONDARY EXPANSION KERNELS ---
 __device__ int d_lookahead_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
 __device__ int d_remove_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
 __device__ int d_add_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
@@ -16,8 +18,9 @@ __device__ void d_write_to_tasks(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
 __device__ void d_diameter_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld, int pvertexid);
 __device__ void d_diameter_pruning_cv(GPU_Data& dd, Warp_Data& wd, Local_Data& ld, int number_of_crit_adj);
 __device__ void d_calculate_LU_bounds(GPU_Data& dd, Warp_Data& wd, Local_Data& ld, int number_of_candidates);
-
 __device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
+
+// --- TERTIARY KERNELS ---
 __device__ void d_sort(Vertex* target, int size, int (*func)(Vertex&, Vertex&));
 __device__ void d_sort_i(int* target, int size, int (*func)(int, int));
 __device__ int d_sort_vert_Q(Vertex& v1, Vertex& v2);
@@ -28,6 +31,7 @@ __device__ bool d_cand_isvalid_LU(Vertex& vertex, GPU_Data& dd, Warp_Data& wd, L
 __device__ bool d_vert_isextendable_LU(Vertex& vertex, GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
 __device__ int d_get_mindeg(int number_of_members, GPU_Data& dd);
 
+// --- DEBUG KERNELS ---
 __device__ void d_print_vertices(Vertex* vertices, int size);
 
-#endif // DCUQC_DEVICE_GENERAL_H
+#endif // DCUQC_DEVICE_KERNELS_H

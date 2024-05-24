@@ -1,6 +1,7 @@
 #include "../inc/common.h"
-#include "../inc/device_general.h"
+#include "../inc/device_kernels.h"
 
+// --- PRIMARY KERNELS ---
 __global__ void d_expand_level(GPU_Data dd)
 {
     // data is stored in data structures to reduce the number of variables that need to be passed to methods
@@ -488,6 +489,7 @@ __global__ void fill_from_buffer(GPU_Data dd)
     }
 }
 
+// --- SECONDARY EXPANSION KERNELS ---
 // returns 1 if lookahead succesful, 0 otherwise  
 __device__ int d_lookahead_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 {
@@ -1418,6 +1420,7 @@ __device__ void d_write_to_tasks(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
     }
 }
 
+// --- TERTIARY KENERLS ---
 // searches an int array for a certain int, returns the position in the array that item was found, or -1 if not found
 __device__ int d_bsearch_array(int* search_array, int array_size, int search_number)
 {

@@ -1,5 +1,5 @@
 #include "./inc/common.h"
-#include "./inc/host_general.h"
+#include "./inc/host_functions.h"
 #include "./inc/host_debug.h"
 #include "./inc/Quick_rmnonmax.h"
 
@@ -22,6 +22,8 @@
 // - inline some gpu methods
 // - inline host sort methods and improve their style
 // - combine host functions into one file
+// - consider what methods go in whiles
+// - review all code and code style
 
 // MAIN
 int main(int argc, char* argv[])

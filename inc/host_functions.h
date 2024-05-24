@@ -1,0 +1,88 @@
+#ifndef DCUQC_HOST_FUNCTIONS_H
+#define DCUQC_HOST_FUNCTIONS_H
+
+#include "./common.h"
+
+// --- PRIMARY FUNCITONS ---
+void calculate_minimum_degrees(CPU_Graph& hg);
+void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file);
+void allocate_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, CPU_Graph& hg);
+void initialize_tasks(CPU_Graph& hg, CPU_Data& hd);
+void move_to_gpu(CPU_Data& hd, GPU_Data& dd);
+void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& output_file);
+void flush_cliques(CPU_Cliques& hc, ofstream& temp_results);
+void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc);
+
+// --- SECONDARY EXPANSION FUNCTIONS ---
+void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc);
+int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, int tot_vert, int num_mem, int num_cand, uint64_t start);
+int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int& tot_vert, int& num_cand, int& num_vert, uint64_t start);
+int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int& number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg);
+void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvertexid, int& total_vertices, int& number_of_candidates, int number_of_members);
+bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg);
+bool h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int& min_ext_deg, Vertex* vertices, int number_of_members, int number_of_candidates);
+void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members);
+int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int& number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg);
+void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex* write_vertices, uint64_t* write_offsets, uint64_t* write_count);
+void h_fill_from_buffer(CPU_Data& hd, Vertex* write_vertices, uint64_t* write_offsets, uint64_t* write_count, int threshold);
+
+// --- TERTIARY FUNCTIONS ---
+int h_sort_vert_cv(const void* a, const void* b);
+int h_sort_vert_Q(const void* a, const void* b);
+int h_sort_desc(const void* a, const void* b);
+inline int h_get_mindeg(int clique_size) {
+    if (clique_size < minimum_clique_size) {
+        return minimum_degrees[minimum_clique_size];
+    }
+    else {
+        return minimum_degrees[clique_size];
+    }
+}
+inline bool h_cand_isvalid_LU(Vertex vertex, int clique_size, int upper_bound, int lower_bound, int min_ext_deg) 
+{
+    if (vertex.indeg + vertex.exdeg < minimum_degrees[minimum_clique_size]) {
+        return false;
+    }
+    else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + vertex.exdeg + 1)) {
+        return false;
+    }
+    else if (vertex.indeg + vertex.exdeg < min_ext_deg) {
+        return false;
+    }
+    else if (vertex.indeg + upper_bound - 1 < minimum_degrees[clique_size + lower_bound]) {
+        return false;
+    }
+    else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + lower_bound)) {
+        return false;
+    }
+    else {
+        return true;
+    }
+}
+inline bool h_vert_isextendable_LU(Vertex vertex, int clique_size, int upper_bound, int lower_bound, int min_ext_deg)
+{
+    if (vertex.indeg + vertex.exdeg < minimum_degrees[minimum_clique_size]) {
+        return false;
+    }
+    else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + vertex.exdeg)) {
+        return false;
+    }
+    else if (vertex.indeg + vertex.exdeg < min_ext_deg) {
+        return false;
+    }
+    else if (vertex.exdeg == 0 && vertex.indeg < h_get_mindeg(clique_size + vertex.exdeg)) {
+        return false;
+    }
+    else if (vertex.indeg + upper_bound < minimum_degrees[clique_size + upper_bound]) {
+        return false;
+    }
+    else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + lower_bound)) {
+        return false;
+    }
+    else {
+        return true;
+    }
+}
+
+
+#endif // DCUQC_HOST_FUNCTIONS_H
