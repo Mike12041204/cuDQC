@@ -77,14 +77,9 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file)
 
 
 
-    // TODO - divide work and move to cpu, how should this be done?
-    // TODO - for now doing block shift, change later
-    // TODO - remove CPU MODE as it is not used anyways
     // TRANSFER TO GPU
-    if (!CPU_MODE) {
-        move_to_gpu(hd, dd);
-        cudaDeviceSynchronize();
-    }
+    move_to_gpu(hd, dd);
+    cudaDeviceSynchronize();
 
 
 
@@ -691,7 +686,7 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
     (*hd.current_level)++;
 }
 
-// NEW - changed to distribute work amongst processes
+// TODO - distribute work amongst processes in more intelligent manner 
 void move_to_gpu(CPU_Data& hd, GPU_Data& dd)
 {
     uint64_t* tasks_count;

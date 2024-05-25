@@ -15,12 +15,8 @@
 // - dont need 2 tasks on GPU
 // - remove cmd line input for results
 // - remove intersection toggle in cmd line
-// - remove cpu mode
 // - make global variables local
 // - make cuTS mpi its own file
-// - move device expand_level to device expansion header filer and source
-// - inline some gpu methods
-// - inline host sort methods and improve their style
 // - review all code and code style
 
 // MAIN

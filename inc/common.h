@@ -62,8 +62,6 @@ using namespace std;
 // cpu settings
 #define CPU_LEVELS 1
 #define CPU_EXPAND_THRESHOLD 1
-// whether the program will run entirely on the CPU or not, 0-CPU/GPU 1-CPU only
-#define CPU_MODE 0
 
 // debug toggle 0-normal/1-debug
 #define DEBUG_TOGGLE 1
