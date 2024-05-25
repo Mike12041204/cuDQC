@@ -285,12 +285,10 @@ void allocate_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, CPU_Graph& hg)
     chkerr(cudaMalloc((void**)&dd.minimum_degree_ratio, sizeof(double)));
     chkerr(cudaMalloc((void**)&dd.minimum_degrees, sizeof(int) * (hg.number_of_vertices + 1)));
     chkerr(cudaMalloc((void**)&dd.minimum_clique_size, sizeof(int)));
-    chkerr(cudaMalloc((void**)&dd.scheduling_toggle, sizeof(int)));
 
     chkerr(cudaMemcpy(dd.minimum_degree_ratio, &minimum_degree_ratio, sizeof(double), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(dd.minimum_degrees, minimum_degrees, sizeof(int) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(dd.minimum_clique_size, &minimum_clique_size, sizeof(int), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.scheduling_toggle, &scheduling_toggle, sizeof(int), cudaMemcpyHostToDevice));
 
     chkerr(cudaMalloc((void**)&dd.total_tasks, sizeof(int)));
 
@@ -871,7 +869,6 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
     chkerr(cudaFree(dd.minimum_degree_ratio));
     chkerr(cudaFree(dd.minimum_degrees));
     chkerr(cudaFree(dd.minimum_clique_size));
-    chkerr(cudaFree(dd.scheduling_toggle));
 
     chkerr(cudaFree(dd.total_tasks));
 

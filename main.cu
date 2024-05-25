@@ -11,10 +11,8 @@
 // - examine code for unnecessary syncs on the GPU
 // - in degree pruning see if we can remove failed_found by consolidating with success
 // - see whether it's possible to parallelize some of calculate_LU_bounds
-// - remove device expand level code duplication by using a method
 // - dont need 2 tasks on GPU
 // - remove cmd line input for results
-// - remove intersection toggle in cmd line
 // - make global variables local
 // - make cuTS mpi its own file
 // - review all code and code style
@@ -26,8 +24,8 @@ int main(int argc, char* argv[])
     auto start2 = chrono::high_resolution_clock::now();
 
     // ENSURE PROPER USAGE
-    if (argc != 6) {
-        printf("Usage: ./main <graph_file> <gamma> <min_size> <output_file.txt> <scheduling toggle 0-dyanmic/1-static>\n");
+    if (argc != 5) {
+        printf("Usage: ./main <graph_file> <gamma> <min_size> <output_file.txt>\n");
         return 1;
     }
     ifstream graph_stream(argv[1], ios::in);
@@ -43,11 +41,6 @@ int main(int argc, char* argv[])
     minimum_clique_size = atoi(argv[3]);
     if (minimum_clique_size <= 1) {
         printf("minimum size must be greater than 1\n");
-        return 1;
-    }
-    scheduling_toggle = atoi(argv[5]);
-    if (!(scheduling_toggle == 0 || scheduling_toggle == 1)) {
-        cout << "scheduling toggle must be 0 or 1" << endl;
         return 1;
     }
     if (CPU_EXPAND_THRESHOLD > EXPAND_THRESHOLD) {

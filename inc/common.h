@@ -175,7 +175,6 @@ struct GPU_Data
     double* minimum_degree_ratio;
     int* minimum_degrees;
     int* minimum_clique_size;
-    int* scheduling_toggle;
 
     uint64_t* buffer_offset_start;
     uint64_t* buffer_start;
@@ -269,7 +268,6 @@ extern uint64_t mts, mbs, mbo, mcs, mco, wts, wto, wcs, wco, mvs;
 extern double minimum_degree_ratio;
 extern int minimum_clique_size;
 extern int* minimum_degrees;
-extern int scheduling_toggle;
 
 // MPI VARIABLES
 extern int wsize;
