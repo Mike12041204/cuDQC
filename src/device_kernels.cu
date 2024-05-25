@@ -174,7 +174,7 @@ __global__ void d_expand_level(GPU_Data dd)
 
                 // WRITE TASKS TO BUFFERS
                 // sort vertices in Quick efficient enumeration order before writing
-                d_sort(ld.vertices, wd.total_vertices[WIB_IDX], d_sort_vert_Q);
+                d_oe_sort_vert(ld.vertices, wd.total_vertices[WIB_IDX], d_comp_vert_Q);
 
                 if (wd.number_of_candidates[WIB_IDX] > 0) {
                     d_write_to_tasks(dd, wd, ld);
@@ -315,7 +315,7 @@ __global__ void d_expand_level(GPU_Data dd)
 
                 // WRITE TASKS TO BUFFERS
                 // sort vertices in Quick efficient enumeration order before writing
-                d_sort(ld.vertices, wd.total_vertices[WIB_IDX], d_sort_vert_Q);
+                d_oe_sort_vert(ld.vertices, wd.total_vertices[WIB_IDX], d_comp_vert_Q);
 
                 if (wd.number_of_candidates[WIB_IDX] > 0) {
                     d_write_to_tasks(dd, wd, ld);
@@ -525,7 +525,7 @@ __device__ int d_lookahead_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
             }
 
             phelper1 = dd.read_vertices[wd.start[WIB_IDX] + j].vertexid;
-            phelper2 = d_bsearch_array(dd.twohop_neighbors + dd.twohop_offsets[phelper1], dd.twohop_offsets[phelper1 + 1] - dd.twohop_offsets[phelper1], pvertexid);
+            phelper2 = d_b_search_int(dd.twohop_neighbors + dd.twohop_offsets[phelper1], dd.twohop_offsets[phelper1 + 1] - dd.twohop_offsets[phelper1], pvertexid);
         
             if (phelper2 > -1) {
                 dd.read_vertices[wd.start[WIB_IDX] + i].lvl2adj++;
@@ -583,7 +583,7 @@ __device__ int d_remove_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 
     for (int i = LANE_IDX; i < wd.tot_vert[WIB_IDX] && !wd.success[WIB_IDX]; i += WARP_SIZE) {
         phelper1 = dd.read_vertices[wd.start[WIB_IDX] + i].vertexid;
-        phelper2 = d_bsearch_array(dd.onehop_neighbors + dd.onehop_offsets[pvertexid], dd.onehop_offsets[pvertexid + 1] - dd.onehop_offsets[pvertexid], phelper1);
+        phelper2 = d_b_search_int(dd.onehop_neighbors + dd.onehop_offsets[pvertexid], dd.onehop_offsets[pvertexid + 1] - dd.onehop_offsets[pvertexid], phelper1);
 
         if (phelper2 > -1) {
             dd.read_vertices[wd.start[WIB_IDX] + i].exdeg--;
@@ -625,7 +625,7 @@ __device__ int d_add_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 
     for (int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE) {
         phelper1 = ld.vertices[i].vertexid;
-        phelper2 = d_bsearch_array(dd.onehop_neighbors + dd.onehop_offsets[pvertexid], dd.onehop_offsets[pvertexid + 1] - dd.onehop_offsets[pvertexid], phelper1);
+        phelper2 = d_b_search_int(dd.onehop_neighbors + dd.onehop_offsets[pvertexid], dd.onehop_offsets[pvertexid + 1] - dd.onehop_offsets[pvertexid], phelper1);
 
         if (phelper2 > -1) {
             ld.vertices[i].exdeg--;
@@ -676,7 +676,7 @@ __device__ int d_critical_vertex_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data
             for (int i = wd.number_of_members[WIB_IDX] + LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE) {
                 if (ld.vertices[i].label != 4) {
                     // if candidate is neighbor of critical vertex mark as such
-                    if (d_bsearch_array(dd.onehop_neighbors + dd.onehop_offsets[phelper1], dd.onehop_offsets[phelper1 + 1] - dd.onehop_offsets[phelper1], ld.vertices[i].vertexid) > -1) {
+                    if (d_b_search_int(dd.onehop_neighbors + dd.onehop_offsets[phelper1], dd.onehop_offsets[phelper1 + 1] - dd.onehop_offsets[phelper1], ld.vertices[i].vertexid) > -1) {
                         ld.vertices[i].label = 4;
                     }
                 }
@@ -688,7 +688,7 @@ __device__ int d_critical_vertex_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data
 
 
     // sort vertices so that critical vertex adjacent candidates are immediately after vertices within the clique
-    d_sort(ld.vertices + wd.number_of_members[WIB_IDX], wd.number_of_candidates[WIB_IDX], d_sort_vert_cv);
+    d_oe_sort_vert(ld.vertices + wd.number_of_members[WIB_IDX], wd.number_of_candidates[WIB_IDX], d_comp_vert_cv);
 
     // count number of critical adjacent vertices
     number_of_crit_adj = 0;
@@ -722,12 +722,12 @@ __device__ int d_critical_vertex_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data
             phelper1 = ld.vertices[k].vertexid;
 
             for (int i = wd.number_of_members[WIB_IDX]; i < wd.number_of_members[WIB_IDX] + number_of_crit_adj; i++) {
-                if (d_bsearch_array(dd.onehop_neighbors + dd.onehop_offsets[phelper1], dd.onehop_offsets[phelper1 + 1] - dd.onehop_offsets[phelper1], ld.vertices[i].vertexid) > -1) {
+                if (d_b_search_int(dd.onehop_neighbors + dd.onehop_offsets[phelper1], dd.onehop_offsets[phelper1 + 1] - dd.onehop_offsets[phelper1], ld.vertices[i].vertexid) > -1) {
                     ld.vertices[k].indeg++;
                     ld.vertices[k].exdeg--;
                 }
 
-                if (d_bsearch_array(dd.twohop_neighbors + dd.twohop_offsets[phelper1], dd.twohop_offsets[phelper1 + 1] - dd.twohop_offsets[phelper1], ld.vertices[i].vertexid) > -1) {
+                if (d_b_search_int(dd.twohop_neighbors + dd.twohop_offsets[phelper1], dd.twohop_offsets[phelper1 + 1] - dd.twohop_offsets[phelper1], ld.vertices[i].vertexid) > -1) {
                     dd.adjacencies[(WVERTICES_SIZE * WARP_IDX) + k]++;
                 }
             }
@@ -810,7 +810,7 @@ __device__ void d_diameter_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld, 
 
     for (int i = wd.number_of_members[WIB_IDX] + LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE) {
         phelper1 = ld.vertices[i].vertexid;
-        phelper2 = d_bsearch_array(dd.twohop_neighbors + dd.twohop_offsets[pvertexid], dd.twohop_offsets[pvertexid + 1] - dd.twohop_offsets[pvertexid], phelper1);
+        phelper2 = d_b_search_int(dd.twohop_neighbors + dd.twohop_offsets[pvertexid], dd.twohop_offsets[pvertexid + 1] - dd.twohop_offsets[pvertexid], phelper1);
 
         if (phelper2 > -1) {
             ld.vertices[i].label = 0;
@@ -913,7 +913,7 @@ __device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 
 
 
-    d_sort_i(dd.candidate_indegs + (WVERTICES_SIZE * WARP_IDX), wd.remaining_count[WIB_IDX], d_sort_degs);
+    d_oe_sort_int(dd.candidate_indegs + (WVERTICES_SIZE * WARP_IDX), wd.remaining_count[WIB_IDX], d_comp_int_desc);
 
     d_calculate_LU_bounds(dd, wd, ld, wd.remaining_count[WIB_IDX]);
     if (wd.invalid_bounds[WIB_IDX]) {
@@ -926,7 +926,7 @@ __device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
     }
     __syncwarp();
     for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX] && !wd.success[WIB_IDX]; k += WARP_SIZE) {
-        if (!d_vert_isextendable_LU(ld.vertices[k], dd, wd, ld)) {
+        if (!d_vert_isextendable(ld.vertices[k], dd, wd, ld)) {
             wd.success[WIB_IDX] = true;
             break;
         }
@@ -949,7 +949,7 @@ __device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
     lane_removed_count = 0;
     
     for (int i = wd.number_of_members[WIB_IDX] + LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE) {
-        if (ld.vertices[i].label == 0 && d_cand_isvalid_LU(ld.vertices[i], dd, wd, ld)) {
+        if (ld.vertices[i].label == 0 && d_cand_isvalid(ld.vertices[i], dd, wd, ld)) {
             dd.lane_remaining_candidates[lane_write + lane_remaining_count++] = i;
         }
         else {
@@ -1025,7 +1025,7 @@ __device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 
                 for (int j = 0; j < wd.remaining_count[WIB_IDX]; j++) {
                     phelper1 = read[j].vertexid;
-                    phelper2 = d_bsearch_array(dd.onehop_neighbors + dd.onehop_offsets[phelper1], dd.onehop_offsets[phelper1 + 1] - dd.onehop_offsets[phelper1], pvertexid);
+                    phelper2 = d_b_search_int(dd.onehop_neighbors + dd.onehop_offsets[phelper1], dd.onehop_offsets[phelper1 + 1] - dd.onehop_offsets[phelper1], pvertexid);
 
                     if (phelper2 > -1) {
                         ld.vertices[i].exdeg++;
@@ -1042,7 +1042,7 @@ __device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
                     }
 
                     phelper1 = read[j].vertexid;
-                    phelper2 = d_bsearch_array(dd.onehop_neighbors + dd.onehop_offsets[phelper1], dd.onehop_offsets[phelper1 + 1] - dd.onehop_offsets[phelper1], pvertexid);
+                    phelper2 = d_b_search_int(dd.onehop_neighbors + dd.onehop_offsets[phelper1], dd.onehop_offsets[phelper1 + 1] - dd.onehop_offsets[phelper1], pvertexid);
 
                     if (phelper2 > -1) {
                         read[i].exdeg++;
@@ -1057,7 +1057,7 @@ __device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 
                 for (int j = 0; j < wd.removed_count[WIB_IDX]; j++) {
                     phelper1 = dd.removed_candidates[(WVERTICES_SIZE * WARP_IDX) + j];
-                    phelper2 = d_bsearch_array(dd.onehop_neighbors + dd.onehop_offsets[phelper1], dd.onehop_offsets[phelper1 + 1] - dd.onehop_offsets[phelper1], pvertexid);
+                    phelper2 = d_b_search_int(dd.onehop_neighbors + dd.onehop_offsets[phelper1], dd.onehop_offsets[phelper1 + 1] - dd.onehop_offsets[phelper1], pvertexid);
 
                     if (phelper2 > -1) {
                         ld.vertices[i].exdeg--;
@@ -1070,7 +1070,7 @@ __device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 
                 for (int j = 0; j < wd.removed_count[WIB_IDX]; j++) {
                     phelper1 = dd.removed_candidates[(WVERTICES_SIZE * WARP_IDX) + j];
-                    phelper2 = d_bsearch_array(dd.onehop_neighbors + dd.onehop_offsets[phelper1], dd.onehop_offsets[phelper1 + 1] - dd.onehop_offsets[phelper1], pvertexid);
+                    phelper2 = d_b_search_int(dd.onehop_neighbors + dd.onehop_offsets[phelper1], dd.onehop_offsets[phelper1 + 1] - dd.onehop_offsets[phelper1], pvertexid);
 
                     if (phelper2 > -1) {
                         read[i].exdeg--;
@@ -1083,7 +1083,7 @@ __device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
         lane_remaining_count = 0;
 
         for (int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE) {
-            if (d_cand_isvalid_LU(read[i], dd, wd, ld)) {
+            if (d_cand_isvalid(read[i], dd, wd, ld)) {
                 dd.lane_candidate_indegs[lane_write + lane_remaining_count++] = read[i].indeg;
             }
         }
@@ -1113,7 +1113,7 @@ __device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 
 
 
-        d_sort_i(dd.candidate_indegs + (WVERTICES_SIZE * WARP_IDX), wd.num_val_cands[WIB_IDX], d_sort_degs);
+        d_oe_sort_int(dd.candidate_indegs + (WVERTICES_SIZE * WARP_IDX), wd.num_val_cands[WIB_IDX], d_comp_int_desc);
 
         d_calculate_LU_bounds(dd, wd, ld, wd.num_val_cands[WIB_IDX]);
         if (wd.invalid_bounds[WIB_IDX]) {
@@ -1122,7 +1122,7 @@ __device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 
         // check for failed vertices
         for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX] && !wd.success[WIB_IDX]; k += WARP_SIZE) {
-            if (!d_vert_isextendable_LU(ld.vertices[k], dd, wd, ld)) {
+            if (!d_vert_isextendable(ld.vertices[k], dd, wd, ld)) {
                 wd.success[WIB_IDX] = true;
                 break;
             }
@@ -1140,7 +1140,7 @@ __device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 
         // check for failed candidates
         for (int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE) {
-            if (d_cand_isvalid_LU(read[i], dd, wd, ld)) {
+            if (d_cand_isvalid(read[i], dd, wd, ld)) {
                 dd.lane_remaining_candidates[lane_write + lane_remaining_count++] = i;
             }
             else {
@@ -1422,7 +1422,7 @@ __device__ void d_write_to_tasks(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 
 // --- TERTIARY KENERLS ---
 // searches an int array for a certain int, returns the position in the array that item was found, or -1 if not found
-__device__ int d_bsearch_array(int* search_array, int array_size, int search_number)
+__device__ int d_b_search_int(int* search_array, int array_size, int search_number)
 {
     // ALGO - BINARY
     // TYPE - SERIAL
@@ -1449,7 +1449,7 @@ __device__ int d_bsearch_array(int* search_array, int array_size, int search_num
 }
 
 // consider using merge
-__device__ void d_sort(Vertex* target, int size, int (*func)(Vertex&, Vertex&))
+__device__ void d_oe_sort_vert(Vertex* target, int size, int (*func)(Vertex&, Vertex&))
 {
     // ALGO - ODD/EVEN
     // TYPE - PARALLEL
@@ -1472,7 +1472,7 @@ __device__ void d_sort(Vertex* target, int size, int (*func)(Vertex&, Vertex&))
     }
 }
 
-__device__ void d_sort_i(int* target, int size, int (*func)(int, int))
+__device__ void d_oe_sort_int(int* target, int size, int (*func)(int, int))
 {
     // ALGO - ODD/EVEN
     // TYPE - PARALLEL
@@ -1493,114 +1493,6 @@ __device__ void d_sort_i(int* target, int size, int (*func)(int, int))
         }
         __syncwarp();
     }
-}
-
-// Quick enumeration order sort keys
-__device__ int d_sort_vert_Q(Vertex& v1, Vertex& v2)
-{
-    // order is: member -> covered -> cands -> cover
-    // keys are: indeg -> exdeg -> lvl2adj -> vertexid
-
-    if (v1.label == 1 && v2.label != 1)
-        return -1;
-    else if (v1.label != 1 && v2.label == 1)
-        return 1;
-    else if (v1.label == 2 && v2.label != 2)
-        return -1;
-    else if (v1.label != 2 && v2.label == 2)
-        return 1;
-    else if (v1.label == 0 && v2.label != 0)
-        return -1;
-    else if (v1.label != 0 && v2.label == 0)
-        return 1;
-    else if (v1.label == 3 && v2.label != 3)
-        return -1;
-    else if (v1.label != 3 && v2.label == 3)
-        return 1;
-    else if (v1.indeg > v2.indeg)
-        return -1;
-    else if (v1.indeg < v2.indeg)
-        return 1;
-    else if (v1.exdeg > v2.exdeg)
-        return -1;
-    else if (v1.exdeg < v2.exdeg)
-        return 1;
-    else if (v1.lvl2adj > v2.lvl2adj)
-        return -1;
-    else if (v1.lvl2adj < v2.lvl2adj)
-        return 1;
-    else if (v1.vertexid > v2.vertexid)
-        return -1;
-    else if (v1.vertexid < v2.vertexid)
-        return 1;
-    else
-        return 0;
-}
-
-__device__ int d_sort_vert_cv(Vertex& v1, Vertex& v2)
-{
-    // put crit adj vertices before candidates
-
-    if (v1.label == 4 && v2.label != 4)
-        return -1;
-    else if (v1.label != 4 && v2.label == 4)
-        return 1;
-    else
-        return 0;
-}
-
-__device__ int d_sort_degs(int n1, int n2)
-{
-    // descending order
-
-    if (n1 > n2)
-        return -1;
-    else if (n1 < n2)
-        return 1;
-    else
-        return 0;
-}
-
-__device__ int d_get_mindeg(int number_of_members, GPU_Data& dd)
-{
-    if (number_of_members < (*(dd.minimum_clique_size)))
-        return dd.minimum_degrees[(*(dd.minimum_clique_size))];
-    else
-        return dd.minimum_degrees[number_of_members];
-}
-
-__device__ bool d_cand_isvalid_LU(Vertex& vertex, GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
-{
-    if (vertex.indeg + vertex.exdeg < dd.minimum_degrees[(*(dd.minimum_clique_size))])
-        return false;
-    else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.exdeg + 1, dd))
-        return false;
-    else if (vertex.indeg + vertex.exdeg < wd.min_ext_deg[WIB_IDX])
-        return false;
-    else if (vertex.indeg + wd.upper_bound[WIB_IDX] - 1 < dd.minimum_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]])
-        return false;
-    else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd))
-        return false;
-    else
-        return true;
-}
-
-__device__ bool d_vert_isextendable_LU(Vertex& vertex, GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
-{
-    if (vertex.indeg + vertex.exdeg < dd.minimum_degrees[(*(dd.minimum_clique_size))])
-        return false;
-    else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.exdeg, dd))
-        return false;
-    else if (vertex.indeg + vertex.exdeg < wd.min_ext_deg[WIB_IDX])
-        return false;
-    else if (vertex.exdeg == 0 && vertex.indeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.exdeg, dd))
-        return false;
-    else if (vertex.indeg + wd.upper_bound[WIB_IDX] < dd.minimum_degrees[wd.number_of_members[WIB_IDX] + wd.upper_bound[WIB_IDX]])
-        return false;
-    else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd))
-        return false;
-    else
-        return true;
 }
 
 // --- DEBUG KERNELS ---
