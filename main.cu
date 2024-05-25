@@ -12,7 +12,6 @@
 // - in degree pruning see if we can remove failed_found by consolidating with success
 // - see whether it's possible to parallelize some of calculate_LU_bounds
 // - dont need 2 tasks on GPU
-// - remove cmd line input for results
 // - make global variables local
 // - make cuTS mpi its own file
 // - review all code and code style
@@ -24,8 +23,8 @@ int main(int argc, char* argv[])
     auto start2 = chrono::high_resolution_clock::now();
 
     // ENSURE PROPER USAGE
-    if (argc != 5) {
-        printf("Usage: ./main <graph_file> <gamma> <min_size> <output_file.txt>\n");
+    if (argc != 4) {
+        printf("Usage: ./main <graph_file> <gamma> <min_size>\n");
         return 1;
     }
     ifstream graph_stream(argv[1], ios::in);

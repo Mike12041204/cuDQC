@@ -34,4 +34,4 @@ src/Quick_rmnonmax.o: src/Quick_rmnonmax.cpp inc/common.h inc/Quick_rmnonmax.h
 
 .PHONY: clean
 clean:
-	rm -f $(OBJECTS) $(TARGET) error_DcuQC.txt results_DcuQC.txt output* temp* 
+	rm -f $(OBJECTS) $(TARGET) error_DcuQC.txt results_DcuQC.txt output_DcuQC* temp_DcuQC* 
