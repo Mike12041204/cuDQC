@@ -1424,9 +1424,9 @@ __device__ void d_write_to_tasks(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 // searches an int array for a certain int, returns the position in the array that item was found, or -1 if not found
 __device__ int d_bsearch_array(int* search_array, int array_size, int search_number)
 {
-    // ALGO - binary
-    // TYPE - serial
-    // SPEED - 0(log(n))
+    // ALGO - BINARY
+    // TYPE - SERIAL
+    // SPEED - O(log(n))
 
     int low = 0;
     int high = array_size - 1;
@@ -1553,74 +1553,57 @@ __device__ int d_sort_degs(int n1, int n2)
 {
     // descending order
 
-    if (n1 > n2) {
+    if (n1 > n2)
         return -1;
-    }
-    else if (n1 < n2) {
+    else if (n1 < n2)
         return 1;
-    }
-    else {
+    else
         return 0;
-    }
 }
 
 __device__ int d_get_mindeg(int number_of_members, GPU_Data& dd)
 {
-    if (number_of_members < (*(dd.minimum_clique_size))) {
+    if (number_of_members < (*(dd.minimum_clique_size)))
         return dd.minimum_degrees[(*(dd.minimum_clique_size))];
-    }
-    else {
+    else
         return dd.minimum_degrees[number_of_members];
-    }
 }
 
 __device__ bool d_cand_isvalid_LU(Vertex& vertex, GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 {
-    if (vertex.indeg + vertex.exdeg < dd.minimum_degrees[(*(dd.minimum_clique_size))]) {
+    if (vertex.indeg + vertex.exdeg < dd.minimum_degrees[(*(dd.minimum_clique_size))])
         return false;
-    }
-    else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.exdeg + 1, dd)) {
+    else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.exdeg + 1, dd))
         return false;
-    }
-    else if (vertex.indeg + vertex.exdeg < wd.min_ext_deg[WIB_IDX]) {
+    else if (vertex.indeg + vertex.exdeg < wd.min_ext_deg[WIB_IDX])
         return false;
-    }
-    else if (vertex.indeg + wd.upper_bound[WIB_IDX] - 1 < dd.minimum_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]]) {
+    else if (vertex.indeg + wd.upper_bound[WIB_IDX] - 1 < dd.minimum_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]])
         return false;
-    }
-    else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd)) {
+    else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd))
         return false;
-    }
-    else {
+    else
         return true;
-    }
 }
 
 __device__ bool d_vert_isextendable_LU(Vertex& vertex, GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
 {
-    if (vertex.indeg + vertex.exdeg < dd.minimum_degrees[(*(dd.minimum_clique_size))]) {
+    if (vertex.indeg + vertex.exdeg < dd.minimum_degrees[(*(dd.minimum_clique_size))])
         return false;
-    }
-    else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.exdeg, dd)) {
+    else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.exdeg, dd))
         return false;
-    }
-    else if (vertex.indeg + vertex.exdeg < wd.min_ext_deg[WIB_IDX]) {
+    else if (vertex.indeg + vertex.exdeg < wd.min_ext_deg[WIB_IDX])
         return false;
-    }
-    else if (vertex.exdeg == 0 && vertex.indeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.exdeg, dd)) {
+    else if (vertex.exdeg == 0 && vertex.indeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.exdeg, dd))
         return false;
-    }
-    else if (vertex.indeg + wd.upper_bound[WIB_IDX] < dd.minimum_degrees[wd.number_of_members[WIB_IDX] + wd.upper_bound[WIB_IDX]]) {
+    else if (vertex.indeg + wd.upper_bound[WIB_IDX] < dd.minimum_degrees[wd.number_of_members[WIB_IDX] + wd.upper_bound[WIB_IDX]])
         return false;
-    }
-    else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd)) {
+    else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd))
         return false;
-    }
-    else {
+    else
         return true;
-    }
 }
 
+// --- DEBUG KERNELS ---
 __device__ void d_print_vertices(Vertex* vertices, int size)
 {
     printf("\nOffsets:\n0 %i\nVertex:\n", size);

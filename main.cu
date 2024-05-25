@@ -21,8 +21,6 @@
 // - move device expand_level to device expansion header filer and source
 // - inline some gpu methods
 // - inline host sort methods and improve their style
-// - combine host functions into one file
-// - consider what methods go in whiles
 // - review all code and code style
 
 // MAIN

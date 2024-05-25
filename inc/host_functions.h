@@ -8,13 +8,13 @@ void calculate_minimum_degrees(CPU_Graph& hg);
 void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file);
 void allocate_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, CPU_Graph& hg);
 void initialize_tasks(CPU_Graph& hg, CPU_Data& hd);
+void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc);
 void move_to_gpu(CPU_Data& hd, GPU_Data& dd);
 void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& output_file);
 void flush_cliques(CPU_Cliques& hc, ofstream& temp_results);
 void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc);
 
 // --- SECONDARY EXPANSION FUNCTIONS ---
-void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc);
 int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, int tot_vert, int num_mem, int num_cand, uint64_t start);
 int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int& tot_vert, int& num_cand, int& num_vert, uint64_t start);
 int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int& number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg);
@@ -27,62 +27,121 @@ void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex
 void h_fill_from_buffer(CPU_Data& hd, Vertex* write_vertices, uint64_t* write_offsets, uint64_t* write_count, int threshold);
 
 // --- TERTIARY FUNCTIONS ---
-int h_sort_vert_cv(const void* a, const void* b);
-int h_sort_vert_Q(const void* a, const void* b);
-int h_sort_desc(const void* a, const void* b);
-inline int h_get_mindeg(int clique_size) {
-    if (clique_size < minimum_clique_size) {
-        return minimum_degrees[minimum_clique_size];
-    }
-    else {
-        return minimum_degrees[clique_size];
-    }
-}
-inline bool h_cand_isvalid_LU(Vertex vertex, int clique_size, int upper_bound, int lower_bound, int min_ext_deg) 
+inline int h_comp_vert_Q(const void* a, const void* b)
 {
-    if (vertex.indeg + vertex.exdeg < minimum_degrees[minimum_clique_size]) {
-        return false;
-    }
-    else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + vertex.exdeg + 1)) {
-        return false;
-    }
-    else if (vertex.indeg + vertex.exdeg < min_ext_deg) {
-        return false;
-    }
-    else if (vertex.indeg + upper_bound - 1 < minimum_degrees[clique_size + lower_bound]) {
-        return false;
-    }
-    else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + lower_bound)) {
-        return false;
-    }
-    else {
-        return true;
-    }
-}
-inline bool h_vert_isextendable_LU(Vertex vertex, int clique_size, int upper_bound, int lower_bound, int min_ext_deg)
-{
-    if (vertex.indeg + vertex.exdeg < minimum_degrees[minimum_clique_size]) {
-        return false;
-    }
-    else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + vertex.exdeg)) {
-        return false;
-    }
-    else if (vertex.indeg + vertex.exdeg < min_ext_deg) {
-        return false;
-    }
-    else if (vertex.exdeg == 0 && vertex.indeg < h_get_mindeg(clique_size + vertex.exdeg)) {
-        return false;
-    }
-    else if (vertex.indeg + upper_bound < minimum_degrees[clique_size + upper_bound]) {
-        return false;
-    }
-    else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + lower_bound)) {
-        return false;
-    }
-    else {
-        return true;
-    }
-}
+    // order is: member -> covered -> cands -> cover
+    // keys are: indeg -> exdeg -> lvl2adj -> vertexid
+    
+    Vertex* v1;
+    Vertex* v2;
 
+    v1 = (Vertex*)a;
+    v2 = (Vertex*)b;
+
+    if (v1->label == 1 && v2->label != 1)
+        return -1;
+    else if (v1->label != 1 && v2->label == 1)
+        return 1;
+    else if (v1->label == 2 && v2->label != 2)
+        return -1;
+    else if (v1->label != 2 && v2->label == 2)
+        return 1;
+    else if (v1->label == 0 && v2->label != 0)
+        return -1;
+    else if (v1->label != 0 && v2->label == 0)
+        return 1;
+    else if (v1->label == 3 && v2->label != 3)
+        return -1;
+    else if (v1->label != 3 && v2->label == 3)
+        return 1;
+    else if (v1->indeg > v2->indeg)
+        return -1;
+    else if (v1->indeg < v2->indeg)
+        return 1;
+    else if (v1->exdeg > v2->exdeg)
+        return -1;
+    else if (v1->exdeg < v2->exdeg)
+        return 1;
+    else if (v1->lvl2adj > v2->lvl2adj)
+        return -1;
+    else if (v1->lvl2adj < v2->lvl2adj)
+        return 1;
+    else if (v1->vertexid > v2->vertexid)
+        return -1;
+    else if (v1->vertexid < v2->vertexid)
+        return 1;
+    else
+        return 0;
+}
+inline int h_comp_vert_cv(const void* a, const void* b)
+{
+    // put crit adj vertices before candidates
+
+    Vertex* v1;
+    Vertex* v2;
+
+    v1 = (Vertex*)a;
+    v2 = (Vertex*)b;
+
+    if (v1->label == 4 && v2->label != 4)
+        return -1;
+    else if (v1->label != 4 && v2->label == 4)
+        return 1;
+    else
+        return 0;
+}
+inline int h_comp_int_desc(const void* a, const void* b) 
+{
+    int n1;
+    int n2;
+
+    n1 = *(int*)a;
+    n2 = *(int*)b;
+
+    if (n1 > n2)
+        return -1;
+    else if (n1 < n2)
+        return 1;
+    else
+        return 0;
+}
+inline int h_get_mindeg(int clique_size) {
+    if (clique_size < minimum_clique_size)
+        return minimum_degrees[minimum_clique_size];
+    else
+        return minimum_degrees[clique_size];
+}
+inline bool h_cand_isvalid(Vertex vertex, int clique_size, int upper_bound, int lower_bound, int min_ext_deg) 
+{
+    if (vertex.indeg + vertex.exdeg < minimum_degrees[minimum_clique_size])
+        return false;
+    else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + vertex.exdeg + 1))
+        return false;
+    else if (vertex.indeg + vertex.exdeg < min_ext_deg)
+        return false;
+    else if (vertex.indeg + upper_bound - 1 < minimum_degrees[clique_size + lower_bound])
+        return false;
+    else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + lower_bound))
+        return false;
+    else
+        return true;
+}
+inline bool h_vert_isextendable(Vertex vertex, int clique_size, int upper_bound, int lower_bound, int min_ext_deg)
+{
+    if (vertex.indeg + vertex.exdeg < minimum_degrees[minimum_clique_size])
+        return false;
+    else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + vertex.exdeg))
+        return false;
+    else if (vertex.indeg + vertex.exdeg < min_ext_deg)
+        return false;
+    else if (vertex.exdeg == 0 && vertex.indeg < h_get_mindeg(clique_size + vertex.exdeg))
+        return false;
+    else if (vertex.indeg + upper_bound < minimum_degrees[clique_size + upper_bound])
+        return false;
+    else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + lower_bound))
+        return false;
+    else
+        return true;
+}
 
 #endif // DCUQC_HOST_FUNCTIONS_H

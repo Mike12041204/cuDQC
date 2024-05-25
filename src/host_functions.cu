@@ -470,7 +470,7 @@ void initialize_tasks(CPU_Graph& hg, CPU_Data& hd)
     }
 
     // sort enumeration order before writing to tasks
-    qsort(vertices, total_vertices, sizeof(Vertex), h_sort_vert_Q);
+    qsort(vertices, total_vertices, sizeof(Vertex), h_comp_vert_Q);
     total_vertices = number_of_candidates;
 
 
@@ -664,7 +664,7 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
 
             // WRITE TO TASKS
             //sort vertices so that lowest degree vertices are first in enumeration order before writing to tasks
-            qsort(vertices, total_vertices, sizeof(Vertex), h_sort_vert_Q);
+            qsort(vertices, total_vertices, sizeof(Vertex), h_comp_vert_Q);
 
             if (number_of_candidates > 0) {
                 h_write_to_tasks(hd, vertices, total_vertices, write_vertices, write_offsets, write_count);
@@ -1137,7 +1137,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
     }
 
     // sort vertices so that critical vertex adjacent candidates are immediately after vertices within the clique
-    qsort(vertices + number_of_members, number_of_candidates, sizeof(Vertex), h_sort_vert_cv);
+    qsort(vertices + number_of_members, number_of_candidates, sizeof(Vertex), h_comp_vert_cv);
 
     // calculate number of critical adjacent vertices
     number_of_crit_adj = 0;
@@ -1302,7 +1302,7 @@ bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
     // helper variables
     int num_val_cands;
 
-    qsort(hd.candidate_indegs, (*hd.remaining_count), sizeof(int), h_sort_desc);
+    qsort(hd.candidate_indegs, (*hd.remaining_count), sizeof(int), h_comp_int_desc);
 
     // if invalid bounds found while calculating lower and upper bounds
     if (h_calculate_LU_bounds(hd, upper_bound, lower_bound, min_ext_deg, vertices, number_of_members, (*hd.remaining_count))) {
@@ -1311,7 +1311,7 @@ bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
 
     // check for failed vertices
     for (int k = 0; k < number_of_members; k++) {
-        if (!h_vert_isextendable_LU(vertices[k], number_of_members, upper_bound, lower_bound, min_ext_deg)) {
+        if (!h_vert_isextendable(vertices[k], number_of_members, upper_bound, lower_bound, min_ext_deg)) {
             return true;
         }
     }
@@ -1321,7 +1321,7 @@ bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
 
     // check for invalid candidates
     for (int i = number_of_members; i < total_vertices; i++) {
-        if (vertices[i].label == 0 && h_cand_isvalid_LU(vertices[i], number_of_members, upper_bound, lower_bound, min_ext_deg)) {
+        if (vertices[i].label == 0 && h_cand_isvalid(vertices[i], number_of_members, upper_bound, lower_bound, min_ext_deg)) {
             hd.remaining_candidates[(*hd.remaining_count)++] = i;
         }
         else {
@@ -1368,12 +1368,12 @@ bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         num_val_cands = 0;
 
         for (int k = 0; k < (*hd.remaining_count); k++) {
-            if (h_cand_isvalid_LU(vertices[hd.remaining_candidates[k]], number_of_members, upper_bound, lower_bound, min_ext_deg)) {
+            if (h_cand_isvalid(vertices[hd.remaining_candidates[k]], number_of_members, upper_bound, lower_bound, min_ext_deg)) {
                 hd.candidate_indegs[num_val_cands++] = vertices[hd.remaining_candidates[k]].indeg;
             }
         }
 
-        qsort(hd.candidate_indegs, num_val_cands, sizeof(int), h_sort_desc);
+        qsort(hd.candidate_indegs, num_val_cands, sizeof(int), h_comp_int_desc);
 
         // if invalid bounds found while calculating lower and upper bounds
         if (h_calculate_LU_bounds(hd, upper_bound, lower_bound, min_ext_deg, vertices, number_of_members, num_val_cands)) {
@@ -1382,7 +1382,7 @@ bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
 
         // check for failed vertices
         for (int k = 0; k < number_of_members; k++) {
-            if (!h_vert_isextendable_LU(vertices[k], number_of_members, upper_bound, lower_bound, min_ext_deg)) {
+            if (!h_vert_isextendable(vertices[k], number_of_members, upper_bound, lower_bound, min_ext_deg)) {
                 return true;
             }
         }
@@ -1392,7 +1392,7 @@ bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
 
         // check for invalid candidates
         for (int k = 0; k < (*hd.remaining_count); k++) {
-            if (h_cand_isvalid_LU(vertices[hd.remaining_candidates[k]], number_of_members, upper_bound, lower_bound, min_ext_deg)) {
+            if (h_cand_isvalid(vertices[hd.remaining_candidates[k]], number_of_members, upper_bound, lower_bound, min_ext_deg)) {
                 hd.remaining_candidates[num_val_cands++] = hd.remaining_candidates[k];
             }
             else {
@@ -1608,91 +1608,4 @@ void h_fill_from_buffer(CPU_Data& hd, Vertex* write_vertices, uint64_t* write_of
     // update counts
     (*write_count) += write_amount;
     (*hd.buffer_count) -= write_amount;
-}
-
-// --- TERTIARY FUNCTIONS ---
-// update how this method looks 
-int h_sort_vert_Q(const void* a, const void* b)
-{
-    // order is: member -> covered -> cands -> cover
-    // keys are: indeg -> exdeg -> lvl2adj -> vertexid
-    
-    Vertex* v1;
-    Vertex* v2;
-
-    v1 = (Vertex*)a;
-    v2 = (Vertex*)b;
-
-    if (v1->label == 1 && v2->label != 1)
-        return -1;
-    else if (v1->label != 1 && v2->label == 1)
-        return 1;
-    else if (v1->label == 2 && v2->label != 2)
-        return -1;
-    else if (v1->label != 2 && v2->label == 2)
-        return 1;
-    else if (v1->label == 0 && v2->label != 0)
-        return -1;
-    else if (v1->label != 0 && v2->label == 0)
-        return 1;
-    else if (v1->label == 3 && v2->label != 3)
-        return -1;
-    else if (v1->label != 3 && v2->label == 3)
-        return 1;
-    else if (v1->indeg > v2->indeg)
-        return -1;
-    else if (v1->indeg < v2->indeg)
-        return 1;
-    else if (v1->exdeg > v2->exdeg)
-        return -1;
-    else if (v1->exdeg < v2->exdeg)
-        return 1;
-    else if (v1->lvl2adj > v2->lvl2adj)
-        return -1;
-    else if (v1->lvl2adj < v2->lvl2adj)
-        return 1;
-    else if (v1->vertexid > v2->vertexid)
-        return -1;
-    else if (v1->vertexid < v2->vertexid)
-        return 1;
-    else
-        return 0;
-}
-
-int h_sort_vert_cv(const void* a, const void* b)
-{
-    // but crit adj vertices before candidates
-
-    Vertex* v1;
-    Vertex* v2;
-
-    v1 = (Vertex*)a;
-    v2 = (Vertex*)b;
-
-    if (v1->label == 4 && v2->label != 4)
-        return -1;
-    else if (v1->label != 4 && v2->label == 4)
-        return 1;
-    else
-        return 0;
-}
-
-// sorts degrees in descending order
-int h_sort_desc(const void* a, const void* b) 
-{
-    int n1;
-    int n2;
-
-    n1 = *(int*)a;
-    n2 = *(int*)b;
-
-    if (n1 > n2) {
-        return -1;
-    }
-    else if (n1 < n2) {
-        return 1;
-    }
-    else {
-        return 0;
-    }
 }
