@@ -52,11 +52,12 @@ using namespace std;
 #define WTASKS_OFFSET_SIZE 10000
 // global memory vertices, should be a multiple of 32 as to not waste space
 #define WVERTICES_SIZE 32000
-// shared memory vertices
-#define VERTICES_SIZE 70
 
 #define EXPAND_THRESHOLD (TASKS_PER_WARP * NUMBER_OF_WARPS)
 #define CLIQUES_DUMP (long)(CLIQUES_SIZE * (CLIQUES_PERCENT / 100.0))
+
+// shared memory vertices
+#define VERTICES_SIZE 70
  
 // PROGRAM RUN SETTINGS
 // cpu settings

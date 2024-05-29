@@ -21,36 +21,6 @@ int main(int argc, char* argv[])
 {
     DS_Sizes dss("DS_Sizes.csv");
 
-    printf("tasks_size: %llu\n", dss.tasks_size);
-    printf("tasks_per_warp: %llu\n", dss.tasks_per_warp);
-    printf("buffer_size: %llu\n", dss.buffer_size);
-    printf("buffer_offset_size: %llu\n", dss.buffer_offset_size);
-    printf("cliques_size: %llu\n", dss.cliques_size);
-    printf("cliques_offset_size: %llu\n", dss.cliques_offset_size);
-    printf("cliques_percent: %llu\n", dss.cliques_percent);
-    printf("wcliques_size: %llu\n", dss.wcliques_size);
-    printf("wcliques_offset_size: %llu\n", dss.wcliques_offset_size);
-    printf("wtasks_size: %llu\n", dss.wtasks_size);
-    printf("wtasks_offset_size: %llu\n", dss.wtasks_offset_size);
-    printf("wvertices_size: %llu\n", dss.wvertices_size);
-    printf("expand_threshold: %llu\n", dss.expand_threshold);
-    printf("cliques_dump: %llu\n", dss.cliques_dump);
-
-    printf("TASKS_SIZE: %llu\n", TASKS_SIZE);
-    printf("TASKS_PER_WARP: %llu\n", TASKS_PER_WARP);
-    printf("BUFFER_SIZE: %llu\n", BUFFER_SIZE);
-    printf("BUFFER_OFFSET_SIZE: %llu\n", BUFFER_OFFSET_SIZE);
-    printf("CLIQUES_SIZE: %llu\n", CLIQUES_SIZE);
-    printf("CLIQUES_OFFSET_SIZE: %llu\n", CLIQUES_OFFSET_SIZE);
-    printf("CLIQUES_PERCENT: %llu\n", CLIQUES_PERCENT);
-    printf("WCLIQUES_SIZE: %llu\n", WCLIQUES_SIZE);
-    printf("WCLIQUES_OFFSET_SIZE: %llu\n", WCLIQUES_OFFSET_SIZE);
-    printf("WTASKS_SIZE: %llu\n", WTASKS_SIZE);
-    printf("WTASKS_OFFSET_SIZE: %llu\n", WTASKS_OFFSET_SIZE);
-    printf("WVERTICES_SIZE: %llu\n", WVERTICES_SIZE);
-    printf("EXPAND_THRESHOLD: %llu\n", EXPAND_THRESHOLD);
-    printf("CLIQUES_DUMP: %ld\n", CLIQUES_DUMP);
-
     // TIME
     auto start2 = chrono::high_resolution_clock::now();
 
@@ -74,7 +44,7 @@ int main(int argc, char* argv[])
         printf("minimum size must be greater than 1\n");
         return 1;
     }
-    if (CPU_EXPAND_THRESHOLD > EXPAND_THRESHOLD) {
+    if (CPU_EXPAND_THRESHOLD > dss.expand_threshold) {
         cout << "CPU_EXPAND_THRESHOLD must be less than the EXPAND_THRESHOLD" << endl;
         return 1;
     }
@@ -119,7 +89,7 @@ int main(int argc, char* argv[])
     }
 
     // SEARCH
-    search(hg, temp_results, output_file);
+    search(hg, temp_results, output_file, dss);
 
     temp_results.close();
 
