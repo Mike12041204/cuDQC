@@ -19,12 +19,12 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file)
     // DATA STRUCTURES
     CPU_Data hd;
     CPU_Cliques hc;
-    GPU_Data dd;
+    GPU_Data h_dd;
 
 
 
     // HANDLE MEMORY
-    allocate_memory(hd, dd, hc, hg);
+    allocate_memory(hd, h_dd, hc, hg);
     cudaDeviceSynchronize();
 
 
@@ -78,7 +78,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file)
 
 
     // TRANSFER TO GPU
-    move_to_gpu(hd, dd);
+    move_to_gpu(hd, h_dd);
     cudaDeviceSynchronize();
 
 
@@ -91,37 +91,37 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file)
     while (!(*hd.maximal_expansion))
     {
         (*(hd.maximal_expansion)) = true;
-        chkerr(cudaMemset(dd.current_task, 0, sizeof(int)));
+        chkerr(cudaMemset(h_dd.current_task, 0, sizeof(int)));
         cudaDeviceSynchronize();
 
         // expand all tasks in 'tasks' array, each warp will write to their respective warp tasks buffer in global memory
-        d_expand_level<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
+        d_expand_level<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(h_dd);
         cudaDeviceSynchronize();
 
 
 
         // DEBUG
         if (DEBUG_TOGGLE) {
-            if (print_Warp_Data_Sizes_Every(dd, 1, output_file)) { break; }
+            if (print_Warp_Data_Sizes_Every(h_dd, 1, output_file)) { break; }
         }
 
 
 
         // consolidate all the warp tasks/cliques buffers into the next global tasks array, buffer, and cliques
-        transfer_buffers<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
+        transfer_buffers<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(h_dd);
         cudaDeviceSynchronize();
 
 
 
         // determine whether maximal expansion has been accomplished
         uint64_t current_level, write_count, buffer_count;
-        chkerr(cudaMemcpy(&current_level, dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-        chkerr(cudaMemcpy(&buffer_count, dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+        chkerr(cudaMemcpy(&current_level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+        chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
         if (current_level % 2 == 0) {
-            chkerr(cudaMemcpy(&write_count, dd.tasks2_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+            chkerr(cudaMemcpy(&write_count, h_dd.tasks2_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
         }
         else {
-            chkerr(cudaMemcpy(&write_count, dd.tasks1_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+            chkerr(cudaMemcpy(&write_count, h_dd.tasks1_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
         }
 
         if (write_count > 0 || buffer_count > 0) {
@@ -132,35 +132,35 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file)
 
 
 
-        chkerr(cudaMemset(dd.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
-        chkerr(cudaMemset(dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
+        chkerr(cudaMemset(h_dd.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
+        chkerr(cudaMemset(h_dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
         if (write_count < EXPAND_THRESHOLD && buffer_count > 0) {
             // if not enough tasks were generated when expanding the previous level to fill the next tasks array the program will attempt to fill the tasks array by popping tasks from the buffer
-            fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
+            fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(h_dd);
             cudaDeviceSynchronize();
         }
         current_level++;
-        chkerr(cudaMemcpy(dd.current_level, &current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(h_dd.current_level, &current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
 
 
 
 
         // determine whether cliques has exceeded defined threshold, if so dump them to a file
         uint64_t cliques_size, cliques_count;
-        chkerr(cudaMemcpy(&cliques_count, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-        chkerr(cudaMemcpy(&cliques_size, dd.cliques_offset + cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+        chkerr(cudaMemcpy(&cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+        chkerr(cudaMemcpy(&cliques_size, h_dd.cliques_offset + cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
         cudaDeviceSynchronize();
 
         // if cliques is more than threshold dump
         if (cliques_size > CLIQUES_DUMP) {
-            dump_cliques(hc, dd, temp_results);
+            dump_cliques(hc, h_dd, temp_results);
         }
 
 
 
         // DEBUG
         if (DEBUG_TOGGLE) {
-            if (print_Data_Sizes_Every(dd, 1, output_file)) { break; }
+            if (print_Data_Sizes_Every(h_dd, 1, output_file)) { break; }
         }
     }
 
@@ -176,28 +176,28 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file)
 
 
 
-    dump_cliques(hc, dd, temp_results);
+    dump_cliques(hc, h_dd, temp_results);
 
-    free_memory(hd, dd, hc);
+    free_memory(hd, h_dd, hc);
 }
 
 // allocates memory for the data structures on the host and device   
-void allocate_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, CPU_Graph& hg)
+void allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph& hg)
 {
     // GPU GRAPH
-    chkerr(cudaMalloc((void**)&dd.number_of_vertices, sizeof(int)));
-    chkerr(cudaMalloc((void**)&dd.number_of_edges, sizeof(int)));
-    chkerr(cudaMalloc((void**)&dd.onehop_neighbors, sizeof(int) * hg.number_of_edges));
-    chkerr(cudaMalloc((void**)&dd.onehop_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1)));
-    chkerr(cudaMalloc((void**)&dd.twohop_neighbors, sizeof(int) * hg.number_of_lvl2adj));
-    chkerr(cudaMalloc((void**)&dd.twohop_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1)));
+    chkerr(cudaMalloc((void**)&h_dd.number_of_vertices, sizeof(int)));
+    chkerr(cudaMalloc((void**)&h_dd.number_of_edges, sizeof(int)));
+    chkerr(cudaMalloc((void**)&h_dd.onehop_neighbors, sizeof(int) * hg.number_of_edges));
+    chkerr(cudaMalloc((void**)&h_dd.onehop_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1)));
+    chkerr(cudaMalloc((void**)&h_dd.twohop_neighbors, sizeof(int) * hg.number_of_lvl2adj));
+    chkerr(cudaMalloc((void**)&h_dd.twohop_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1)));
 
-    chkerr(cudaMemcpy(dd.number_of_vertices, &(hg.number_of_vertices), sizeof(int), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.number_of_edges, &(hg.number_of_edges), sizeof(int), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.onehop_neighbors, hg.onehop_neighbors, sizeof(int) * hg.number_of_edges, cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.onehop_offsets, hg.onehop_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.twohop_neighbors, hg.twohop_neighbors, sizeof(int) * hg.number_of_lvl2adj, cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.twohop_offsets, hg.twohop_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.number_of_vertices, &(hg.number_of_vertices), sizeof(int), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.number_of_edges, &(hg.number_of_edges), sizeof(int), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.onehop_neighbors, hg.onehop_neighbors, sizeof(int) * hg.number_of_edges, cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.onehop_offsets, hg.onehop_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.twohop_neighbors, hg.twohop_neighbors, sizeof(int) * hg.number_of_lvl2adj, cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.twohop_offsets, hg.twohop_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
 
     // CPU DATA
     hd.tasks1_count = new uint64_t;
@@ -239,60 +239,60 @@ void allocate_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, CPU_Graph& hg)
     memset(hd.vertex_order_map, -1, sizeof(int) * hg.number_of_vertices);
 
     // GPU DATA
-    chkerr(cudaMalloc((void**)&dd.current_level, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.current_level, sizeof(uint64_t)));
 
-    chkerr(cudaMalloc((void**)&dd.tasks1_count, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&dd.tasks1_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
-    chkerr(cudaMalloc((void**)&dd.tasks1_vertices, sizeof(Vertex) * TASKS_SIZE));
+    chkerr(cudaMalloc((void**)&h_dd.tasks1_count, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.tasks1_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
+    chkerr(cudaMalloc((void**)&h_dd.tasks1_vertices, sizeof(Vertex) * TASKS_SIZE));
 
-    chkerr(cudaMemset(dd.tasks1_offset, 0, sizeof(uint64_t)));
-    chkerr(cudaMemset(dd.tasks1_count, 0, sizeof(uint64_t)));
+    chkerr(cudaMemset(h_dd.tasks1_offset, 0, sizeof(uint64_t)));
+    chkerr(cudaMemset(h_dd.tasks1_count, 0, sizeof(uint64_t)));
 
-    chkerr(cudaMalloc((void**)&dd.tasks2_count, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&dd.tasks2_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
-    chkerr(cudaMalloc((void**)&dd.tasks2_vertices, sizeof(Vertex) * TASKS_SIZE));
+    chkerr(cudaMalloc((void**)&h_dd.tasks2_count, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.tasks2_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
+    chkerr(cudaMalloc((void**)&h_dd.tasks2_vertices, sizeof(Vertex) * TASKS_SIZE));
 
-    chkerr(cudaMemset(dd.tasks2_offset, 0, sizeof(uint64_t)));
-    chkerr(cudaMemset(dd.tasks2_count, 0, sizeof(uint64_t)));
+    chkerr(cudaMemset(h_dd.tasks2_offset, 0, sizeof(uint64_t)));
+    chkerr(cudaMemset(h_dd.tasks2_count, 0, sizeof(uint64_t)));
 
-    chkerr(cudaMalloc((void**)&dd.buffer_count, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&dd.buffer_offset, sizeof(uint64_t) * BUFFER_OFFSET_SIZE));
-    chkerr(cudaMalloc((void**)&dd.buffer_vertices, sizeof(Vertex) * BUFFER_SIZE));
+    chkerr(cudaMalloc((void**)&h_dd.buffer_count, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.buffer_offset, sizeof(uint64_t) * BUFFER_OFFSET_SIZE));
+    chkerr(cudaMalloc((void**)&h_dd.buffer_vertices, sizeof(Vertex) * BUFFER_SIZE));
 
-    chkerr(cudaMemset(dd.buffer_offset, 0, sizeof(uint64_t)));
-    chkerr(cudaMemset(dd.buffer_count, 0, sizeof(uint64_t)));
+    chkerr(cudaMemset(h_dd.buffer_offset, 0, sizeof(uint64_t)));
+    chkerr(cudaMemset(h_dd.buffer_count, 0, sizeof(uint64_t)));
 
-    chkerr(cudaMalloc((void**)&dd.wtasks_count, sizeof(uint64_t) * NUMBER_OF_WARPS));
-    chkerr(cudaMalloc((void**)&dd.wtasks_offset, (sizeof(uint64_t) * WTASKS_OFFSET_SIZE) * NUMBER_OF_WARPS));
-    chkerr(cudaMalloc((void**)&dd.wtasks_vertices, (sizeof(Vertex) * WTASKS_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.wtasks_count, sizeof(uint64_t) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.wtasks_offset, (sizeof(uint64_t) * WTASKS_OFFSET_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.wtasks_vertices, (sizeof(Vertex) * WTASKS_SIZE) * NUMBER_OF_WARPS));
 
-    chkerr(cudaMemset(dd.wtasks_offset, 0, (sizeof(uint64_t) * WTASKS_OFFSET_SIZE) * NUMBER_OF_WARPS));
-    chkerr(cudaMemset(dd.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
+    chkerr(cudaMemset(h_dd.wtasks_offset, 0, (sizeof(uint64_t) * WTASKS_OFFSET_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMemset(h_dd.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
 
-    chkerr(cudaMalloc((void**)&dd.global_vertices, (sizeof(Vertex) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.global_vertices, (sizeof(Vertex) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
 
-    chkerr(cudaMalloc((void**)&dd.removed_candidates, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
-    chkerr(cudaMalloc((void**)&dd.lane_removed_candidates, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.removed_candidates, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.lane_removed_candidates, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
 
-    chkerr(cudaMalloc((void**)&dd.remaining_candidates, (sizeof(Vertex) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
-    chkerr(cudaMalloc((void**)&dd.lane_remaining_candidates, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.remaining_candidates, (sizeof(Vertex) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.lane_remaining_candidates, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
 
-    chkerr(cudaMalloc((void**)&dd.candidate_indegs, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
-    chkerr(cudaMalloc((void**)&dd.lane_candidate_indegs, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.candidate_indegs, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.lane_candidate_indegs, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
 
-    chkerr(cudaMalloc((void**)&dd.adjacencies, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.adjacencies, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
 
-    chkerr(cudaMalloc((void**)&dd.minimum_degree_ratio, sizeof(double)));
-    chkerr(cudaMalloc((void**)&dd.minimum_degrees, sizeof(int) * (hg.number_of_vertices + 1)));
-    chkerr(cudaMalloc((void**)&dd.minimum_clique_size, sizeof(int)));
+    chkerr(cudaMalloc((void**)&h_dd.minimum_degree_ratio, sizeof(double)));
+    chkerr(cudaMalloc((void**)&h_dd.minimum_degrees, sizeof(int) * (hg.number_of_vertices + 1)));
+    chkerr(cudaMalloc((void**)&h_dd.minimum_clique_size, sizeof(int)));
 
-    chkerr(cudaMemcpy(dd.minimum_degree_ratio, &minimum_degree_ratio, sizeof(double), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.minimum_degrees, minimum_degrees, sizeof(int) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.minimum_clique_size, &minimum_clique_size, sizeof(int), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.minimum_degree_ratio, &minimum_degree_ratio, sizeof(double), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.minimum_degrees, minimum_degrees, sizeof(int) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.minimum_clique_size, &minimum_clique_size, sizeof(int), cudaMemcpyHostToDevice));
 
-    chkerr(cudaMalloc((void**)&dd.total_tasks, sizeof(int)));
+    chkerr(cudaMalloc((void**)&h_dd.total_tasks, sizeof(int)));
 
-    chkerr(cudaMemset(dd.total_tasks, 0, sizeof(int)));
+    chkerr(cudaMemset(h_dd.total_tasks, 0, sizeof(int)));
 
     // CPU CLIQUES
     hc.cliques_count = new uint64_t;
@@ -303,31 +303,31 @@ void allocate_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, CPU_Graph& hg)
     (*(hc.cliques_count)) = 0;
 
     // GPU CLIQUES
-    chkerr(cudaMalloc((void**)&dd.cliques_count, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&dd.cliques_vertex, sizeof(int) * CLIQUES_SIZE));
-    chkerr(cudaMalloc((void**)&dd.cliques_offset, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE));
+    chkerr(cudaMalloc((void**)&h_dd.cliques_count, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.cliques_vertex, sizeof(int) * CLIQUES_SIZE));
+    chkerr(cudaMalloc((void**)&h_dd.cliques_offset, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE));
 
-    chkerr(cudaMemset(dd.cliques_offset, 0, sizeof(uint64_t)));
-    chkerr(cudaMemset(dd.cliques_count, 0, sizeof(uint64_t)));
+    chkerr(cudaMemset(h_dd.cliques_offset, 0, sizeof(uint64_t)));
+    chkerr(cudaMemset(h_dd.cliques_count, 0, sizeof(uint64_t)));
 
-    chkerr(cudaMalloc((void**)&dd.wcliques_count, sizeof(uint64_t) * NUMBER_OF_WARPS));
-    chkerr(cudaMalloc((void**)&dd.wcliques_offset, (sizeof(uint64_t) * WCLIQUES_OFFSET_SIZE) * NUMBER_OF_WARPS));
-    chkerr(cudaMalloc((void**)&dd.wcliques_vertex, (sizeof(int) * WCLIQUES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.wcliques_count, sizeof(uint64_t) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.wcliques_offset, (sizeof(uint64_t) * WCLIQUES_OFFSET_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.wcliques_vertex, (sizeof(int) * WCLIQUES_SIZE) * NUMBER_OF_WARPS));
 
-    chkerr(cudaMemset(dd.wcliques_offset, 0, (sizeof(uint64_t) * WCLIQUES_OFFSET_SIZE) * NUMBER_OF_WARPS));
-    chkerr(cudaMemset(dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
+    chkerr(cudaMemset(h_dd.wcliques_offset, 0, (sizeof(uint64_t) * WCLIQUES_OFFSET_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMemset(h_dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
 
-    chkerr(cudaMalloc((void**)&dd.total_cliques, sizeof(int)));
+    chkerr(cudaMalloc((void**)&h_dd.total_cliques, sizeof(int)));
 
-    chkerr(cudaMemset(dd.total_cliques, 0, sizeof(int)));
+    chkerr(cudaMemset(h_dd.total_cliques, 0, sizeof(int)));
 
-    chkerr(cudaMalloc((void**)&dd.buffer_offset_start, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&dd.buffer_start, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&dd.cliques_offset_start, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&dd.cliques_start, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.buffer_offset_start, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.buffer_start, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.cliques_offset_start, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.cliques_start, sizeof(uint64_t)));
 
     // task scheduling
-    chkerr(cudaMalloc((void**)&dd.current_task, sizeof(int)));
+    chkerr(cudaMalloc((void**)&h_dd.current_task, sizeof(int)));
 }
 
 // processes 0th level of expansion
@@ -487,7 +487,7 @@ void initialize_tasks(CPU_Graph& hg, CPU_Data& hd)
 
 void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
 {
-    // initiate the variables containing the location of the read and write task vectors, done in an alternating, odd-even manner like the c-intersection of cuTS
+    // initiate the variables containing the location of the read and write task vectors, done in an alternating, oh_dd-even manner like the c-intersection of cuTS
     uint64_t* read_count;
     uint64_t* read_offsets;
     Vertex* read_vertices;
@@ -615,8 +615,8 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
 
 
 
-            // ADD ONE VERTEX
-            method_return = h_add_one_vertex(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
+            // Ah_dd ONE VERTEX
+            method_return = h_ah_dd_one_vertex(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
 
             // if vertex in x found as not extendable, check if current set is clique and continue to next iteration
             if (method_return == 1) {
@@ -685,7 +685,7 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
 }
 
 // TODO - distribute work amongst processes in more intelligent manner 
-void move_to_gpu(CPU_Data& hd, GPU_Data& dd)
+void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd)
 {
     uint64_t* tasks_count;
     uint64_t* tasks_offset;
@@ -753,29 +753,29 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& dd)
     // TODO - only copy whats needed
     // move to GPU
     if (CPU_LEVELS % 2 == 1) {
-        chkerr(cudaMemcpy(dd.tasks1_count, hd.tasks1_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(dd.tasks1_offset, hd.tasks1_offset, (EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(dd.tasks1_vertices, hd.tasks1_vertices, (TASKS_SIZE) * sizeof(Vertex), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(h_dd.tasks1_count, hd.tasks1_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(h_dd.tasks1_offset, hd.tasks1_offset, (EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(h_dd.tasks1_vertices, hd.tasks1_vertices, (TASKS_SIZE) * sizeof(Vertex), cudaMemcpyHostToDevice));
     }
     else{
-        chkerr(cudaMemcpy(dd.tasks2_count, hd.tasks2_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(dd.tasks2_offset, hd.tasks2_offset, (EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(dd.tasks2_vertices, hd.tasks2_vertices, (TASKS_SIZE) * sizeof(Vertex), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(h_dd.tasks2_count, hd.tasks2_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(h_dd.tasks2_offset, hd.tasks2_offset, (EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(h_dd.tasks2_vertices, hd.tasks2_vertices, (TASKS_SIZE) * sizeof(Vertex), cudaMemcpyHostToDevice));
     }
 
-    chkerr(cudaMemcpy(dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.buffer_offset, hd.buffer_offset, (BUFFER_OFFSET_SIZE) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.buffer_vertices, hd.buffer_vertices, (BUFFER_SIZE) * sizeof(int), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.buffer_offset, hd.buffer_offset, (BUFFER_OFFSET_SIZE) * sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.buffer_vertices, hd.buffer_vertices, (BUFFER_SIZE) * sizeof(int), cudaMemcpyHostToDevice));
 
-    chkerr(cudaMemcpy(dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
 }
 
-void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
+void dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& temp_results)
 {
     // gpu cliques to cpu cliques
-    chkerr(cudaMemcpy(hc.cliques_count, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(hc.cliques_offset, dd.cliques_offset, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE, cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(hc.cliques_vertex, dd.cliques_vertex, sizeof(int) * CLIQUES_SIZE, cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(hc.cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(hc.cliques_offset, h_dd.cliques_offset, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE, cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(hc.cliques_vertex, h_dd.cliques_vertex, sizeof(int) * CLIQUES_SIZE, cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
 
     // DEBUG
@@ -783,7 +783,7 @@ void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
 
     flush_cliques(hc, temp_results);
 
-    cudaMemset(dd.cliques_count, 0, sizeof(uint64_t));
+    cudaMemset(h_dd.cliques_count, 0, sizeof(uint64_t));
 }
 
 void flush_cliques(CPU_Cliques& hc, ofstream& temp_results) 
@@ -800,15 +800,15 @@ void flush_cliques(CPU_Cliques& hc, ofstream& temp_results)
     ((*hc.cliques_count)) = 0;
 }
 
-void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
+void free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
 {
     // GPU GRAPH
-    chkerr(cudaFree(dd.number_of_vertices));
-    chkerr(cudaFree(dd.number_of_edges));
-    chkerr(cudaFree(dd.onehop_neighbors));
-    chkerr(cudaFree(dd.onehop_offsets));
-    chkerr(cudaFree(dd.twohop_neighbors));
-    chkerr(cudaFree(dd.twohop_offsets));
+    chkerr(cudaFree(h_dd.number_of_vertices));
+    chkerr(cudaFree(h_dd.number_of_edges));
+    chkerr(cudaFree(h_dd.onehop_neighbors));
+    chkerr(cudaFree(h_dd.onehop_offsets));
+    chkerr(cudaFree(h_dd.twohop_neighbors));
+    chkerr(cudaFree(h_dd.twohop_offsets));
 
     // CPU DATA
     delete hd.tasks1_count;
@@ -835,42 +835,42 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
     delete hd.candidate_indegs;
 
     // GPU DATA
-    chkerr(cudaFree(dd.current_level));
+    chkerr(cudaFree(h_dd.current_level));
 
-    chkerr(cudaFree(dd.tasks1_count));
-    chkerr(cudaFree(dd.tasks1_offset));
-    chkerr(cudaFree(dd.tasks1_vertices));
+    chkerr(cudaFree(h_dd.tasks1_count));
+    chkerr(cudaFree(h_dd.tasks1_offset));
+    chkerr(cudaFree(h_dd.tasks1_vertices));
 
-    chkerr(cudaFree(dd.tasks2_count));
-    chkerr(cudaFree(dd.tasks2_offset));
-    chkerr(cudaFree(dd.tasks2_vertices));
+    chkerr(cudaFree(h_dd.tasks2_count));
+    chkerr(cudaFree(h_dd.tasks2_offset));
+    chkerr(cudaFree(h_dd.tasks2_vertices));
 
-    chkerr(cudaFree(dd.buffer_count));
-    chkerr(cudaFree(dd.buffer_offset));
-    chkerr(cudaFree(dd.buffer_vertices));
+    chkerr(cudaFree(h_dd.buffer_count));
+    chkerr(cudaFree(h_dd.buffer_offset));
+    chkerr(cudaFree(h_dd.buffer_vertices));
 
-    chkerr(cudaFree(dd.wtasks_count));
-    chkerr(cudaFree(dd.wtasks_offset));
-    chkerr(cudaFree(dd.wtasks_vertices));
+    chkerr(cudaFree(h_dd.wtasks_count));
+    chkerr(cudaFree(h_dd.wtasks_offset));
+    chkerr(cudaFree(h_dd.wtasks_vertices));
 
-    chkerr(cudaFree(dd.global_vertices));
+    chkerr(cudaFree(h_dd.global_vertices));
 
-    chkerr(cudaFree(dd.remaining_candidates));
-    chkerr(cudaFree(dd.lane_remaining_candidates));
+    chkerr(cudaFree(h_dd.remaining_candidates));
+    chkerr(cudaFree(h_dd.lane_remaining_candidates));
 
-    chkerr(cudaFree(dd.removed_candidates));
-    chkerr(cudaFree(dd.lane_removed_candidates));
+    chkerr(cudaFree(h_dd.removed_candidates));
+    chkerr(cudaFree(h_dd.lane_removed_candidates));
 
-    chkerr(cudaFree(dd.candidate_indegs));
-    chkerr(cudaFree(dd.lane_candidate_indegs));
+    chkerr(cudaFree(h_dd.candidate_indegs));
+    chkerr(cudaFree(h_dd.lane_candidate_indegs));
 
-    chkerr(cudaFree(dd.adjacencies));
+    chkerr(cudaFree(h_dd.adjacencies));
 
-    chkerr(cudaFree(dd.minimum_degree_ratio));
-    chkerr(cudaFree(dd.minimum_degrees));
-    chkerr(cudaFree(dd.minimum_clique_size));
+    chkerr(cudaFree(h_dd.minimum_degree_ratio));
+    chkerr(cudaFree(h_dd.minimum_degrees));
+    chkerr(cudaFree(h_dd.minimum_clique_size));
 
-    chkerr(cudaFree(dd.total_tasks));
+    chkerr(cudaFree(h_dd.total_tasks));
 
     // CPU CLIQUES
     delete hc.cliques_count;
@@ -878,21 +878,21 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
     delete hc.cliques_offset;
 
     // GPU CLIQUES
-    chkerr(cudaFree(dd.cliques_count));
-    chkerr(cudaFree(dd.cliques_vertex));
-    chkerr(cudaFree(dd.cliques_offset));
+    chkerr(cudaFree(h_dd.cliques_count));
+    chkerr(cudaFree(h_dd.cliques_vertex));
+    chkerr(cudaFree(h_dd.cliques_offset));
 
-    chkerr(cudaFree(dd.wcliques_count));
-    chkerr(cudaFree(dd.wcliques_vertex));
-    chkerr(cudaFree(dd.wcliques_offset));
+    chkerr(cudaFree(h_dd.wcliques_count));
+    chkerr(cudaFree(h_dd.wcliques_vertex));
+    chkerr(cudaFree(h_dd.wcliques_offset));
 
-    chkerr(cudaFree(dd.buffer_offset_start));
-    chkerr(cudaFree(dd.buffer_start));
-    chkerr(cudaFree(dd.cliques_offset_start));
-    chkerr(cudaFree(dd.cliques_start));
+    chkerr(cudaFree(h_dd.buffer_offset_start));
+    chkerr(cudaFree(h_dd.buffer_start));
+    chkerr(cudaFree(h_dd.cliques_offset_start));
+    chkerr(cudaFree(h_dd.cliques_start));
 
     // tasks scheduling
-    chkerr(cudaFree(dd.current_task));
+    chkerr(cudaFree(h_dd.current_task));
 }
 
 // --- SECONDARY EXPNASION FUNCTIONS ---
@@ -1013,7 +1013,7 @@ int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int&
 }
 
 // returns 1 if failed found or invalid bound, 0 otherwise
-int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int& number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg)
+int h_ah_dd_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int& number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg)
 {
     // helper variables
     bool method_return;
@@ -1027,7 +1027,7 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
 
 
 
-    // ADD ONE VERTEX
+    // Ah_dd ONE VERTEX
     pvertexid = vertices[number_of_members].vertexid;
 
     vertices[number_of_members].label = 1;
@@ -1182,7 +1182,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
 
         critical_fail = false;
 
-        // all vertices within the clique must be within 2hops of the newly added critical vertex adj vertices
+        // all vertices within the clique must be within 2hops of the newly ah_dded critical vertex adj vertices
         for (int k = 0; k < number_of_members; k++) {
             if (adj_counters[k] != number_of_crit_adj) {
                 critical_fail = true;
@@ -1214,7 +1214,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
             return 2;
         }
 
-        // no failed vertices found so add all critical vertex adj candidates to clique
+        // no failed vertices found so ah_dd all critical vertex adj candidates to clique
         for (int k = number_of_members; k < number_of_members + number_of_crit_adj; k++) {
             vertices[k].label = 1;
         }
@@ -1227,7 +1227,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
     // DIAMTER PRUNING
     (*hd.remaining_count) = 0;
 
-    // remove all cands who are not within 2hops of all newly added cands
+    // remove all cands who are not within 2hops of all newly ah_dded cands
     for (int k = number_of_members; k < total_vertices; k++) {
         if (adj_counters[k] == number_of_crit_adj) {
             hd.candidate_indegs[(*hd.remaining_count)++] = vertices[k].indeg;
