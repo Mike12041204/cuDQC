@@ -183,6 +183,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file)
     dump_cliques(hc, h_dd, temp_results);
 
     free_memory(hd, h_dd, hc);
+    chkerr(cudaFree(dd));
 }
 
 // allocates memory for the data structures on the host and device   
