@@ -20,11 +20,15 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file)
     CPU_Data hd;
     CPU_Cliques hc;
     GPU_Data h_dd;
+    GPU_Data* dd;
 
 
 
     // HANDLE MEMORY
     allocate_memory(hd, h_dd, hc, hg);
+    cudaDeviceSynchronize();
+    chkerr(cudaMalloc((void**)&dd, sizeof(GPU_Data)));
+    chkerr(cudaMemcpy(dd, &h_dd, sizeof(GPU_Data), cudaMemcpyHostToDevice));
     cudaDeviceSynchronize();
 
 
@@ -95,7 +99,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file)
         cudaDeviceSynchronize();
 
         // expand all tasks in 'tasks' array, each warp will write to their respective warp tasks buffer in global memory
-        d_expand_level<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(h_dd);
+        d_expand_level<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
         cudaDeviceSynchronize();
 
 
@@ -108,7 +112,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file)
 
 
         // consolidate all the warp tasks/cliques buffers into the next global tasks array, buffer, and cliques
-        transfer_buffers<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(h_dd);
+        transfer_buffers<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
         cudaDeviceSynchronize();
 
 
@@ -136,7 +140,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file)
         chkerr(cudaMemset(h_dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
         if (write_count < EXPAND_THRESHOLD && buffer_count > 0) {
             // if not enough tasks were generated when expanding the previous level to fill the next tasks array the program will attempt to fill the tasks array by popping tasks from the buffer
-            fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(h_dd);
+            fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
             cudaDeviceSynchronize();
         }
         current_level++;

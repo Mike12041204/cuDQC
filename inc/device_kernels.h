@@ -4,21 +4,21 @@
 #include "./common.h"
 
 // --- PRIMARY KERNELS ---
-__global__ void d_expand_level(GPU_Data dd);
-__global__ void transfer_buffers(GPU_Data dd);
-__global__ void fill_from_buffer(GPU_Data dd);
+__global__ void d_expand_level(GPU_Data* dd);
+__global__ void transfer_buffers(GPU_Data* dd);
+__global__ void fill_from_buffer(GPU_Data* dd);
 
 // --- SECONDARY EXPANSION KERNELS ---
-__device__ int d_lookahead_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ int d_remove_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ int d_add_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ int d_critical_vertex_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ void d_check_for_clique(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ void d_write_to_tasks(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ void d_diameter_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld, int pvertexid);
-__device__ void d_diameter_pruning_cv(GPU_Data& dd, Warp_Data& wd, Local_Data& ld, int number_of_crit_adj);
-__device__ void d_calculate_LU_bounds(GPU_Data& dd, Warp_Data& wd, Local_Data& ld, int number_of_candidates);
-__device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
+__device__ int d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
+__device__ int d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
+__device__ int d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
+__device__ int d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
+__device__ void d_check_for_clique(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
+__device__ void d_write_to_tasks(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
+__device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, int pvertexid);
+__device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, int number_of_crit_adj);
+__device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, int number_of_candidates);
+__device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
 
 // --- TERTIARY KERNELS ---
 __device__ void d_oe_sort_vert(Vertex* target, int size, int (*func)(Vertex&, Vertex&));
@@ -86,31 +86,31 @@ __device__ __forceinline__ int d_comp_int_desc(int n1, int n2)
     else
         return 0;
 }
-__device__ __forceinline__ int d_get_mindeg(int number_of_members, GPU_Data& dd)
+__device__ __forceinline__ int d_get_mindeg(int number_of_members, GPU_Data* dd)
 {
-    if (number_of_members < (*(dd.minimum_clique_size)))
-        return dd.minimum_degrees[(*(dd.minimum_clique_size))];
+    if (number_of_members < (*(dd->minimum_clique_size)))
+        return dd->minimum_degrees[(*(dd->minimum_clique_size))];
     else
-        return dd.minimum_degrees[number_of_members];
+        return dd->minimum_degrees[number_of_members];
 }
-__device__ __forceinline__ bool d_cand_isvalid(Vertex& vertex, GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
+__device__ __forceinline__ bool d_cand_isvalid(Vertex& vertex, GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
-    if (vertex.indeg + vertex.exdeg < dd.minimum_degrees[(*(dd.minimum_clique_size))])
+    if (vertex.indeg + vertex.exdeg < dd->minimum_degrees[(*(dd->minimum_clique_size))])
         return false;
     else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.exdeg + 1, dd))
         return false;
     else if (vertex.indeg + vertex.exdeg < wd.min_ext_deg[WIB_IDX])
         return false;
-    else if (vertex.indeg + wd.upper_bound[WIB_IDX] - 1 < dd.minimum_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]])
+    else if (vertex.indeg + wd.upper_bound[WIB_IDX] - 1 < dd->minimum_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]])
         return false;
     else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd))
         return false;
     else
         return true;
 }
-__device__ __forceinline__ bool d_vert_isextendable(Vertex& vertex, GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
+__device__ __forceinline__ bool d_vert_isextendable(Vertex& vertex, GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
-    if (vertex.indeg + vertex.exdeg < dd.minimum_degrees[(*(dd.minimum_clique_size))])
+    if (vertex.indeg + vertex.exdeg < dd->minimum_degrees[(*(dd->minimum_clique_size))])
         return false;
     else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.exdeg, dd))
         return false;
@@ -118,7 +118,7 @@ __device__ __forceinline__ bool d_vert_isextendable(Vertex& vertex, GPU_Data& dd
         return false;
     else if (vertex.exdeg == 0 && vertex.indeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.exdeg, dd))
         return false;
-    else if (vertex.indeg + wd.upper_bound[WIB_IDX] < dd.minimum_degrees[wd.number_of_members[WIB_IDX] + wd.upper_bound[WIB_IDX]])
+    else if (vertex.indeg + wd.upper_bound[WIB_IDX] < dd->minimum_degrees[wd.number_of_members[WIB_IDX] + wd.upper_bound[WIB_IDX]])
         return false;
     else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd))
         return false;
