@@ -13,46 +13,6 @@ int scheduling_toggle;
 int wsize;
 int grank;
 
-DS_Sizes::DS_Sizes(const string& filename)
-{
-    ifstream file(filename);
-    if (!file.is_open()) {
-        throw runtime_error("Could not open file");
-    }
-
-    string line;
-    int line_count = 0;
-    
-    while (getline(file, line)) {
-        size_t commaPos = line.find(',');
-        if (commaPos != string::npos) {
-            string valueStr = line.substr(commaPos + 1);
-            uint64_t value = stoull(valueStr);
-
-            switch (line_count) {
-                case 0: TASKS_SIZE = value; break;
-                case 1: TASKS_PER_WARP = value; break;
-                case 2: BUFFER_SIZE = value; break;
-                case 3: BUFFER_OFFSET_SIZE = value; break;
-                case 4: CLIQUES_SIZE = value; break;
-                case 5: CLIQUES_OFFSET_SIZE = value; break;
-                case 6: CLIQUES_PERCENT = value; break;
-                case 7: WCLIQUES_SIZE = value; break;
-                case 8: WCLIQUES_OFFSET_SIZE = value; break;
-                case 9: WTASKS_SIZE = value; break;
-                case 10: WTASKS_OFFSET_SIZE = value; break;
-                case 11: WVERTICES_SIZE = value; break;
-            }
-            line_count++;
-        }
-    }
-
-    file.close();
-
-    EXPAND_THRESHOLD = (TASKS_PER_WARP * NUMBER_OF_WARPS);
-    CLIQUES_DUMP = (CLIQUES_SIZE * (CLIQUES_PERCENT / 100.0));
-}
-
 CPU_Graph::CPU_Graph(ifstream& graph_stream)
 {
     graph_stream >> number_of_vertices;

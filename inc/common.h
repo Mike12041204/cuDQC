@@ -37,8 +37,26 @@ using namespace std;
 #define NUMBER_OF_WARPS (NUM_OF_BLOCKS * WARPS_PER_BLOCK)
 #define NUMBER_OF_THREADS (NUM_OF_BLOCKS * BLOCK_SIZE)
 
-// shared memory vertices size
+// DATA STRUCTURE SIZE
+#define TASKS_SIZE 100000000
+#define TASKS_PER_WARP 10
+#define BUFFER_SIZE 100000000
+#define BUFFER_OFFSET_SIZE 1000000
+#define CLIQUES_SIZE 1000000
+#define CLIQUES_OFFSET_SIZE 10000
+#define CLIQUES_PERCENT 50
+// per warp
+#define WCLIQUES_SIZE 10000
+#define WCLIQUES_OFFSET_SIZE 1000
+#define WTASKS_SIZE 100000L
+#define WTASKS_OFFSET_SIZE 10000
+// global memory vertices, should be a multiple of 32 as to not waste space
+#define WVERTICES_SIZE 32000
+// shared memory vertices
 #define VERTICES_SIZE 70
+
+#define EXPAND_THRESHOLD (TASKS_PER_WARP * NUMBER_OF_WARPS)
+#define CLIQUES_DUMP (CLIQUES_SIZE * (CLIQUES_PERCENT / 100.0))
  
 // PROGRAM RUN SETTINGS
 // cpu settings
@@ -49,7 +67,7 @@ using namespace std;
 #define DEBUG_TOGGLE 1
 
 // MPI SETTINGS
-#define NUMBER_OF_PROCESSESS 1
+#define NUMBER_OF_PROCESSESS 4
 #define MAX_MESSAGE 1000000000
 
 // VERTEX DATA
@@ -194,25 +212,6 @@ struct GPU_Data
 
     // task scheduling
     int* current_task;
-    
-    // DATA STRUCTURE SIZE
-    uint64_t* TASKS_SIZE;
-    uint64_t* TASKS_PER_WARP;
-    uint64_t* BUFFER_SIZE;
-    uint64_t* BUFFER_OFFSET_SIZE;
-    uint64_t* CLIQUES_SIZE;
-    uint64_t* CLIQUES_OFFSET_SIZE;
-    uint64_t* CLIQUES_PERCENT;
-    // per warp
-    uint64_t* WCLIQUES_SIZE;
-    uint64_t* WCLIQUES_OFFSET_SIZE;
-    uint64_t* WTASKS_SIZE;
-    uint64_t* WTASKS_OFFSET_SIZE;
-    // global memory vertices, should be a multiple of 32 as to not waste space
-    uint64_t* WVERTICES_SIZE;
-
-    uint64_t* EXPAND_THRESHOLD;
-    uint64_t* CLIQUES_DUMP;
 };
 
 // WARP DATA
@@ -262,33 +261,6 @@ struct Local_Data
     Vertex* vertices;
 };
 
-// DATA STRUCTURE SIZES
-class DS_Sizes
-{
-    public:
-    
-    // DATA STRUCTURE SIZE
-    uint64_t TASKS_SIZE;
-    uint64_t TASKS_PER_WARP;
-    uint64_t BUFFER_SIZE;
-    uint64_t BUFFER_OFFSET_SIZE;
-    uint64_t CLIQUES_SIZE;
-    uint64_t CLIQUES_OFFSET_SIZE;
-    uint64_t CLIQUES_PERCENT;
-    // per warp
-    uint64_t WCLIQUES_SIZE;
-    uint64_t WCLIQUES_OFFSET_SIZE;
-    uint64_t WTASKS_SIZE;
-    uint64_t WTASKS_OFFSET_SIZE;
-    // global memory vertices, should be a multiple of 32 as to not waste space
-    uint64_t WVERTICES_SIZE;
-
-    uint64_t EXPAND_THRESHOLD;
-    uint64_t CLIQUES_DUMP;
-
-    DS_Sizes(const string& filename);
-};
-
 // DEBUG - MAX TRACKER VARIABLES
 extern uint64_t mts, mbs, mbo, mcs, mco, wts, wto, wcs, wco, mvs;
 
@@ -305,7 +277,7 @@ inline void chkerr(cudaError_t code)
 {
     if (code != cudaSuccess)
     {
-        cout << cudaGetErrorString(code) << " chkerr" << endl;
+        cout << cudaGetErrorString(code) << endl;
         exit(-1);
     }
 }

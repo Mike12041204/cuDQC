@@ -15,14 +15,10 @@
 // - make global variables local
 // - make cuTS mpi its own file
 // - review all code and code style
-// - move data structure sizes to a file as input
-// - make cpu variables that are not-array not pointers
 
 // MAIN
 int main(int argc, char* argv[])
-{   
-    DS_Sizes dss("DS_Sizes.csv");
-
+{
     // TIME
     auto start2 = chrono::high_resolution_clock::now();
 
@@ -46,7 +42,7 @@ int main(int argc, char* argv[])
         printf("minimum size must be greater than 1\n");
         return 1;
     }
-    if (CPU_EXPAND_THRESHOLD > dss.EXPAND_THRESHOLD) {
+    if (CPU_EXPAND_THRESHOLD > EXPAND_THRESHOLD) {
         cout << "CPU_EXPAND_THRESHOLD must be less than the EXPAND_THRESHOLD" << endl;
         return 1;
     }
@@ -91,7 +87,7 @@ int main(int argc, char* argv[])
     }
 
     // SEARCH
-    search(hg, temp_results, output_file, dss);
+    search(hg, temp_results, output_file);
 
     temp_results.close();
 
