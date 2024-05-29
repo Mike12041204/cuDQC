@@ -2,7 +2,12 @@
     "C_Cpp.errorSquiggles": "enabled",
     "files.associations": {
         "vector": "cpp",
-        "iosfwd": "cpp"
+        "iosfwd": "cpp",
+        "fstream": "cpp",
+        "xlocmes": "cpp",
+        "locale": "cpp",
+        "xstring": "cpp",
+        "stdexcept": "cpp"
     },
     "makefile.makefilePath": "${workspaceFolder}/Makefile",
     "makefile.makePath": "C:/Program Files (x86)/GnuWin32/bin/make.exe"
