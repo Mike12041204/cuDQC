@@ -46,7 +46,7 @@ using namespace std;
 #define CPU_EXPAND_THRESHOLD 1
 
 // debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 0
+#define DEBUG_TOGGLE 1
 
 // MPI SETTINGS
 #define NUMBER_OF_PROCESSESS 1

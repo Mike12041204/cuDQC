@@ -90,19 +90,10 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
     
     while (!(*hd.maximal_expansion))
     {
-        uint64_t level;
-        cout << "17.5 " << grank << endl;
-        chkerr(cudaMemcpy(&level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-        cout << "17.6 " << grank << endl;
-
         (*(hd.maximal_expansion)) = true;
         cout << "18 " << grank << endl;
         chkerr(cudaMemset(h_dd.current_task, 0, sizeof(int)));
         cudaDeviceSynchronize();
-
-        cout << "18.5 " << grank << endl;
-        chkerr(cudaMemcpy(&level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-        cout << "18.6 " << grank << endl;
 
         // expand all tasks in 'tasks' array, each warp will write to their respective warp tasks buffer in global memory
         d_expand_level<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
@@ -113,8 +104,6 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
         // DEBUG
         if (DEBUG_TOGGLE) {
             cout << "19 " << grank << endl;
-            chkerr(cudaMemcpy(&level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-            cout << "19.5 " << grank << endl;
             if (print_Warp_Data_Sizes_Every(h_dd, 1, output_file, dss)) { break; }
         }
         cout << "21 " << grank << endl;

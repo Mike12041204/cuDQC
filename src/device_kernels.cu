@@ -369,7 +369,6 @@ __global__ void fill_from_buffer(GPU_Data* dd)
     if (IDX == 0) {
         (*dd->write_count) += write_amount;
         (*(dd->buffer_count)) -= write_amount;
-        printf("%i!!!\n", *dd->current_level);
     }
 }
 
