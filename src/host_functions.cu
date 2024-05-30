@@ -333,6 +333,36 @@ void allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph& h
 
     // task scheduling
     chkerr(cudaMalloc((void**)&h_dd.current_task, sizeof(int)));
+
+    chkerr(cudaMalloc((void**)&h_dd.tasks_size, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.tasks_per_warp, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.buffer_size, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.buffer_offset_size, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.cliques_size, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.cliques_offset_size, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.cliques_percent, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.wcliques_size, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.wcliques_offset_size, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.wtasks_size, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.wtasks_offset_size, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.wvertices_size, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.expand_threshold, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.cliques_dump, sizeof(uint64_t)));
+
+    chkerr(cudaMemcpy(h_dd.tasks_size, &dss.tasks_size, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.tasks_per_warp, &dss.tasks_per_warp, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.buffer_size, &dss.buffer_size, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.buffer_offset_size, &dss.buffer_offset_size, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.cliques_size, &dss.cliques_size, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.cliques_offset_size, &dss.cliques_offset_size, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.cliques_percent, &dss.cliques_percent, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.wcliques_size, &dss.wcliques_size, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.wcliques_offset_size, &dss.wcliques_offset_size, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.wtasks_size, &dss.wtasks_size, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.wtasks_offset_size, &dss.wtasks_offset_size, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.wvertices_size, &dss.wvertices_size, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.expand_threshold, &dss.expand_threshold, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.cliques_dump, &dss.cliques_dump, sizeof(uint64_t), cudaMemcpyHostToDevice));
 }
 
 // processes 0th level of expansion
@@ -492,7 +522,7 @@ void initialize_tasks(CPU_Graph& hg, CPU_Data& hd)
 
 void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss)
 {
-    // initiate the variables containing the location of the read and write task vectors, done in an alternating, oh_dd-even manner like the c-intersection of cuTS
+    // initiate the variables containing the location of the read and write task vectors, done in an alternating, odd-even manner like the c-intersection of cuTS
     uint64_t* read_count;
     uint64_t* read_offsets;
     Vertex* read_vertices;

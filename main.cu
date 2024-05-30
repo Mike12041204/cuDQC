@@ -16,7 +16,6 @@
 // - make cuTS mpi its own file
 // - review all code and code style
 
-// CURSOR - make device used dss
 // MAIN
 int main(int argc, char* argv[])
 {
