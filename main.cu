@@ -19,6 +19,10 @@
 // MAIN
 int main(int argc, char* argv[])
 {
+    double minimum_degree_ratio;
+    int minimum_clique_size;
+    int* minimum_degrees;
+    int scheduling_toggle;
     DS_Sizes dss("DS_Sizes.csv");
 
     // TIME
@@ -77,7 +81,7 @@ int main(int argc, char* argv[])
     }
     CPU_Graph hg(graph_stream);
     graph_stream.close();
-    calculate_minimum_degrees(hg);
+    calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
     string temp_filename = "temp_DcuQC_" + to_string(grank) + ".txt";
     ofstream temp_results(temp_filename);
 
@@ -89,7 +93,7 @@ int main(int argc, char* argv[])
     }
 
     // SEARCH
-    search(hg, temp_results, output_file, dss);
+    search(hg, temp_results, output_file, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
 
     temp_results.close();
 
