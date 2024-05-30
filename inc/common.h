@@ -213,6 +213,25 @@ struct GPU_Data
 
     // task scheduling
     int* current_task;
+
+    // DATA STRUCTURE SIZE
+    uint64_t* tasks_size;
+    uint64_t* tasks_per_warp;
+    uint64_t* buffer_size;
+    uint64_t* buffer_offset_size;
+    uint64_t* cliques_size;
+    uint64_t* cliques_offset_size;
+    uint64_t* cliques_percent;
+    // per warp
+    uint64_t* wcliques_size;
+    uint64_t* wcliques_offset_size;
+    uint64_t* wtasks_size;
+    uint64_t* wtasks_offset_size;
+    // global memory vertices, should be a multiple of 32 as to not waste space
+    uint64_t* wvertices_size;
+
+    uint64_t* expand_threshold;
+    uint64_t* cliques_dump;
 };
 
 // WARP DATA
