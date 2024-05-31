@@ -55,12 +55,12 @@ using namespace std;
 // VERTEX DATA
 struct Vertex
 {
-    int vertexid;
-    // labels: 0 -> candidate, 1 -> member, 2 -> covered vertex, 3 -> cover vertex, 4 -> critical adjacent vertex
-    int label;
-    int indeg;
-    int exdeg;
-    int lvl2adj;
+    uint32_t vertexid;
+    // labels: 0 -> candidate, 1 -> member, 2 -> covered vertex, 3 -> cover vertex, 4 -> critical adjacent vertex, -1 -> pruned vertex
+    int8_t label;
+    uint32_t indeg;
+    uint32_t exdeg;
+    uint32_t lvl2adj;
 };
 
 // CPU GRAPH / CONSTRUCTOR

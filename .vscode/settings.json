@@ -10,7 +10,8 @@
         "stdexcept": "cpp",
         "ostream": "cpp",
         "iostream": "cpp",
-        "new": "cpp"
+        "new": "cpp",
+        "cstddef": "cpp"
     },
     "makefile.makefilePath": "${workspaceFolder}/Makefile",
     "makefile.makePath": "C:/Program Files (x86)/GnuWin32/bin/make.exe"
