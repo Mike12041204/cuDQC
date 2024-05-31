@@ -4,15 +4,12 @@
 #include "./inc/Quick_rmnonmax.h"
 
 // TODO
-// - reevaluate and change where uint64_t's are used
-// - label for vertices can be a byte rather than int
-// - don't need lvl2adj in all places anymore
 // - look for places where we can break early
 // - examine code for unnecessary syncs on the GPU
 // - in degree pruning see if we can remove failed_found by consolidating with success
 // - see whether it's possible to parallelize some of calculate_LU_bounds
-// - make cuTS mpi its own file
 // - review all code and code style
+// - make cuTS mpi its own file
 
 // MAIN
 int main(int argc, char* argv[])
