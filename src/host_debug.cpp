@@ -160,11 +160,6 @@ void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss)
     uint64_t* tasks1_offset = new uint64_t[dss.expand_threshold + 1];
     Vertex* tasks1_vertices = new Vertex[dss.tasks_size];
 
-    uint64_t* tasks2_count = new uint64_t;
-    uint64_t* tasks2_offset = new uint64_t[dss.expand_threshold + 1];
-    Vertex* tasks2_vertices = new Vertex[dss.tasks_size];
-
-
     uint64_t* buffer_count = new uint64_t;
     uint64_t* buffer_offset = new uint64_t[dss.buffer_offset_size];
     Vertex* buffer_vertices = new Vertex[dss.buffer_size];
@@ -175,10 +170,6 @@ void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss)
     chkerr(cudaMemcpy(tasks1_count, h_dd.tasks1_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(tasks1_offset, h_dd.tasks1_offset, (dss.expand_threshold + 1) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(tasks1_vertices, h_dd.tasks1_vertices, (dss.tasks_size) * sizeof(Vertex), cudaMemcpyDeviceToHost));
-
-    chkerr(cudaMemcpy(tasks2_count, h_dd.tasks2_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks2_offset, h_dd.tasks2_offset, (dss.expand_threshold + 1) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks2_vertices, h_dd.tasks2_vertices, (dss.tasks_size) * sizeof(Vertex), cudaMemcpyDeviceToHost));
 
     chkerr(cudaMemcpy(buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(buffer_offset, h_dd.buffer_offset, (dss.buffer_offset_size) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
@@ -212,33 +203,6 @@ void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss)
     }
     cout << endl;
 
-    cout << endl << "Tasks2: " << "Size: " << (*tasks2_count) << endl;
-    cout << endl << "Offsets:" << endl;
-    for (int i = 0; i <= (*tasks2_count); i++) {
-        cout << tasks2_offset[i] << " " << flush;
-    }
-    cout << endl << "Vertex:" << endl;
-    for (int i = 0; i < tasks2_offset[*tasks2_count]; i++) {
-        cout << tasks2_vertices[i].vertexid << " " << flush;
-    }
-    cout << endl << "Label:" << endl;
-    for (int i = 0; i < tasks2_offset[*tasks2_count]; i++) {
-        cout << tasks2_vertices[i].label << " " << flush;
-    }
-    cout << endl << "Indeg:" << endl;
-    for (int i = 0; i < tasks2_offset[*tasks2_count]; i++) {
-        cout << tasks2_vertices[i].indeg << " " << flush;
-    }
-    cout << endl << "Exdeg:" << endl;
-    for (int i = 0; i < tasks2_offset[*tasks2_count]; i++) {
-        cout << tasks2_vertices[i].exdeg << " " << flush;
-    }
-    cout << endl << "Lvl2adj:" << endl;
-    for (int i = 0; i < tasks2_offset[*tasks2_count]; i++) {
-        cout << tasks2_vertices[i].lvl2adj << " " << flush;
-    }
-    cout << endl << endl;
-
     cout << endl << "Buffer: " << "Size: " << (*buffer_count) << endl;
     cout << endl << "Offsets:" << endl;
     for (int i = 0; i <= (*buffer_count); i++) {
@@ -271,10 +235,6 @@ void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss)
     delete tasks1_count;
     delete tasks1_offset;
     delete tasks1_vertices;
-
-    delete tasks2_count;
-    delete tasks2_offset;
-    delete tasks2_vertices;
 
     delete buffer_count;
     delete buffer_offset;
@@ -416,32 +376,24 @@ bool print_Data_Sizes(GPU_Data& h_dd, ofstream& output_file, DS_Sizes& dss)
 {
     uint64_t* current_level = new uint64_t;
     uint64_t* tasks1_count = new uint64_t;
-    uint64_t* tasks2_count = new uint64_t;
     uint64_t* buffer_count = new uint64_t;
     uint64_t* cliques_count = new uint64_t;
     uint64_t* tasks1_size = new uint64_t;
-    uint64_t* tasks2_size = new uint64_t;
     uint64_t* buffer_size = new uint64_t;
     uint64_t* cliques_size = new uint64_t;
 
     chkerr(cudaMemcpy(current_level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(tasks1_count, h_dd.tasks1_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks2_count, h_dd.tasks2_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(tasks1_size, h_dd.tasks1_offset + (*tasks1_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks2_size, h_dd.tasks2_offset + (*tasks2_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(buffer_size, h_dd.buffer_offset + (*buffer_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_size, h_dd.cliques_offset + (*cliques_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
-    output_file << "L: " << (*current_level) << " T1: " << (*tasks1_count) << " " << (*tasks1_size) << " T2: " << (*tasks2_count) << " " << (*tasks2_size) << " B: " << (*buffer_count) << " " << (*buffer_size) << " C: " << 
-        (*cliques_count) << " " << (*cliques_size) << endl << endl;
+    output_file << "L: " << (*current_level) << " T1: " << (*tasks1_count) << " " << (*tasks1_size) << " B: " << (*buffer_count) << " " << (*buffer_size) << " C: " << (*cliques_count) << " " << (*cliques_size) << endl << endl;
 
     if (*tasks1_size > mts) {
         mts = *tasks1_size;
-    }
-    if (*tasks2_size > mts) {
-        mts = *tasks2_size;
     }
     if (*buffer_size > mbs) {
         mbs = *buffer_size;
@@ -456,7 +408,7 @@ bool print_Data_Sizes(GPU_Data& h_dd, ofstream& output_file, DS_Sizes& dss)
         mco = *cliques_count;
     }
 
-    if ((*tasks1_count) > dss.expand_threshold || (*tasks1_size) > dss.tasks_size || (*tasks2_count) > dss.expand_threshold || (*tasks2_size) > dss.tasks_size || (*buffer_count) > dss.buffer_offset_size || (*buffer_size) > dss.buffer_size || (*cliques_count) > dss.cliques_offset_size ||
+    if ((*tasks1_count) > dss.expand_threshold || (*tasks1_size) > dss.tasks_size || (*buffer_count) > dss.buffer_offset_size || (*buffer_size) > dss.buffer_size || (*cliques_count) > dss.cliques_offset_size ||
         (*cliques_size) > dss.cliques_size) {
         output_file << "!!! GLOBAL STRUCTURE SIZE ERROR !!!" << endl;
         return true;
@@ -464,11 +416,9 @@ bool print_Data_Sizes(GPU_Data& h_dd, ofstream& output_file, DS_Sizes& dss)
 
     delete current_level;
     delete tasks1_count;
-    delete tasks2_count;
     delete buffer_count;
     delete cliques_count;
     delete tasks1_size;
-    delete tasks2_size;
     delete buffer_size;
     delete cliques_size;
     

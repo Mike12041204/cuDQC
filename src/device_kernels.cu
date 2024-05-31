@@ -21,16 +21,9 @@ __global__ void d_expand_level(GPU_Data* dd)
     * buffer acts as a stack, in a last-in first-out manner, a subsection of the search space will be expanded until completion. This system allows the problem to essentially be divided into smaller problems and thus 
     * require less memory to handle.
     */
-    if ((*(dd->current_level)) % 2 == 0) {
-        dd->read_count = dd->tasks1_count;
-        dd->read_offsets = dd->tasks1_offset;
-        dd->read_vertices = dd->tasks1_vertices;
-    }
-    else {
-        dd->read_count = dd->tasks2_count;
-        dd->read_offsets = dd->tasks2_offset;
-        dd->read_vertices = dd->tasks2_vertices;
-    }
+    dd->read_count = dd->tasks1_count;
+    dd->read_offsets = dd->tasks1_offset;
+    dd->read_vertices = dd->tasks1_vertices;
 
 
 
@@ -216,16 +209,9 @@ __global__ void transfer_buffers(GPU_Data* dd)
     __shared__ int twrite;
     __shared__ int tasks_end;
 
-    if ((*(dd->current_level)) % 2 == 0) {
-        dd->write_count = dd->tasks2_count;
-        dd->write_offsets = dd->tasks2_offset;
-        dd->write_vertices = dd->tasks2_vertices;
-    }
-    else {
-        dd->write_count = dd->tasks1_count;
-        dd->write_offsets = dd->tasks1_offset;
-        dd->write_vertices = dd->tasks1_vertices;
-    }
+    dd->write_count = dd->tasks1_count;
+    dd->write_offsets = dd->tasks1_offset;
+    dd->write_vertices = dd->tasks1_vertices;
 
     // point of this is to find how many vertices will be transfered to tasks, it is easy to know how many tasks as it will just
     // be the expansion threshold, but to find how many vertices we must now the total size of all the tasks that will be copied.
@@ -319,16 +305,9 @@ __global__ void transfer_buffers(GPU_Data* dd)
 
 __global__ void fill_from_buffer(GPU_Data* dd)
 {
-    if ((*(dd->current_level)) % 2 == 0) {
-        dd->write_count = dd->tasks2_count;
-        dd->write_offsets = dd->tasks2_offset;
-        dd->write_vertices = dd->tasks2_vertices;
-    }
-    else {
-        dd->write_count = dd->tasks1_count;
-        dd->write_offsets = dd->tasks1_offset;
-        dd->write_vertices = dd->tasks1_vertices;
-    }
+    dd->write_count = dd->tasks1_count;
+    dd->write_offsets = dd->tasks1_offset;
+    dd->write_vertices = dd->tasks1_vertices;
 
     // get read and write locations
     int write_amount = ((*(dd->buffer_count)) >= (*dd->expand_threshold - (*dd->write_count))) ? *dd->expand_threshold - (*dd->write_count) : (*(dd->buffer_count));

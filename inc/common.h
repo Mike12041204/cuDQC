@@ -127,10 +127,6 @@ struct GPU_Data
     uint64_t* tasks1_offset;
     Vertex* tasks1_vertices;
 
-    uint64_t* tasks2_count;
-    uint64_t* tasks2_offset;
-    Vertex* tasks2_vertices;
-
     uint64_t* buffer_count;
     uint64_t* buffer_offset;
     Vertex* buffer_vertices;
