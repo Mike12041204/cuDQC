@@ -6,7 +6,6 @@
 // TODO
 // - look for places where we can break early
 // - examine code for unnecessary syncs on the GPU
-// - in degree pruning see if we can remove failed_found by consolidating with success
 // - see whether it's possible to parallelize some of calculate_LU_bounds
 // - review all code and code style
 // - make cuTS mpi its own file
@@ -18,6 +17,15 @@ int main(int argc, char* argv[])
     int minimum_clique_size;
     int* minimum_degrees;
     DS_Sizes dss("DS_Sizes.csv");
+    ifstream graph_stream;
+    int world_size;                     // number of cpu threads
+    int world_rank;                     // current cpu threads rank
+    string temp_filename;
+    ofstream temp_results;
+    ofstream all_temp;
+    ifstream temp_file;
+    string line;
+    bool temp_empty;
 
     // TIME
     auto start2 = chrono::high_resolution_clock::now();
@@ -27,7 +35,7 @@ int main(int argc, char* argv[])
         printf("Usage: ./main <graph_file> <gamma> <min_size>\n");
         return 1;
     }
-    ifstream graph_stream(argv[1], ios::in);
+    graph_stream.open(argv[1], ios::in);
     if (!graph_stream.is_open()) {
         printf("invalid graph file\n");
         return 1;
@@ -48,14 +56,10 @@ int main(int argc, char* argv[])
     }
 
     // MPI
-    MPI_Init(&argc,&argv);
-    // number of cpu threads
-    int world_size;
-    MPI_Comm_size(MPI_COMM_WORLD,&world_size);
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     wsize = world_size;
-    // current cpu threads rank
-    int world_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&world_rank);
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
     grank = world_rank;
 
     // DEBUG
@@ -76,8 +80,8 @@ int main(int argc, char* argv[])
     CPU_Graph hg(graph_stream);
     graph_stream.close();
     calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
-    string temp_filename = "temp_DcuQC_" + to_string(grank) + ".txt";
-    ofstream temp_results(temp_filename);
+    temp_filename = "temp_DcuQC_" + to_string(grank) + ".txt";
+    temp_results.open(temp_filename);
 
     // TIME
     auto stop = chrono::high_resolution_clock::now();
@@ -104,11 +108,10 @@ int main(int argc, char* argv[])
     if(grank == 0){
 
         // COMBINE RESULTS
-        ofstream all_temp("temp_DcuQC.txt");
+        all_temp.open("temp_DcuQC.txt");
         for (int i = 0; i < NUMBER_OF_PROCESSESS; ++i) {
-            string temp_filename = "temp_DcuQC_" + to_string(i) + ".txt";
-            ifstream temp_file(temp_filename);
-            string line;
+            temp_filename = "temp_DcuQC_" + to_string(i) + ".txt";
+            temp_file.open(temp_filename);
             while (getline(temp_file, line)) {
                 all_temp << line << endl;
             }
@@ -116,7 +119,7 @@ int main(int argc, char* argv[])
         }
 
         // Check if the temp file is empty
-        bool temp_empty = false;
+        temp_empty = false;
         if (all_temp.tellp() == ofstream::pos_type(0)) {
             temp_empty = true;
         }
