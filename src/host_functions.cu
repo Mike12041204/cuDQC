@@ -121,7 +121,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
         // TODO - do we still need to copy current level from the GPU or can we just have a counter on the CPU or handle it on the GPU
         chkerr(cudaMemcpy(&current_level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
         chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-        chkerr(cudaMemcpy(&write_count, h_dd.tasks1_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+        chkerr(cudaMemcpy(&write_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
         if (write_count > 0 || buffer_count > 0) {
             (*(hd.maximal_expansion)) = false;
@@ -240,11 +240,11 @@ void allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph& h
     // GPU DATA
     chkerr(cudaMalloc((void**)&h_dd.current_level, sizeof(uint64_t)));
 
-    chkerr(cudaMalloc((void**)&h_dd.tasks1_count, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&h_dd.tasks1_offset, sizeof(uint64_t) * (dss.expand_threshold + 1)));
-    chkerr(cudaMalloc((void**)&h_dd.tasks1_vertices, sizeof(Vertex) * dss.tasks_size));
-    chkerr(cudaMemset(h_dd.tasks1_offset, 0, sizeof(uint64_t)));
-    chkerr(cudaMemset(h_dd.tasks1_count, 0, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.tasks_count, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&h_dd.tasks_offset, sizeof(uint64_t) * (dss.expand_threshold + 1)));
+    chkerr(cudaMalloc((void**)&h_dd.tasks_vertices, sizeof(Vertex) * dss.tasks_size));
+    chkerr(cudaMemset(h_dd.tasks_offset, 0, sizeof(uint64_t)));
+    chkerr(cudaMemset(h_dd.tasks_count, 0, sizeof(uint64_t)));
 
     chkerr(cudaMalloc((void**)&h_dd.buffer_count, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.buffer_offset, sizeof(uint64_t) * dss.buffer_offset_size));
@@ -764,9 +764,9 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
 
     // TODO - only copy whats needed
     // move to GPU
-    chkerr(cudaMemcpy(h_dd.tasks1_count, hd.tasks1_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.tasks1_offset, hd.tasks1_offset, (dss.expand_threshold + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.tasks1_vertices, hd.tasks1_vertices, (dss.tasks_size) * sizeof(Vertex), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.tasks_count, hd.tasks1_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.tasks_offset, hd.tasks1_offset, (dss.expand_threshold + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.tasks_vertices, hd.tasks1_vertices, (dss.tasks_size) * sizeof(Vertex), cudaMemcpyHostToDevice));
 
     chkerr(cudaMemcpy(h_dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.buffer_offset, hd.buffer_offset, (dss.buffer_offset_size) * sizeof(uint64_t), cudaMemcpyHostToDevice));
@@ -842,9 +842,9 @@ void free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     // GPU DATA
     chkerr(cudaFree(h_dd.current_level));
 
-    chkerr(cudaFree(h_dd.tasks1_count));
-    chkerr(cudaFree(h_dd.tasks1_offset));
-    chkerr(cudaFree(h_dd.tasks1_vertices));
+    chkerr(cudaFree(h_dd.tasks_count));
+    chkerr(cudaFree(h_dd.tasks_offset));
+    chkerr(cudaFree(h_dd.tasks_vertices));
 
     chkerr(cudaFree(h_dd.buffer_count));
     chkerr(cudaFree(h_dd.buffer_offset));

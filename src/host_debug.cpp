@@ -167,9 +167,9 @@ void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss)
 
     chkerr(cudaMemcpy(current_level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
-    chkerr(cudaMemcpy(tasks1_count, h_dd.tasks1_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks1_offset, h_dd.tasks1_offset, (dss.expand_threshold + 1) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks1_vertices, h_dd.tasks1_vertices, (dss.tasks_size) * sizeof(Vertex), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(tasks1_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(tasks1_offset, h_dd.tasks_offset, (dss.expand_threshold + 1) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(tasks1_vertices, h_dd.tasks_vertices, (dss.tasks_size) * sizeof(Vertex), cudaMemcpyDeviceToHost));
 
     chkerr(cudaMemcpy(buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(buffer_offset, h_dd.buffer_offset, (dss.buffer_offset_size) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
@@ -383,10 +383,10 @@ bool print_Data_Sizes(GPU_Data& h_dd, ofstream& output_file, DS_Sizes& dss)
     uint64_t* cliques_size = new uint64_t;
 
     chkerr(cudaMemcpy(current_level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks1_count, h_dd.tasks1_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(tasks1_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks1_size, h_dd.tasks1_offset + (*tasks1_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(tasks1_size, h_dd.tasks_offset + (*tasks1_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(buffer_size, h_dd.buffer_offset + (*buffer_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_size, h_dd.cliques_offset + (*cliques_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
 

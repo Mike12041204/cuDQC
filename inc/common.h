@@ -123,9 +123,9 @@ struct GPU_Data
     // GPU DATA
     uint64_t* current_level;
 
-    uint64_t* tasks1_count;
-    uint64_t* tasks1_offset;
-    Vertex* tasks1_vertices;
+    uint64_t* tasks_count;
+    uint64_t* tasks_offset;
+    Vertex* tasks_vertices;
 
     uint64_t* buffer_count;
     uint64_t* buffer_offset;
@@ -178,15 +178,6 @@ struct GPU_Data
     int* wcliques_vertex;
 
     int* total_cliques;
-
-    // moved from local
-    Vertex* read_vertices;
-    uint64_t* read_offsets;
-    uint64_t* read_count;
-
-    uint64_t* write_count;
-    uint64_t* write_offsets;
-    Vertex* write_vertices;
 
     // task scheduling
     int* current_task;

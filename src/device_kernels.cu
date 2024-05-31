@@ -21,9 +21,6 @@ __global__ void d_expand_level(GPU_Data* dd)
     * buffer acts as a stack, in a last-in first-out manner, a subsection of the search space will be expanded until completion. This system allows the problem to essentially be divided into smaller problems and thus 
     * require less memory to handle.
     */
-    dd->read_count = dd->tasks1_count;
-    dd->read_offsets = dd->tasks1_offset;
-    dd->read_vertices = dd->tasks1_vertices;
 
 
 
@@ -36,12 +33,12 @@ __global__ void d_expand_level(GPU_Data* dd)
     }
     i = __shfl_sync(0xFFFFFFFF, i, 0);
 
-    while (i < (*(dd->read_count)))
+    while (i < *dd->tasks_count)
     {
         // get information on vertices being handled within tasks
         if (LANE_IDX == 0) {
-            wd.start[WIB_IDX] = dd->read_offsets[i];
-            wd.end[WIB_IDX] = dd->read_offsets[i + 1];
+            wd.start[WIB_IDX] = dd->tasks_offset[i];
+            wd.end[WIB_IDX] = dd->tasks_offset[i + 1];
             wd.tot_vert[WIB_IDX] = wd.end[WIB_IDX] - wd.start[WIB_IDX];
         }
         __syncwarp();
@@ -49,7 +46,7 @@ __global__ void d_expand_level(GPU_Data* dd)
         // each warp gets partial number of members
         num_mem = 0;
         for (uint64_t j = wd.start[WIB_IDX] + LANE_IDX; j < wd.end[WIB_IDX]; j += WARP_SIZE) {
-            if (dd->read_vertices[j].label != 1) {
+            if (dd->tasks_vertices[j].label != 1) {
                 break;
             }
             num_mem++;
@@ -115,14 +112,14 @@ __global__ void d_expand_level(GPU_Data* dd)
             }
 
             for (index = LANE_IDX; index < wd.number_of_members[WIB_IDX]; index += WARP_SIZE) {
-                ld.vertices[index] = dd->read_vertices[wd.start[WIB_IDX] + index];
+                ld.vertices[index] = dd->tasks_vertices[wd.start[WIB_IDX] + index];
             }
             for (; index < wd.total_vertices[WIB_IDX] - 1; index += WARP_SIZE) {
-                ld.vertices[index + 1] = dd->read_vertices[wd.start[WIB_IDX] + index];
+                ld.vertices[index + 1] = dd->tasks_vertices[wd.start[WIB_IDX] + index];
             }
 
             if (LANE_IDX == 0) {
-                ld.vertices[wd.number_of_members[WIB_IDX]] = dd->read_vertices[wd.start[WIB_IDX] + wd.total_vertices[WIB_IDX] - 1];
+                ld.vertices[wd.number_of_members[WIB_IDX]] = dd->tasks_vertices[wd.start[WIB_IDX] + wd.total_vertices[WIB_IDX] - 1];
             }
             __syncwarp();
 
@@ -209,10 +206,6 @@ __global__ void transfer_buffers(GPU_Data* dd)
     __shared__ int twrite;
     __shared__ int tasks_end;
 
-    dd->write_count = dd->tasks1_count;
-    dd->write_offsets = dd->tasks1_offset;
-    dd->write_vertices = dd->tasks1_vertices;
-
     // point of this is to find how many vertices will be transfered to tasks, it is easy to know how many tasks as it will just
     // be the expansion threshold, but to find how many vertices we must now the total size of all the tasks that will be copied.
     // each block does this but really could be done by one thread outside the GPU
@@ -258,7 +251,7 @@ __global__ void transfer_buffers(GPU_Data* dd)
     {
         if (tasks_offset_write[WIB_IDX] + i - 1 <= *dd->expand_threshold) {
             // to tasks
-            dd->write_offsets[tasks_offset_write[WIB_IDX] + i - 1] = dd->wtasks_offset[(*dd->wtasks_offset_size * WARP_IDX) + i] + tasks_write[WIB_IDX];
+            dd->tasks_offset[tasks_offset_write[WIB_IDX] + i - 1] = dd->wtasks_offset[(*dd->wtasks_offset_size * WARP_IDX) + i] + tasks_write[WIB_IDX];
         }
         else {
             // to buffer
@@ -270,7 +263,7 @@ __global__ void transfer_buffers(GPU_Data* dd)
     for (int i = LANE_IDX; i < dd->wtasks_offset[(*dd->wtasks_offset_size * WARP_IDX) + dd->wtasks_count[WARP_IDX]]; i += WARP_SIZE) {
         if (tasks_write[WIB_IDX] + i < tasks_end) {
             // to tasks
-            dd->write_vertices[tasks_write[WIB_IDX] + i] = dd->wtasks_vertices[(*dd->wtasks_size * WARP_IDX) + i];
+            dd->tasks_vertices[tasks_write[WIB_IDX] + i] = dd->wtasks_vertices[(*dd->wtasks_size * WARP_IDX) + i];
         }
         else {
             // to buffer
@@ -290,10 +283,10 @@ __global__ void transfer_buffers(GPU_Data* dd)
     if (IDX == 0) {
         // handle tasks and buffer counts
         if ((*dd->total_tasks) <= *dd->expand_threshold) {
-            (*dd->write_count) = (*(dd->total_tasks));
+            (*dd->tasks_count) = (*(dd->total_tasks));
         }
         else {
-            (*dd->write_count) = *dd->expand_threshold;
+            (*dd->tasks_count) = *dd->expand_threshold;
             (*(dd->buffer_count)) += ((*(dd->total_tasks)) - *dd->expand_threshold);
         }
         (*(dd->cliques_count)) += (*(dd->total_cliques));
@@ -305,29 +298,25 @@ __global__ void transfer_buffers(GPU_Data* dd)
 
 __global__ void fill_from_buffer(GPU_Data* dd)
 {
-    dd->write_count = dd->tasks1_count;
-    dd->write_offsets = dd->tasks1_offset;
-    dd->write_vertices = dd->tasks1_vertices;
-
     // get read and write locations
-    int write_amount = ((*(dd->buffer_count)) >= (*dd->expand_threshold - (*dd->write_count))) ? *dd->expand_threshold - (*dd->write_count) : (*(dd->buffer_count));
+    int write_amount = ((*(dd->buffer_count)) >= (*dd->expand_threshold - (*dd->tasks_count))) ? *dd->expand_threshold - (*dd->tasks_count) : (*(dd->buffer_count));
     uint64_t start_buffer = dd->buffer_offset[(*(dd->buffer_count)) - write_amount];
     uint64_t end_buffer = dd->buffer_offset[(*(dd->buffer_count))];
     uint64_t size_buffer = end_buffer - start_buffer;
-    uint64_t start_write = dd->write_offsets[(*dd->write_count)];
+    uint64_t start_write = dd->tasks_offset[(*dd->tasks_count)];
 
     // handle offsets
     for (int i = IDX + 1; i <= write_amount; i += NUMBER_OF_THREADS) {
-        dd->write_offsets[(*dd->write_count) + i] = start_write + (dd->buffer_offset[(*(dd->buffer_count)) - write_amount + i] - start_buffer);
+        dd->tasks_offset[(*dd->tasks_count) + i] = start_write + (dd->buffer_offset[(*(dd->buffer_count)) - write_amount + i] - start_buffer);
     }
 
     // handle data
     for (int i = IDX; i < size_buffer; i += NUMBER_OF_THREADS) {
-        dd->write_vertices[start_write + i] = dd->buffer_vertices[start_buffer + i];
+        dd->tasks_vertices[start_write + i] = dd->buffer_vertices[start_buffer + i];
     }
 
     if (IDX == 0) {
-        (*dd->write_count) += write_amount;
+        (*dd->tasks_count) += write_amount;
         (*(dd->buffer_count)) -= write_amount;
     }
 }
@@ -347,7 +336,7 @@ __device__ int d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     // check if members meet degree requirement, dont need to check 2hop adj as diameter pruning guarentees all members will be within 2hops of eveything
     for (int i = LANE_IDX; i < wd.num_mem[WIB_IDX] && wd.success[WIB_IDX]; i += WARP_SIZE) {
-        if (dd->read_vertices[wd.start[WIB_IDX] + i].indeg + dd->read_vertices[wd.start[WIB_IDX] + i].exdeg < dd->minimum_degrees[wd.tot_vert[WIB_IDX]]) {
+        if (dd->tasks_vertices[wd.start[WIB_IDX] + i].indeg + dd->tasks_vertices[wd.start[WIB_IDX] + i].exdeg < dd->minimum_degrees[wd.tot_vert[WIB_IDX]]) {
             wd.success[WIB_IDX] = false;
             break;
         }
@@ -360,18 +349,18 @@ __device__ int d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     // update lvl2adj to candidates for all vertices
     for (int i = wd.num_mem[WIB_IDX] + LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE) {
-        pvertexid = dd->read_vertices[wd.start[WIB_IDX] + i].vertexid;
+        pvertexid = dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid;
         
         for (int j = wd.num_mem[WIB_IDX]; j < wd.tot_vert[WIB_IDX]; j++) {
             if (j == i) {
                 continue;
             }
 
-            phelper1 = dd->read_vertices[wd.start[WIB_IDX] + j].vertexid;
+            phelper1 = dd->tasks_vertices[wd.start[WIB_IDX] + j].vertexid;
             phelper2 = d_b_search_int(dd->twohop_neighbors + dd->twohop_offsets[phelper1], dd->twohop_offsets[phelper1 + 1] - dd->twohop_offsets[phelper1], pvertexid);
         
             if (phelper2 > -1) {
-                dd->read_vertices[wd.start[WIB_IDX] + i].lvl2adj++;
+                dd->tasks_vertices[wd.start[WIB_IDX] + i].lvl2adj++;
             }
         }
     }
@@ -379,7 +368,7 @@ __device__ int d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     // compares all vertices to the lemmas from Quick
     for (int j = wd.num_mem[WIB_IDX] + LANE_IDX; j < wd.tot_vert[WIB_IDX] && wd.success[WIB_IDX]; j += WARP_SIZE) {
-        if (dd->read_vertices[wd.start[WIB_IDX] + j].lvl2adj < wd.num_cand[WIB_IDX] - 1 || dd->read_vertices[wd.start[WIB_IDX] + j].indeg + dd->read_vertices[wd.start[WIB_IDX] + j].exdeg < dd->minimum_degrees[wd.tot_vert[WIB_IDX]]) {
+        if (dd->tasks_vertices[wd.start[WIB_IDX] + j].lvl2adj < wd.num_cand[WIB_IDX] - 1 || dd->tasks_vertices[wd.start[WIB_IDX] + j].indeg + dd->tasks_vertices[wd.start[WIB_IDX] + j].exdeg < dd->minimum_degrees[wd.tot_vert[WIB_IDX]]) {
             wd.success[WIB_IDX] = false;
             break;
         }
@@ -390,7 +379,7 @@ __device__ int d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         // write to cliques
         uint64_t start_write = (*dd->wcliques_size * WARP_IDX) + dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + (dd->wcliques_count[WARP_IDX])];
         for (int j = LANE_IDX; j < wd.tot_vert[WIB_IDX]; j += WARP_SIZE) {
-            dd->wcliques_vertex[start_write + j] = dd->read_vertices[wd.start[WIB_IDX] + j].vertexid;
+            dd->wcliques_vertex[start_write + j] = dd->tasks_vertices[wd.start[WIB_IDX] + j].vertexid;
         }
         if (LANE_IDX == 0) {
             (dd->wcliques_count[WARP_IDX])++;
@@ -422,16 +411,16 @@ __device__ int d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     __syncwarp();
 
     // update info of vertices connected to removed cand
-    pvertexid = dd->read_vertices[wd.start[WIB_IDX] + wd.tot_vert[WIB_IDX]].vertexid;
+    pvertexid = dd->tasks_vertices[wd.start[WIB_IDX] + wd.tot_vert[WIB_IDX]].vertexid;
 
     for (int i = LANE_IDX; i < wd.tot_vert[WIB_IDX] && !wd.success[WIB_IDX]; i += WARP_SIZE) {
-        phelper1 = dd->read_vertices[wd.start[WIB_IDX] + i].vertexid;
+        phelper1 = dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid;
         phelper2 = d_b_search_int(dd->onehop_neighbors + dd->onehop_offsets[pvertexid], dd->onehop_offsets[pvertexid + 1] - dd->onehop_offsets[pvertexid], phelper1);
 
         if (phelper2 > -1) {
-            dd->read_vertices[wd.start[WIB_IDX] + i].exdeg--;
+            dd->tasks_vertices[wd.start[WIB_IDX] + i].exdeg--;
 
-            if (phelper1 < wd.num_mem[WIB_IDX] && dd->read_vertices[wd.start[WIB_IDX] + phelper1].indeg + dd->read_vertices[wd.start[WIB_IDX] + phelper1].exdeg < mindeg) {
+            if (phelper1 < wd.num_mem[WIB_IDX] && dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].indeg + dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].exdeg < mindeg) {
                 wd.success[WIB_IDX] = true;
                 break;
             }
