@@ -825,7 +825,7 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     
     while (wd.remaining_count[WIB_IDX] > 0 && wd.removed_count[WIB_IDX] > 0) {
-        // different blocks for the read and write locations, vertices and remaining, this is done to avoid using extra variables and only one condition
+        // we alternate reading and writing remaining variables from two arrays
         if (wd.rw_counter[WIB_IDX] % 2 == 0) {
             read = dd->remaining_candidates + (*dd->wvertices_size * WARP_IDX);
             write = ld.vertices + wd.number_of_members[WIB_IDX];

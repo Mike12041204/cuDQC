@@ -13,30 +13,28 @@
 // MAIN
 int main(int argc, char* argv[])
 {
-    double minimum_degree_ratio;
-    int minimum_clique_size;
-    int* minimum_degrees;
-    DS_Sizes dss("DS_Sizes.csv");
-    ifstream graph_stream;
-    int world_size;                     // number of cpu threads
-    int world_rank;                     // current cpu threads rank
-    string temp_filename;
-    ofstream temp_results;
-    ofstream all_temp;
-    ifstream temp_file;
-    string line;
-    bool temp_empty;
-
     // TIME
     auto start2 = chrono::high_resolution_clock::now();
+
+    double minimum_degree_ratio;        // connection requirement for cliques
+    int minimum_clique_size;            // minimum size for cliques
+    int* minimum_degrees;               // stores the minimum connections per vertex for all size cliques
+    DS_Sizes dss("DS_Sizes.csv");       // reads the sizes of the data structures
+    int world_size;                     // number of cpu processes
+    int world_rank;                     // current cpu processes rank
+    string filename;                    // used in concatenation for making filenames
+    ifstream read_file;                 // multiple read files
+    ofstream write_file1;               // writing results to mutiple files
+    ofstream write_file2;               // writing output to file
+    string line;                        // stores lines from read file
 
     // ENSURE PROPER USAGE
     if (argc != 4) {
         printf("Usage: ./main <graph_file> <gamma> <min_size>\n");
         return 1;
     }
-    graph_stream.open(argv[1], ios::in);
-    if (!graph_stream.is_open()) {
+    read_file.open(argv[1], ios::in);
+    if (!read_file.is_open()) {
         printf("invalid graph file\n");
         return 1;
     }
@@ -58,15 +56,15 @@ int main(int argc, char* argv[])
     // MPI
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-    wsize = world_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    wsize = world_size;
     grank = world_rank;
 
     // DEBUG
-    string output_filename = "output_DcuQC_" + to_string(grank) + ".txt";
-    ofstream output_file(output_filename);
+    filename = "output_DcuQC_" + to_string(grank) + ".txt";
+    write_file2.open(filename);
     if (DEBUG_TOGGLE) {
-        output_file << "Output from process " << grank << endl << endl;
+        write_file2 << ">:OUTPUT FROM PROCESS: " << grank << endl << endl;
         initialize_maxes();
     }
 
@@ -77,11 +75,11 @@ int main(int argc, char* argv[])
     if(grank == 0){
         cout << ">:PRE-PROCESSING" << endl;
     }
-    CPU_Graph hg(graph_stream);
-    graph_stream.close();
+    CPU_Graph hg(read_file);
+    read_file.close();
     calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
-    temp_filename = "temp_DcuQC_" + to_string(grank) + ".txt";
-    temp_results.open(temp_filename);
+    filename = "temp_DcuQC_" + to_string(grank) + ".txt";
+    write_file1.open(filename);
 
     // TIME
     auto stop = chrono::high_resolution_clock::now();
@@ -91,47 +89,40 @@ int main(int argc, char* argv[])
     }
 
     // SEARCH
-    search(hg, temp_results, output_file, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
+    search(hg, write_file1, write_file2, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
 
-    temp_results.close();
+    write_file1.close();
 
     // DEBUG
     if (DEBUG_TOGGLE) {
-        print_maxes(output_file);
+        print_maxes(write_file2);
     }
-    output_file.close();
+    write_file2.close();
 
     // TIME
     auto start1 = chrono::high_resolution_clock::now();
 
     MPI_Barrier(MPI_COMM_WORLD);
     if(grank == 0){
-
         // COMBINE RESULTS
-        all_temp.open("temp_DcuQC.txt");
+        write_file1.open("temp_DcuQC.txt");
         for (int i = 0; i < NUMBER_OF_PROCESSESS; ++i) {
-            temp_filename = "temp_DcuQC_" + to_string(i) + ".txt";
-            temp_file.open(temp_filename);
-            while (getline(temp_file, line)) {
-                all_temp << line << endl;
+            filename = "temp_DcuQC_" + to_string(i) + ".txt";
+            read_file.open(filename);
+            while (getline(read_file, line)) {
+                write_file1 << line << endl;
             }
-            temp_file.close();
+            read_file.close();
         }
-
-        // Check if the temp file is empty
-        temp_empty = false;
-        if (all_temp.tellp() == ofstream::pos_type(0)) {
-            temp_empty = true;
-        }
-        all_temp.close();
 
         // RM NON-MAX
-        if(!temp_empty){
+        if(!(write_file1.tellp() == ofstream::pos_type(0))){
             RemoveNonMax("temp_DcuQC.txt", "results_DcuQC.txt");
         }
         else{
             cout << ">:NUMBER OF MAXIMAL CLIQUES: 0" << endl;
         }
+        write_file1.close();
     }
 
     // TIME
