@@ -156,7 +156,7 @@ void InsertOneSet(int* pset, int nlen, TREE_NODE*& proot)
     }
 }
 
-int BuildTree(char* szset_filename, TREE_NODE*& proot)
+int BuildTree(const char* szset_filename, TREE_NODE*& proot)
 {
     FILE* fp;
     int nlen, * pset, nset_size, i, nmax_len, num_of_sets;
@@ -311,7 +311,7 @@ void RmNonMax(TREE_NODE* proot, int nmax_len)
     delete[]ppos;
 }
 
-void OutputMaxSet(TREE_NODE* proot, int nmax_len, char* szoutput_filename)
+void OutputMaxSet(TREE_NODE* proot, int nmax_len, const char* szoutput_filename)
 {
     FILE* fp;
     TREE_NODE** pstack, * pnode;
@@ -369,7 +369,7 @@ void OutputMaxSet(TREE_NODE* proot, int nmax_len, char* szoutput_filename)
     fclose(fp);
 }
 
-void RemoveNonMax(char* szset_filename, char* szoutput_filename)
+void RemoveNonMax(const char* szset_filename, const char* szoutput_filename)
 {
     cout << ">:REMOVING NON-MAXIMAL CLIQUES" << endl;
 
