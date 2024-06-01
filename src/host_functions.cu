@@ -422,38 +422,28 @@ void initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_degrees, int min
 
 void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size)
 {
-    // initiate the variables containing the location of the read and write task vectors, done in an alternating, odd-even manner like the c-intersection of cuTS
-    uint64_t* read_count;
+    uint64_t* read_count;              // read and write to tasks 1 and 2 in alternating manner
     uint64_t* read_offsets;
     Vertex* read_vertices;
     uint64_t* write_count;
     uint64_t* write_offsets;
     Vertex* write_vertices;
-
-    // old vertices information
-    uint64_t start;
+    uint64_t start;                    // old vertices information
     uint64_t end;
     int tot_vert;
     int num_mem;
     int num_cand;
     int expansions;
     int number_of_covered;
-
-    // new vertices information
-    Vertex* vertices;
+    Vertex* vertices;                   // new vertices information
     int number_of_members;
     int number_of_candidates;
     int total_vertices;
-
-    // calculate lower-upper bounds
-    int min_ext_deg;
+    int min_ext_deg;                    // calculate lower-upper bounds
     int lower_bound;
     int upper_bound;
-
-    int method_return;
+    int method_return;                  // helper
     int index;
-
-
 
     if ((*hd.current_level) % 2 == 0) {
         read_count = hd.tasks1_count;
@@ -476,8 +466,6 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
 
     // set to false later if task is generated indicating non-maximal expansion
     (*hd.maximal_expansion) = true;
-
-
 
     // CURRENT LEVEL
     for (int i = 0; i < *read_count; i++)
@@ -503,20 +491,14 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
         num_cand = tot_vert - num_mem;
         expansions = num_cand;
 
-
-
         // LOOKAHEAD PRUNING
         method_return = h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start, minimum_degrees);
         if (method_return) {
             continue;
         }
 
-
-
         // NEXT LEVEL
         for (int j = number_of_covered; j < expansions; j++) {
-
-
 
             // REMOVE ONE VERTEX
             if (j != number_of_covered) {
@@ -525,8 +507,6 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                     break;
                 }
             }
-
-
 
             // NEW VERTICES
             vertices = new Vertex[tot_vert];
@@ -548,8 +528,6 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                 }
             }
 
-
-
             // ADD ONE VERTEX
             method_return = h_add_one_vertex(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
 
@@ -563,8 +541,6 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                 continue;
             }
 
-
-
             // CRITICAL VERTEX PRUNING
             method_return = h_critical_vertex_pruning(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
 
@@ -573,8 +549,6 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                 delete vertices;
                 continue;
             }
-
-
 
             // CHECK FOR CLIQUE
             // all processes will do this, to prevent duplicates only process 0 will save cpu results
@@ -588,8 +562,6 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                 continue;
             }
 
-
-
             // WRITE TO TASKS
             //sort vertices so that lowest degree vertices are first in enumeration order before writing to tasks
             qsort(vertices, total_vertices, sizeof(Vertex), h_comp_vert_Q);
@@ -598,13 +570,9 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                 h_write_to_tasks(hd, vertices, total_vertices, write_vertices, write_offsets, write_count);
             }
 
-
-
             delete vertices;
         }
     }
-
-
 
     // FILL TASKS FROM BUFFER
     // if last CPU round copy enough tasks for GPU expansion
@@ -622,18 +590,13 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
 // TODO - distribute work amongst processes in more intelligent manner 
 void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
 {
-    uint64_t* tasks_count;
+    uint64_t* tasks_count;          // read vertices information
     uint64_t* tasks_offset;
-    Vertex* tasks_vertices;
-
-    uint64_t block_size;
+    Vertex* tasks_vertices;         
+    uint64_t block_size;            // only certain block of data will be copied to each process
     uint64_t block_start;
-
     uint64_t offset_start;
 
-
-
-    // split tasks
     // get proper read location for level
     if(CPU_LEVELS % 2 == 1){
         tasks_count = hd.tasks1_count;
@@ -690,14 +653,13 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
     chkerr(cudaMemcpy(h_dd.tasks_count, hd.tasks1_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.tasks_offset, hd.tasks1_offset, (dss.expand_threshold + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.tasks_vertices, hd.tasks1_vertices, (dss.tasks_size) * sizeof(Vertex), cudaMemcpyHostToDevice));
-
     chkerr(cudaMemcpy(h_dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.buffer_offset, hd.buffer_offset, (dss.buffer_offset_size) * sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.buffer_vertices, hd.buffer_vertices, (dss.buffer_size) * sizeof(int), cudaMemcpyHostToDevice));
-
     chkerr(cudaMemcpy(h_dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
 }
 
+// move cliques from device to host
 void dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& temp_results, DS_Sizes& dss)
 {
     // gpu cliques to cpu cliques
@@ -706,19 +668,20 @@ void dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& temp_results, DS_Si
     chkerr(cudaMemcpy(hc.cliques_vertex, h_dd.cliques_vertex, sizeof(int) * dss.cliques_size, cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
 
-    // DEBUG
-    //print_CPU_Cliques(hc);
-
     flush_cliques(hc, temp_results);
 
     cudaMemset(h_dd.cliques_count, 0, sizeof(uint64_t));
 }
 
+// move cliques from host to file
 void flush_cliques(CPU_Cliques& hc, ofstream& temp_results) 
 {
+    uint64_t start;         // start of current clique
+    uint64_t end;           // end of current clique
+
     for (int i = 0; i < ((*hc.cliques_count)); i++) {
-        uint64_t start = hc.cliques_offset[i];
-        uint64_t end = hc.cliques_offset[i + 1];
+        start = hc.cliques_offset[i];
+        end = hc.cliques_offset[i + 1];
         temp_results << end - start << " ";
         for (uint64_t j = start; j < end; j++) {
             temp_results << hc.cliques_vertex[j] << " ";
@@ -737,86 +700,79 @@ void free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     chkerr(cudaFree(h_dd.onehop_offsets));
     chkerr(cudaFree(h_dd.twohop_neighbors));
     chkerr(cudaFree(h_dd.twohop_offsets));
-
     // CPU DATA
     delete hd.tasks1_count;
     delete hd.tasks1_offset;
     delete hd.tasks1_vertices;
-
     delete hd.tasks2_count;
     delete hd.tasks2_offset;
     delete hd.tasks2_vertices;
-
     delete hd.buffer_count;
     delete hd.buffer_offset;
     delete hd.buffer_vertices;
-
     delete hd.current_level;
     delete hd.maximal_expansion;
     delete hd.dumping_cliques;
-
     delete hd.vertex_order_map;
     delete hd.remaining_candidates;
     delete hd.remaining_count;
     delete hd.removed_candidates;
     delete hd.removed_count;
     delete hd.candidate_indegs;
-
     // GPU DATA
     chkerr(cudaFree(h_dd.current_level));
-
     chkerr(cudaFree(h_dd.tasks_count));
     chkerr(cudaFree(h_dd.tasks_offset));
     chkerr(cudaFree(h_dd.tasks_vertices));
-
     chkerr(cudaFree(h_dd.buffer_count));
     chkerr(cudaFree(h_dd.buffer_offset));
     chkerr(cudaFree(h_dd.buffer_vertices));
-
     chkerr(cudaFree(h_dd.wtasks_count));
     chkerr(cudaFree(h_dd.wtasks_offset));
     chkerr(cudaFree(h_dd.wtasks_vertices));
-
     chkerr(cudaFree(h_dd.global_vertices));
-
     chkerr(cudaFree(h_dd.remaining_candidates));
     chkerr(cudaFree(h_dd.lane_remaining_candidates));
-
     chkerr(cudaFree(h_dd.removed_candidates));
     chkerr(cudaFree(h_dd.lane_removed_candidates));
-
     chkerr(cudaFree(h_dd.candidate_indegs));
     chkerr(cudaFree(h_dd.lane_candidate_indegs));
-
     chkerr(cudaFree(h_dd.adjacencies));
-
     chkerr(cudaFree(h_dd.minimum_degree_ratio));
     chkerr(cudaFree(h_dd.minimum_degrees));
     chkerr(cudaFree(h_dd.minimum_clique_size));
-
     chkerr(cudaFree(h_dd.total_tasks));
-
+    chkerr(cudaFree(h_dd.current_task));
     // CPU CLIQUES
     delete hc.cliques_count;
     delete hc.cliques_vertex;
     delete hc.cliques_offset;
-
     // GPU CLIQUES
     chkerr(cudaFree(h_dd.cliques_count));
     chkerr(cudaFree(h_dd.cliques_vertex));
     chkerr(cudaFree(h_dd.cliques_offset));
-
     chkerr(cudaFree(h_dd.wcliques_count));
     chkerr(cudaFree(h_dd.wcliques_vertex));
     chkerr(cudaFree(h_dd.wcliques_offset));
-
     chkerr(cudaFree(h_dd.buffer_offset_start));
     chkerr(cudaFree(h_dd.buffer_start));
     chkerr(cudaFree(h_dd.cliques_offset_start));
     chkerr(cudaFree(h_dd.cliques_start));
-
-    // tasks scheduling
-    chkerr(cudaFree(h_dd.current_task));
+    // DATA STRUCTURE SIZES
+    chkerr(cudaFree(h_dd.tasks_size));
+    chkerr(cudaFree(h_dd.tasks_per_warp));
+    chkerr(cudaFree(h_dd.buffer_size));
+    chkerr(cudaFree(h_dd.buffer_offset_size));
+    chkerr(cudaFree(h_dd.cliques_size));
+    chkerr(cudaFree(h_dd.cliques_offset_size));
+    chkerr(cudaFree(h_dd.cliques_percent));
+    chkerr(cudaFree(h_dd.wcliques_size));
+    chkerr(cudaFree(h_dd.wcliques_offset_size));
+    chkerr(cudaFree(h_dd.wtasks_size));
+    chkerr(cudaFree(h_dd.wtasks_offset_size));
+    chkerr(cudaFree(h_dd.wvertices_size));
+    chkerr(cudaFree(h_dd.expand_threshold));
+    chkerr(cudaFree(h_dd.cliques_dump));
 }
 
 // --- SECONDARY EXPNASION FUNCTIONS ---
