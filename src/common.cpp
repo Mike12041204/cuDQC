@@ -21,15 +21,12 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
     for (int i = 0; i < number_of_edges; i++) {
         graph_stream >> onehop_neighbors[i];
     }
-
     for (int i = 0; i < number_of_vertices + 1; i++) {
         graph_stream >> onehop_offsets[i];
     }
-
     for (int i = 0; i < number_of_lvl2adj; i++) {
         graph_stream >> twohop_neighbors[i];
     }
-
     for (int i = 0; i < number_of_vertices + 1; i++) {
         graph_stream >> twohop_offsets[i];
     }
@@ -50,6 +47,7 @@ DS_Sizes::DS_Sizes(const string& filename)
     int line_count = 0;
     
     while (getline(file, line)) {
+
         size_t commaPos = line.find(',');
         if (commaPos != string::npos) {
             string valueStr = line.substr(commaPos + 1);
@@ -70,6 +68,7 @@ DS_Sizes::DS_Sizes(const string& filename)
                 case 11: wvertices_size = value; break;
             }
         }
+
         line_count++;
     }
 
