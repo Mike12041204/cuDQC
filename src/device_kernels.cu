@@ -293,6 +293,7 @@ __global__ void transfer_buffers(GPU_Data* dd)
 
         (*(dd->total_tasks)) = 0;
         (*(dd->total_cliques)) = 0;
+        *dd->current_level++;
     }
 }
 

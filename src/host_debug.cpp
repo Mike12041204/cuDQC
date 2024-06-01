@@ -340,7 +340,6 @@ void print_All_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
     delete cliques_sizes;
 }
 
-// CURSOR - why doesnt this work
 bool print_Warp_Data_Sizes_Every(GPU_Data& h_dd, int every, ofstream& output_file, DS_Sizes& dss)
 {
     bool result = false;

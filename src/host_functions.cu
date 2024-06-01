@@ -16,12 +16,13 @@ void calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double mini
 
 void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size) 
 {
-    // DATA STRUCTURES
     CPU_Data hd;
     CPU_Cliques hc;
     GPU_Data h_dd;
     GPU_Data* dd;
-
+    uint64_t current_level;
+    uint64_t write_count;
+    uint64_t buffer_count;
 
     // HANDLE MEMORY
     allocate_memory(hd, h_dd, hc, hg, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
@@ -30,20 +31,14 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
     chkerr(cudaMemcpy(dd, &h_dd, sizeof(GPU_Data), cudaMemcpyHostToDevice));
     cudaDeviceSynchronize();
 
-
-
     // TIME
     auto start = chrono::high_resolution_clock::now();
-
-
 
     // INITIALIZE TASKS
     if(grank == 0){
         cout << ">:INITIALIZING TASKS" << endl;
     }
     initialize_tasks(hg, hd, minimum_degrees, minimum_clique_size);
-
-
 
     // DEBUG
     if (DEBUG_TOGGLE) {
@@ -55,10 +50,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
         h_print_Data_Sizes(hd, hc, output_file);
     }
 
-
-
     // CPU EXPANSION
-    // cpu levels is multiplied by two to ensure that data ends up in tasks1, this allows us to always copy tasks1 without worry like before hybrid cpu approach
     // cpu expand must be called atleast one time to handle first round cover pruning as the gpu code cannot do this
     for (int i = 0; i < CPU_LEVELS + 1 && !(*hd.maximal_expansion); i++) {
         h_expand_level(hg, hd, hc, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
@@ -68,8 +60,6 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
             flush_cliques(hc, temp_results);
         }
 
-
-
         // DEBUG
         if (DEBUG_TOGGLE) {
             h_print_Data_Sizes(hd, hc, output_file);
@@ -78,21 +68,17 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
 
     flush_cliques(hc, temp_results);
 
-
-
     // TRANSFER TO GPU
     move_to_gpu(hd, h_dd, dss);
     cudaDeviceSynchronize();
 
-
-
-    // TODO - use cuTS distributed loop
     // EXPAND LEVEL
     if(grank == 0){
         cout << ">:BEGINNING EXPANSION" << endl;
     }
-    while (!(*hd.maximal_expansion))
-    {
+
+    while (!(*hd.maximal_expansion)){
+
         (*(hd.maximal_expansion)) = true;
         chkerr(cudaMemset(h_dd.current_task, 0, sizeof(int)));
         cudaDeviceSynchronize();
@@ -101,35 +87,22 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
         d_expand_level<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
         cudaDeviceSynchronize();
 
-
-
         // DEBUG
         if (DEBUG_TOGGLE) {
             if (print_Warp_Data_Sizes_Every(h_dd, 1, output_file, dss)) { break; }
         }
 
-
-
         // consolidate all the warp tasks/cliques buffers into the next global tasks array, buffer, and cliques
         transfer_buffers<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
         cudaDeviceSynchronize();
 
-
-
         // determine whether maximal expansion has been accomplished
-        uint64_t current_level, write_count, buffer_count;
-        // TODO - do we still need to copy current level from the GPU or can we just have a counter on the CPU or handle it on the GPU
-        chkerr(cudaMemcpy(&current_level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
         chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
         chkerr(cudaMemcpy(&write_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
         if (write_count > 0 || buffer_count > 0) {
             (*(hd.maximal_expansion)) = false;
         }
-
-        // TODO - what number of tasks is enough to split
-
-
 
         chkerr(cudaMemset(h_dd.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
         chkerr(cudaMemset(h_dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
@@ -138,11 +111,6 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
             fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
             cudaDeviceSynchronize();
         }
-        current_level++;
-        chkerr(cudaMemcpy(h_dd.current_level, &current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
-
-
-
 
         // determine whether cliques has exceeded defined threshold, if so dump them to a file
         uint64_t cliques_size, cliques_count;
@@ -155,15 +123,11 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
             dump_cliques(hc, h_dd, temp_results, dss);
         }
 
-
-
         // DEBUG
         if (DEBUG_TOGGLE) {
             if (print_Data_Sizes_Every(h_dd, 1, output_file, dss)) { break; }
         }
     }
-
-
 
     // TIME
     auto stop = chrono::high_resolution_clock::now();
@@ -172,8 +136,6 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
     if(grank == 0){
         cout << "--->:ENUMERATION TIME: " << duration.count() << " ms" << endl;
     }
-
-
 
     dump_cliques(hc, h_dd, temp_results, dss);
 
