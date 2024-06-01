@@ -16,13 +16,14 @@ void calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double mini
 
 void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size) 
 {
-    CPU_Data hd;
-    CPU_Cliques hc;
-    GPU_Data h_dd;
-    GPU_Data* dd;
-    uint64_t current_level;
-    uint64_t write_count;
-    uint64_t buffer_count;
+    CPU_Data hd;                    // host vertex structure data
+    CPU_Cliques hc;                 // host results data
+    GPU_Data h_dd;                  // host pointers to device global memory
+    GPU_Data* dd;                   // device pointers to device global memory
+    uint64_t write_count;           // how many tasks in tasks
+    uint64_t buffer_count;          // how many tasks in buffer
+    uint64_t cliques_size;          // how many results stored
+    uint64_t cliques_count;         // size of results stored
 
     // HANDLE MEMORY
     allocate_memory(hd, h_dd, hc, hg, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
@@ -113,7 +114,6 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
         }
 
         // determine whether cliques has exceeded defined threshold, if so dump them to a file
-        uint64_t cliques_size, cliques_count;
         chkerr(cudaMemcpy(&cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
         chkerr(cudaMemcpy(&cliques_size, h_dd.cliques_offset + cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
         cudaDeviceSynchronize();
