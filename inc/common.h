@@ -56,8 +56,7 @@ using namespace std;
 struct Vertex
 {
     uint32_t vertexid;
-    // labels: 0 -> candidate, 1 -> member, 2 -> covered vertex, 3 -> cover vertex, 4 -> critical adjacent vertex, -1 -> pruned vertex
-    int8_t label;
+    int8_t label;               // labels: 0 -> candidate, 1 -> member, 2 -> covered vertex, 3 -> cover vertex, 4 -> critical adjacent vertex, -1 -> pruned vertex
     uint32_t indeg;
     uint32_t exdeg;
     uint32_t lvl2adj;
@@ -71,7 +70,6 @@ class CPU_Graph
     int number_of_vertices;
     int number_of_edges;
     uint64_t number_of_lvl2adj;
-
     // one dimentional arrays of 1hop and 2hop neighbors and the offsets for each vertex
     int* onehop_neighbors;
     uint64_t* onehop_offsets;
@@ -85,22 +83,21 @@ class CPU_Graph
 // CPU DATA
 struct CPU_Data
 {
+    // structures for storing vertices
     uint64_t* tasks1_count;
     uint64_t* tasks1_offset;
     Vertex* tasks1_vertices;
-
     uint64_t* tasks2_count;
     uint64_t* tasks2_offset;
     Vertex* tasks2_vertices;
-
     uint64_t* buffer_count;
     uint64_t* buffer_offset;
     Vertex* buffer_vertices;
-
+    // information about expansion
     uint64_t* current_level;
     bool* maximal_expansion;
     bool* dumping_cliques;
-
+    // helpers in pruning
     int* vertex_order_map;
     int* remaining_candidates;
     int* removed_candidates;
@@ -122,66 +119,47 @@ struct GPU_Data
 {
     // GPU DATA
     uint64_t* current_level;
-
+    int* current_task;
     uint64_t* tasks_count;
     uint64_t* tasks_offset;
     Vertex* tasks_vertices;
-
     uint64_t* buffer_count;
     uint64_t* buffer_offset;
     Vertex* buffer_vertices;
-
     uint64_t* wtasks_count;
     uint64_t* wtasks_offset;
     Vertex* wtasks_vertices;
-
     Vertex* global_vertices;
-
     int* removed_candidates;
     int* lane_removed_candidates;
-
     Vertex* remaining_candidates;
     int* lane_remaining_candidates;
-
     int* candidate_indegs;
     int* lane_candidate_indegs;
-
     int* adjacencies;
-
     int* total_tasks;
-
     double* minimum_degree_ratio;
     int* minimum_degrees;
     int* minimum_clique_size;
-
     uint64_t* buffer_offset_start;
     uint64_t* buffer_start;
     uint64_t* cliques_offset_start;
     uint64_t* cliques_start;
-
     // GPU GRAPH
     int* number_of_vertices;
     int* number_of_edges;
-
     int* onehop_neighbors;
     uint64_t* onehop_offsets;
     int* twohop_neighbors;
     uint64_t* twohop_offsets;
-
     // GPU CLIQUES
     uint64_t* cliques_count;
     uint64_t* cliques_offset;
     int* cliques_vertex;
-
     uint64_t* wcliques_count;
     uint64_t* wcliques_offset;
     int* wcliques_vertex;
-
     int* total_cliques;
-
-    // task scheduling
-    int* current_task;
-
     // DATA STRUCTURE SIZE
     uint64_t* tasks_size;
     uint64_t* tasks_per_warp;
@@ -190,14 +168,11 @@ struct GPU_Data
     uint64_t* cliques_size;
     uint64_t* cliques_offset_size;
     uint64_t* cliques_percent;
-    // per warp
     uint64_t* wcliques_size;
     uint64_t* wcliques_offset_size;
     uint64_t* wtasks_size;
     uint64_t* wtasks_offset_size;
-    // global memory vertices, should be a multiple of 32 as to not waste space
     uint64_t* wvertices_size;
-
     uint64_t* expand_threshold;
     uint64_t* cliques_dump;
 };
@@ -205,41 +180,34 @@ struct GPU_Data
 // WARP DATA
 struct Warp_Data
 {
+    // previous level
     uint64_t start[WARPS_PER_BLOCK];
     uint64_t end[WARPS_PER_BLOCK];
     int tot_vert[WARPS_PER_BLOCK];
     int num_mem[WARPS_PER_BLOCK];
     int num_cand[WARPS_PER_BLOCK];
     int expansions[WARPS_PER_BLOCK];
-
+    // next level
     int number_of_members[WARPS_PER_BLOCK];
     int number_of_candidates[WARPS_PER_BLOCK];
     int total_vertices[WARPS_PER_BLOCK];
-
     Vertex shared_vertices[VERTICES_SIZE * WARPS_PER_BLOCK];
-
+    // pruning helpers
     int removed_count[WARPS_PER_BLOCK];
     int remaining_count[WARPS_PER_BLOCK];
     int num_val_cands[WARPS_PER_BLOCK];
     int rw_counter[WARPS_PER_BLOCK];
-
     int min_ext_deg[WARPS_PER_BLOCK];
     int lower_bound[WARPS_PER_BLOCK];
     int upper_bound[WARPS_PER_BLOCK];
-
     int tightened_upper_bound[WARPS_PER_BLOCK];
     int min_clq_indeg[WARPS_PER_BLOCK];
     int min_indeg_exdeg[WARPS_PER_BLOCK];
     int min_clq_totaldeg[WARPS_PER_BLOCK];
     int sum_clq_indeg[WARPS_PER_BLOCK];
     int sum_candidate_indeg[WARPS_PER_BLOCK];
-
     bool success[WARPS_PER_BLOCK];
-
     int number_of_crit_adj[WARPS_PER_BLOCK];
-
-    // for dynamic intersection
-    int count[WARPS_PER_BLOCK];
 };
 
 // LOCAL DATA
@@ -268,7 +236,6 @@ class DS_Sizes
     uint64_t wtasks_offset_size;
     // global memory vertices, should be a multiple of 32 as to not waste space
     uint64_t wvertices_size;
-
     uint64_t expand_threshold;
     uint64_t cliques_dump;
 
