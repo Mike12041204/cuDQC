@@ -779,12 +779,11 @@ void free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
 // returns 1 if lookahead was a success, else 0
 int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, int tot_vert, int num_mem, int num_cand, uint64_t start, int* minimum_degrees)
 {
-    // intersection
-    int pvertexid;
+    int pvertexid;                      // used for intersection
     uint64_t pneighbors_start;
     uint64_t pneighbors_end;
     int phelper1;
-
+    uint64_t start_write;               // starting write position for new cliques
 
     // check if members meet degree requirement, dont need to check 2hop adj as diameter pruning guarentees all members will be within 2hops of eveything
     for (int i = 0; i < num_mem; i++) {
@@ -825,7 +824,7 @@ int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* re
     }
 
     // write to cliques
-    uint64_t start_write = hc.cliques_offset[(*hc.cliques_count)];
+    start_write = hc.cliques_offset[(*hc.cliques_count)];
     for (int j = 0; j < tot_vert; j++) {
         hc.cliques_vertex[start_write + j] = read_vertices[start + j].vertexid;
     }
@@ -838,17 +837,12 @@ int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* re
 // returns 1 is failed found or not enough vertices, else 0
 int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int& tot_vert, int& num_cand, int& num_mem, uint64_t start, int* minimum_degrees, int minimum_clique_size)
 {
-    // intersection
-    int pvertexid;
-    uint64_t pneighbors_start;
+    int pvertexid;                      // intersection
+    uint64_t pneighbors_start;          
     uint64_t pneighbors_end;
     int phelper1;
-
-    // helper variables
-    int mindeg;
+    int mindeg;                         // helper variables
     bool failed_found;
-
-
 
     mindeg = h_get_mindeg(num_mem, minimum_degrees, minimum_clique_size);
 
@@ -895,19 +889,14 @@ int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int&
 // returns 1 if failed found or invalid bound, 0 otherwise
 int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int& number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size)
 {
-    // helper variables
-    bool method_return;
-
-    // intersection
-    int pvertexid;
-    uint64_t pneighbors_start;
+    bool method_return;                 // helper variables
+    int pvertexid;                      // intersection
+    uint64_t pneighbors_start;          
     uint64_t pneighbors_end;
     int pneighbors_count;
     int phelper1;
 
-
-
-    // Ah_dd ONE VERTEX
+    // ADD ONE VERTEX
     pvertexid = vertices[number_of_members].vertexid;
 
     vertices[number_of_members].label = 1;
@@ -931,12 +920,8 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
         }
     }
 
-
-
     // DIAMETER PRUNING
     h_diameter_pruning(hg, hd, vertices, pvertexid, total_vertices, number_of_candidates, number_of_members);
-
-
 
     // DEGREE-BASED PRUNING
     method_return = h_degree_pruning(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
@@ -956,19 +941,14 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
 // returns 2 if too many vertices pruned or a critical vertex fail, returns 1 if failed found or invalid bounds, else 0
 int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int& number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size)
 {
-    // intersection
-    int pvertexid;
+    int pvertexid;                      // intersection
     uint64_t pneighbors_start;
     uint64_t pneighbors_end;
     int phelper1;
-
-    bool critical_fail;
+    bool critical_fail;                 // helper
     int number_of_crit_adj;
     int* adj_counters;
-
-    bool method_return;
-
-
+    bool method_return;                 // return
 
     // initialize vertex order map
     for (int i = 0; i < total_vertices; i++) {
@@ -1001,8 +981,6 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
         }
     }
 
-
-
     // reset vertex order map
     for (int i = 0; i < total_vertices; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = -1;
@@ -1021,8 +999,6 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
             break;
         }
     }
-
-
 
     // if there were any neighbors of critical vertices
     if (number_of_crit_adj > 0)
@@ -1102,8 +1078,6 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
         number_of_candidates -= number_of_crit_adj;
     }
 
-
-
     // DIAMTER PRUNING
     (*hd.remaining_count) = 0;
 
@@ -1116,8 +1090,6 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
             vertices[k].label = -1;
         }
     }
-
-    
 
     // DEGREE-BASED PRUNING
     method_return = h_degree_pruning(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
@@ -1139,8 +1111,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
 
 void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvertexid, int& total_vertices, int& number_of_candidates, int number_of_members)
 {
-    // intersection
-    uint64_t pneighbors_start;
+    uint64_t pneighbors_start;          // intersection
     uint64_t pneighbors_end;
     int phelper1;
 
@@ -1165,14 +1136,11 @@ void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvert
 // returns true is invalid bounds calculated or a failed vertex was found, else false
 bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size)
 {
-    // intersection
-    int pvertexid;
+    int pvertexid;                      // intersection
     uint64_t pneighbors_start;
     uint64_t pneighbors_end;
     int phelper1;
-
-    // helper variables
-    int num_val_cands;
+    int num_val_cands;                  // helper variables
 
     qsort(hd.candidate_indegs, (*hd.remaining_count), sizeof(int), h_comp_int_desc);
 
@@ -1289,10 +1257,8 @@ bool h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
 {
     bool invalid_bounds = false;
     int index;
-
     int sum_candidate_indeg = 0;
     int tightened_upper_bound = 0;
-
     int min_clq_indeg = vertices[0].indeg;
     int min_indeg_exdeg = vertices[0].exdeg;
     int min_clq_totaldeg = vertices[0].indeg + vertices[0].exdeg;
@@ -1405,8 +1371,9 @@ bool h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
 void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members, int* minimum_degrees)
 {
     bool clique = true;
+    int degree_requirement;
 
-    int degree_requirement = minimum_degrees[number_of_members];
+    degree_requirement = minimum_degrees[number_of_members];
     for (int k = 0; k < number_of_members; k++) {
         if (vertices[k].indeg < degree_requirement) {
             clique = false;
@@ -1459,15 +1426,21 @@ void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex
 
 void h_fill_from_buffer(CPU_Data& hd, Vertex* write_vertices, uint64_t* write_offsets, uint64_t* write_count, int threshold)
 {
+    int write_amount;
+    uint64_t start_buffer;
+    uint64_t end_buffer;
+    uint64_t size_buffer;
+    uint64_t start_write;
+
     // read from end of buffer, write to end of tasks, decrement buffer
     (*hd.maximal_expansion) = false;
 
     // get read and write locations
-    int write_amount = ((*hd.buffer_count) >= (threshold - *write_count)) ? threshold - *write_count : (*hd.buffer_count);
-    uint64_t start_buffer = hd.buffer_offset[(*hd.buffer_count) - write_amount];
-    uint64_t end_buffer = hd.buffer_offset[(*hd.buffer_count)];
-    uint64_t size_buffer = end_buffer - start_buffer;
-    uint64_t start_write = write_offsets[*write_count];
+    write_amount = ((*hd.buffer_count) >= (threshold - *write_count)) ? threshold - *write_count : (*hd.buffer_count);
+    start_buffer = hd.buffer_offset[(*hd.buffer_count) - write_amount];
+    end_buffer = hd.buffer_offset[(*hd.buffer_count)];
+    size_buffer = end_buffer - start_buffer;
+    start_write = write_offsets[*write_count];
 
     // copy tasks data from end of buffer to end of tasks
     memcpy(&write_vertices[start_write], &hd.buffer_vertices[start_buffer], sizeof(Vertex) * size_buffer);

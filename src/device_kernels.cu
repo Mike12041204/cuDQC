@@ -4,25 +4,11 @@
 // --- PRIMARY KERNELS ---
 __global__ void d_expand_level(GPU_Data* dd)
 {
-    // data is stored in data structures to reduce the number of variables that need to be passed to methods
-    __shared__ Warp_Data wd;
+    __shared__ Warp_Data wd;        // data is stored in data structures to reduce the number of variables that need to be passed to methods
     Local_Data ld;
-
-    // helper variables, not passed through to any methods
-    int num_mem;
+    int num_mem;                    // helper variables, not passed through to any methods
     int method_return;
     int index;
-
-
-
-    /*
-    * The program alternates between reading and writing between to 'tasks' arrays in device global memory. The program will read from one tasks, expand to the next level by generating and pruning, then it will write to the
-    * other tasks array. It will write the first EXPAND_THRESHOLD to the tasks array and the rest to the top of the buffer. The buffers acts as a stack containing the excess data not being expanded from tasks. Since the 
-    * buffer acts as a stack, in a last-in first-out manner, a subsection of the search space will be expanded until completion. This system allows the problem to essentially be divided into smaller problems and thus 
-    * require less memory to handle.
-    */
-
-
 
     // --- CURRENT LEVEL ---
 
@@ -33,8 +19,8 @@ __global__ void d_expand_level(GPU_Data* dd)
     }
     i = __shfl_sync(0xFFFFFFFF, i, 0);
 
-    while (i < *dd->tasks_count)
-    {
+    while (i < *dd->tasks_count){
+
         // get information on vertices being handled within tasks
         if (LANE_IDX == 0) {
             wd.start[WIB_IDX] = dd->tasks_offset[i];
@@ -63,9 +49,6 @@ __global__ void d_expand_level(GPU_Data* dd)
         }
         __syncwarp();
 
-
-
-
         // LOOKAHEAD PRUNING
         method_return = d_lookahead_pruning(dd, wd, ld);
         if (method_return) {
@@ -77,13 +60,9 @@ __global__ void d_expand_level(GPU_Data* dd)
             continue;
         }
 
-
-
         // --- NEXT LEVEL ---
         for (int j = 0; j < wd.expansions[WIB_IDX]; j++)
         {
-
-
 
             // REMOVE ONE VERTEX
             if (j > 0) {
@@ -92,8 +71,6 @@ __global__ void d_expand_level(GPU_Data* dd)
                     break;
                 }
             }
-
-
 
             // INITIALIZE NEW VERTICES
             if (LANE_IDX == 0) {
@@ -111,19 +88,17 @@ __global__ void d_expand_level(GPU_Data* dd)
                 ld.vertices = dd->global_vertices + (*dd->wvertices_size * WARP_IDX);
             }
 
+            // copy vertices
             for (index = LANE_IDX; index < wd.number_of_members[WIB_IDX]; index += WARP_SIZE) {
                 ld.vertices[index] = dd->tasks_vertices[wd.start[WIB_IDX] + index];
             }
             for (; index < wd.total_vertices[WIB_IDX] - 1; index += WARP_SIZE) {
                 ld.vertices[index + 1] = dd->tasks_vertices[wd.start[WIB_IDX] + index];
             }
-
             if (LANE_IDX == 0) {
                 ld.vertices[wd.number_of_members[WIB_IDX]] = dd->tasks_vertices[wd.start[WIB_IDX] + wd.total_vertices[WIB_IDX] - 1];
             }
             __syncwarp();
-
-
 
             // ADD ONE VERTEX
             method_return = d_add_one_vertex(dd, wd, ld);
@@ -136,8 +111,6 @@ __global__ void d_expand_level(GPU_Data* dd)
                 continue;
             }
 
-
-
             // CRITICAL VERTEX PRUNING
             method_return = d_critical_vertex_pruning(dd, wd, ld);
 
@@ -145,8 +118,6 @@ __global__ void d_expand_level(GPU_Data* dd)
             if (method_return == 2) {
                 continue;
             }
-
-
 
             // HANDLE CLIQUES
             if (wd.number_of_members[WIB_IDX] >= (*dd->minimum_clique_size)) {
@@ -158,8 +129,6 @@ __global__ void d_expand_level(GPU_Data* dd)
                 continue;
             }
 
-
-
             // WRITE TASKS TO BUFFERS
             // sort vertices in Quick efficient enumeration order before writing
             d_oe_sort_vert(ld.vertices, wd.total_vertices[WIB_IDX], d_comp_vert_Q);
@@ -169,16 +138,12 @@ __global__ void d_expand_level(GPU_Data* dd)
             }
         }
 
-
-
         // schedule warps next task
         if (LANE_IDX == 0) {
             i = atomicAdd(dd->current_task, 1);
         }
         i = __shfl_sync(0xFFFFFFFF, i, 0);
     }
-
-
 
     if (LANE_IDX == 0) {
         // sum to find tasks count
@@ -187,10 +152,10 @@ __global__ void d_expand_level(GPU_Data* dd)
     }
 
     if (IDX == 0) {
-        (*(dd->buffer_offset_start)) = (*(dd->buffer_count)) + 1;
-        (*(dd->buffer_start)) = dd->buffer_offset[(*(dd->buffer_count))];
-        (*(dd->cliques_offset_start)) = (*(dd->cliques_count)) + 1;
-        (*(dd->cliques_start)) = dd->cliques_offset[(*(dd->cliques_count))];
+        *dd->buffer_offset_start = *dd->buffer_count + 1;
+        *dd->buffer_start = dd->buffer_offset[*dd->buffer_count];
+        *dd->cliques_offset_start = *dd->cliques_count + 1;
+        *dd->cliques_start = dd->cliques_offset[*dd->cliques_count];
     }
 }
 
