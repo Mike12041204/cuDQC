@@ -4,10 +4,7 @@
 #include "./inc/Quick_rmnonmax.h"
 
 // TODO
-// - look for places where we can break early
-// - examine code for unnecessary syncs on the GPU
 // - see whether it's possible to parallelize some of calculate_LU_bounds
-// - review all code and code style
 // - make cuTS mpi its own file
 
 // MAIN
