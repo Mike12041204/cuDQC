@@ -19,7 +19,7 @@ __global__ void d_expand_level(GPU_Data* dd)
     }
     i = __shfl_sync(0xFFFFFFFF, i, 0);
 
-    while (i < *dd->tasks_count){
+    while (i < *dd->tasks_count) {
 
         // get information on vertices being handled within tasks
         if (LANE_IDX == 0) {
@@ -165,7 +165,6 @@ __global__ void transfer_buffers(GPU_Data* dd)
     __shared__ int tasks_offset_write[WARPS_PER_BLOCK];
     __shared__ uint64_t cliques_write[WARPS_PER_BLOCK];
     __shared__ int cliques_offset_write[WARPS_PER_BLOCK];
-
     __shared__ int twarp;
     __shared__ int toffsetwrite;
     __shared__ int twrite;
@@ -194,8 +193,7 @@ __global__ void transfer_buffers(GPU_Data* dd)
     __syncthreads();
 
     // warp level
-    if (LANE_IDX == 0)
-    {
+    if (LANE_IDX == 0) {
         tasks_write[WIB_IDX] = 0;
         tasks_offset_write[WIB_IDX] = 1;
         cliques_write[WIB_IDX] = 0;
@@ -212,16 +210,15 @@ __global__ void transfer_buffers(GPU_Data* dd)
     __syncwarp();
     
     // move to tasks and buffer
-    for (int i = LANE_IDX + 1; i <= dd->wtasks_count[WARP_IDX]; i += WARP_SIZE)
-    {
+    for (int i = LANE_IDX + 1; i <= dd->wtasks_count[WARP_IDX]; i += WARP_SIZE) {
         if (tasks_offset_write[WIB_IDX] + i - 1 <= *dd->expand_threshold) {
             // to tasks
             dd->tasks_offset[tasks_offset_write[WIB_IDX] + i - 1] = dd->wtasks_offset[(*dd->wtasks_offset_size * WARP_IDX) + i] + tasks_write[WIB_IDX];
         }
         else {
             // to buffer
-            dd->buffer_offset[tasks_offset_write[WIB_IDX] + i - 2 - *dd->expand_threshold + (*(dd->buffer_offset_start))] = dd->wtasks_offset[(*dd->wtasks_offset_size * WARP_IDX) + i] +
-                tasks_write[WIB_IDX] - tasks_end + (*(dd->buffer_start));
+            dd->buffer_offset[tasks_offset_write[WIB_IDX] + i - 2 - *dd->expand_threshold + *dd->buffer_offset_start] = dd->wtasks_offset[(*dd->wtasks_offset_size * WARP_IDX) + i] +
+                tasks_write[WIB_IDX] - tasks_end + *dd->buffer_start;
         }
     }
 
@@ -232,32 +229,32 @@ __global__ void transfer_buffers(GPU_Data* dd)
         }
         else {
             // to buffer
-            dd->buffer_vertices[(*(dd->buffer_start)) + tasks_write[WIB_IDX] + i - tasks_end] = dd->wtasks_vertices[(*dd->wtasks_size * WARP_IDX) + i];
+            dd->buffer_vertices[*dd->buffer_start + tasks_write[WIB_IDX] + i - tasks_end] = dd->wtasks_vertices[(*dd->wtasks_size * WARP_IDX) + i];
         }
     }
 
     //move to cliques
     for (int i = LANE_IDX + 1; i <= dd->wcliques_count[WARP_IDX]; i += WARP_SIZE) {
-        dd->cliques_offset[(*(dd->cliques_offset_start)) + cliques_offset_write[WIB_IDX] + i - 2] = dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + i] + (*(dd->cliques_start)) + 
+        dd->cliques_offset[*dd->cliques_offset_start + cliques_offset_write[WIB_IDX] + i - 2] = dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + i] + *dd->cliques_start + 
             cliques_write[WIB_IDX];
     }
     for (int i = LANE_IDX; i < dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + dd->wcliques_count[WARP_IDX]]; i += WARP_SIZE) {
-        dd->cliques_vertex[(*(dd->cliques_start)) + cliques_write[WIB_IDX] + i] = dd->wcliques_vertex[(*dd->wcliques_size * WARP_IDX) + i];
+        dd->cliques_vertex[*dd->cliques_start + cliques_write[WIB_IDX] + i] = dd->wcliques_vertex[(*dd->wcliques_size * WARP_IDX) + i];
     }
 
     if (IDX == 0) {
         // handle tasks and buffer counts
-        if ((*dd->total_tasks) <= *dd->expand_threshold) {
-            (*dd->tasks_count) = (*(dd->total_tasks));
+        if (*dd->total_tasks <= *dd->expand_threshold) {
+            *dd->tasks_count = *dd->total_tasks;
         }
         else {
-            (*dd->tasks_count) = *dd->expand_threshold;
-            (*(dd->buffer_count)) += ((*(dd->total_tasks)) - *dd->expand_threshold);
+            *dd->tasks_count = *dd->expand_threshold;
+            *dd->buffer_count += *dd->total_tasks - *dd->expand_threshold;
         }
-        (*(dd->cliques_count)) += (*(dd->total_cliques));
+        *dd->cliques_count += *dd->total_cliques;
 
-        (*(dd->total_tasks)) = 0;
-        (*(dd->total_cliques)) = 0;
+        *dd->total_tasks = 0;
+        *dd->total_cliques = 0;
         *dd->current_level++;
     }
 }
