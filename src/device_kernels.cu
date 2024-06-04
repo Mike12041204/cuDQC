@@ -262,15 +262,15 @@ __global__ void transfer_buffers(GPU_Data* dd)
 __global__ void fill_from_buffer(GPU_Data* dd)
 {
     // get read and write locations
-    int write_amount = ((*(dd->buffer_count)) >= (*dd->expand_threshold - (*dd->tasks_count))) ? *dd->expand_threshold - (*dd->tasks_count) : (*(dd->buffer_count));
-    uint64_t start_buffer = dd->buffer_offset[(*(dd->buffer_count)) - write_amount];
-    uint64_t end_buffer = dd->buffer_offset[(*(dd->buffer_count))];
+    int write_amount = (*dd->buffer_count >= *dd->expand_threshold - *dd->tasks_count) ? *dd->expand_threshold - *dd->tasks_count : *dd->buffer_count;
+    uint64_t start_buffer = dd->buffer_offset[*dd->buffer_count - write_amount];
+    uint64_t end_buffer = dd->buffer_offset[*dd->buffer_count];
     uint64_t size_buffer = end_buffer - start_buffer;
-    uint64_t start_write = dd->tasks_offset[(*dd->tasks_count)];
+    uint64_t start_write = dd->tasks_offset[*dd->tasks_count];
 
     // handle offsets
     for (int i = IDX + 1; i <= write_amount; i += NUMBER_OF_THREADS) {
-        dd->tasks_offset[(*dd->tasks_count) + i] = start_write + (dd->buffer_offset[(*(dd->buffer_count)) - write_amount + i] - start_buffer);
+        dd->tasks_offset[*dd->tasks_count + i] = start_write + dd->buffer_offset[*dd->buffer_count - write_amount + i] - start_buffer;
     }
 
     // handle data
@@ -279,8 +279,8 @@ __global__ void fill_from_buffer(GPU_Data* dd)
     }
 
     if (IDX == 0) {
-        (*dd->tasks_count) += write_amount;
-        (*(dd->buffer_count)) -= write_amount;
+        *dd->tasks_count += write_amount;
+        *dd->buffer_count -= write_amount;
     }
 }
 
@@ -291,6 +291,7 @@ __device__ int d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     int pvertexid;
     int phelper1;
     int phelper2;
+    uint64_t start_write;
 
     if (LANE_IDX == 0) {
         wd.success[WIB_IDX] = true;
@@ -340,13 +341,13 @@ __device__ int d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     if (wd.success[WIB_IDX]) {
         // write to cliques
-        uint64_t start_write = (*dd->wcliques_size * WARP_IDX) + dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + (dd->wcliques_count[WARP_IDX])];
+        start_write = (*dd->wcliques_size * WARP_IDX) + dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + dd->wcliques_count[WARP_IDX]];
         for (int j = LANE_IDX; j < wd.tot_vert[WIB_IDX]; j += WARP_SIZE) {
             dd->wcliques_vertex[start_write + j] = dd->tasks_vertices[wd.start[WIB_IDX] + j].vertexid;
         }
         if (LANE_IDX == 0) {
             (dd->wcliques_count[WARP_IDX])++;
-            dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + (dd->wcliques_count[WARP_IDX])] = start_write - (*dd->wcliques_size * WARP_IDX) + wd.tot_vert[WIB_IDX];
+            dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + dd->wcliques_count[WARP_IDX]] = start_write - (*dd->wcliques_size * WARP_IDX) + wd.tot_vert[WIB_IDX];
         }
         return 1;
     }
@@ -360,7 +361,6 @@ __device__ int d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     int pvertexid;
     int phelper1;
     int phelper2;
-
     int mindeg;
 
     mindeg = d_get_mindeg(wd.num_mem[WIB_IDX], dd);
@@ -406,8 +406,6 @@ __device__ int d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     int phelper2;
     bool failed_found;
 
-
-
     // ADD ONE VERTEX
     pvertexid = ld.vertices[wd.number_of_members[WIB_IDX]].vertexid;
 
@@ -429,12 +427,8 @@ __device__ int d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     }
     __syncwarp();
 
-
-
     // DIAMETER PRUNING
     d_diameter_pruning(dd, wd, ld, pvertexid);
-
-
 
     // DEGREE BASED PRUNING
     failed_found = d_degree_pruning(dd, wd, ld);
@@ -450,14 +444,9 @@ __device__ int d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 // returns 2, if critical fail, 1 if failed found or invalid bound, 0 otherwise
 __device__ int d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
-    // intersection
-    int phelper1;
-
-    // pruning
-    int number_of_crit_adj;
+    int phelper1;                   // intersection
+    int number_of_crit_adj;         // pruning
     bool failed_found;
-
-
 
     // CRITICAL VERTEX PRUNING 
     // iterate through all vertices in clique
@@ -480,8 +469,6 @@ __device__ int d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data
         __syncwarp();
     }
 
-
-
     // sort vertices so that critical vertex adjacent candidates are immediately after vertices within the clique
     d_oe_sort_vert(ld.vertices + wd.number_of_members[WIB_IDX], wd.number_of_candidates[WIB_IDX], d_comp_vert_cv);
 
@@ -499,8 +486,6 @@ __device__ int d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data
     for (int i = 1; i < 32; i *= 2) {
         number_of_crit_adj += __shfl_xor_sync(0xFFFFFFFF, number_of_crit_adj, i);
     }
-
-
 
     failed_found = false;
 
@@ -565,12 +550,8 @@ __device__ int d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data
         __syncwarp();
     }
 
-
-
     // DIAMTER PRUNING
     d_diameter_pruning_cv(dd, wd, ld, number_of_crit_adj);
-
-
 
     // DEGREE BASED PRUNING
     failed_found = d_degree_pruning(dd, wd, ld);
@@ -586,16 +567,12 @@ __device__ int d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data
 // diameter pruning intitializes vertices labels and candidate indegs array for use in iterative degree pruning
 __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, int pvertexid)
 {
-    // vertices size * warp idx + (vertices size / warp size) * lane idx
-    int lane_write = ((*dd->wvertices_size * WARP_IDX) + ((*dd->wvertices_size / WARP_SIZE) * LANE_IDX));
-
-    // intersection
-    int phelper1;
+    int lane_write;
+    int phelper1;                       // intersection
     int phelper2;
+    int lane_remaining_count;           // vertex iteration
 
-    // vertex iteration
-    int lane_remaining_count;
-
+    lane_write = (*dd->wvertices_size * WARP_IDX) + ((*dd->wvertices_size / WARP_SIZE) * LANE_IDX);
     lane_remaining_count = 0;
 
     for (int i = wd.number_of_members[WIB_IDX] + LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE) {
@@ -640,19 +617,12 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
 
 __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, int number_of_crit_adj)
 {
-    // (WVERTICES_SIZE * WARP_IDX) /warp write location to adjacencies
-    // vertices size * warp idx + (vertices size / warp size) * lane idx
-    int lane_write = ((*dd->wvertices_size * WARP_IDX) + ((*dd->wvertices_size / WARP_SIZE) * LANE_IDX));
-
-    // vertex iteration
-    int lane_remaining_count;
-
-    // intersection
-    int phelper1;
+    int lane_write;
+    int lane_remaining_count;           // vertex iteration
+    int phelper1;                       // intersection
     int phelper2;
 
-
-
+    lane_write = (*dd->wvertices_size * WARP_IDX) + ((*dd->wvertices_size / WARP_SIZE) * LANE_IDX);
     lane_remaining_count = 0;
 
     // remove all cands who are not within 2hops of all newly added cands
@@ -1003,7 +973,6 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, int number_of_candidates)
 {
     int index;
-
     int min_clq_indeg;
     int min_indeg_exdeg;
     int min_clq_totaldeg;
@@ -1080,6 +1049,7 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
         __syncwarp();
     }
 
+    // CRITICAL SECTION - only first lane does this as there are little calculations
     if (LANE_IDX == 0) {
         if (wd.min_clq_indeg[WIB_IDX] < dd->minimum_degrees[wd.number_of_members[WIB_IDX]])
         {
@@ -1171,7 +1141,9 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
 
 __device__ void d_check_for_clique(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
-    bool clique = true;
+    bool clique;
+
+    clique = true;
 
     for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX]; k += WARP_SIZE) {
         if (ld.vertices[k].indeg < dd->minimum_degrees[wd.number_of_members[WIB_IDX]]) {
@@ -1184,20 +1156,22 @@ __device__ void d_check_for_clique(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     // if clique write to warp buffer for cliques
     if (clique) {
-        uint64_t start_write = (*dd->wcliques_size * WARP_IDX) + dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + (dd->wcliques_count[WARP_IDX])];
+        uint64_t start_write = (*dd->wcliques_size * WARP_IDX) + dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + dd->wcliques_count[WARP_IDX]];
         for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX]; k += WARP_SIZE) {
             dd->wcliques_vertex[start_write + k] = ld.vertices[k].vertexid;
         }
         if (LANE_IDX == 0) {
             (dd->wcliques_count[WARP_IDX])++;
-            dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + (dd->wcliques_count[WARP_IDX])] = start_write - (*dd->wcliques_size * WARP_IDX) + wd.number_of_members[WIB_IDX];
+            dd->wcliques_offset[*dd->wcliques_offset_size * WARP_IDX + dd->wcliques_count[WARP_IDX]] = start_write - (*dd->wcliques_size * WARP_IDX) + wd.number_of_members[WIB_IDX];
         }
     }
 }
 
 __device__ void d_write_to_tasks(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
-    uint64_t start_write = (*dd->wtasks_size * WARP_IDX) + dd->wtasks_offset[*dd->wtasks_offset_size * WARP_IDX + (dd->wtasks_count[WARP_IDX])];
+    uint64_t start_write;
+
+    start_write = (*dd->wtasks_size * WARP_IDX) + dd->wtasks_offset[*dd->wtasks_offset_size * WARP_IDX + dd->wtasks_count[WARP_IDX]];
 
     for (int k = LANE_IDX; k < wd.total_vertices[WIB_IDX]; k += WARP_SIZE) {
         dd->wtasks_vertices[start_write + k].vertexid = ld.vertices[k].vertexid;
@@ -1207,8 +1181,8 @@ __device__ void d_write_to_tasks(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         dd->wtasks_vertices[start_write + k].lvl2adj = 0;
     }
     if (LANE_IDX == 0) {
-        (dd->wtasks_count[WARP_IDX])++;
-        dd->wtasks_offset[(*dd->wtasks_offset_size * WARP_IDX) + (dd->wtasks_count[WARP_IDX])] = start_write - (*dd->wtasks_size * WARP_IDX) + wd.total_vertices[WIB_IDX];
+        dd->wtasks_count[WARP_IDX]++;
+        dd->wtasks_offset[(*dd->wtasks_offset_size * WARP_IDX) + dd->wtasks_count[WARP_IDX]] = start_write - (*dd->wtasks_size * WARP_IDX) + wd.total_vertices[WIB_IDX];
     }
 }
 
@@ -1219,12 +1193,16 @@ __device__ int d_b_search_int(int* search_array, int array_size, int search_numb
     // ALGO - BINARY
     // TYPE - SERIAL
     // SPEED - O(log(n))
+    
+    int high;
+    int mid;
+    int low;
 
-    int low = 0;
-    int high = array_size - 1;
+    low = 0;
+    high = array_size - 1;
 
     while (low <= high) {
-        int mid = (low + high) / 2;
+        mid = (low + high) / 2;
 
         if (search_array[mid] == search_number) {
             return mid;
