@@ -2,6 +2,7 @@
 #include "../inc/host_functions.h"
 #include "../inc/host_debug.h"
 #include "../inc/device_kernels.h"
+#include "../inc/cuTS_MPI.h"
 
 // --- PRIMARY FUNCTIONS ---
 // initializes minimum degrees array 

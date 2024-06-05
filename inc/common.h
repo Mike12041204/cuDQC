@@ -245,9 +245,13 @@ class DS_Sizes
 // DEBUG - MAX TRACKER VARIABLES
 extern uint64_t mts, mbs, mbo, mcs, mco, wts, wto, wcs, wco, mvs;
 
-// MPI VARIABLES
+// cuTS MPI VARIABLES
 extern int wsize;
 extern int grank;
+extern char msg_buffer[NUMBER_OF_PROCESSESS][100];             // for every task there is a seperate message buffer and incoming/outgoing handle slot
+extern MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];          // array of handles for messages with all other thread, allows for asynchronous messaging, handles say whether message is complete
+extern MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
+extern bool global_free_list[NUMBER_OF_PROCESSESS];
 
 inline void chkerr(cudaError_t code)
 {
