@@ -8,7 +8,7 @@ CXXFLAGS = -O3 -std=c++11
 LDFLAGS := -lmpi
 INCLUDES = -Iinc
 
-OBJECTS = src/common.o src/host_debug.o src/Quick_rmnonmax.o src/device_kernels.o src/host_functions.o main.o
+OBJECTS = src/common.o src/host_debug.o src/Quick_rmnonmax.o src/cuTS_MPI.o src/device_kernels.o src/host_functions.o main.o
 TARGET = DcuQC
 
 $(TARGET): $(OBJECTS)
@@ -20,7 +20,7 @@ main.o: main.cu inc/common.h inc/host_functions.h inc/host_debug.h inc/Quick_rmn
 src/common.o: src/common.cpp inc/common.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-src/host_functions.o: src/host_functions.cu inc/common.h inc/host_functions.h inc/host_debug.h inc/device_kernels.h
+src/host_functions.o: src/host_functions.cu inc/common.h inc/host_functions.h inc/host_debug.h inc/device_kernels.h inc/cuTS_MPI.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
 src/host_debug.o: src/host_debug.cpp inc/common.h inc/host_debug.h
@@ -30,6 +30,9 @@ src/device_kernels.o: src/device_kernels.cu inc/common.h inc/device_kernels.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
 src/Quick_rmnonmax.o: src/Quick_rmnonmax.cpp inc/common.h inc/Quick_rmnonmax.h
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.h inc/cuTS_MPI.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 .PHONY: clean

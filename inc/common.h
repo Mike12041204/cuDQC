@@ -51,6 +51,9 @@ using namespace std;
 // MPI SETTINGS
 #define NUMBER_OF_PROCESSESS 4
 #define MAX_MESSAGE 1000000000
+// TODO - test to see what is the best number for these
+#define HELP_THRESHOLD (NUMBER_OF_WARPS * 2)
+#define HELP_PERCENT 50
 
 // VERTEX DATA
 struct Vertex

@@ -25,6 +25,22 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
     uint64_t buffer_count;          // how many tasks in buffer
     uint64_t cliques_size;          // how many results stored
     uint64_t cliques_count;         // size of results stored
+    uint64_t* mpiSizeBuffer;        // where data transfered intranode is stored
+    Vertex* mpiVertexBuffer;
+    bool help_others;
+    int taker;
+    bool divided_work;
+    int from;
+
+    mpiSizeBuffer = new uint64_t[MAX_MESSAGE];
+    mpiVertexBuffer = new Vertex[MAX_MESSAGE];
+
+    // open communication channels
+    mpi_irecv_all(grank);
+
+    for (int i = 0; i < wsize; ++i) {
+        global_free_list[i] = false;
+    }
 
     // HANDLE MEMORY
     allocate_memory(hd, h_dd, hc, hg, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
@@ -55,6 +71,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
     // CPU EXPANSION
     // cpu expand must be called atleast one time to handle first round cover pruning as the gpu code cannot do this
     for (int i = 0; i < CPU_LEVELS + 1 && !(*hd.maximal_expansion); i++) {
+        // will set maximal expansion false if no work generated
         h_expand_level(hg, hd, hc, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
     
         // if cliques is more than threshold dump
@@ -79,56 +96,105 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
         cout << ">:BEGINNING EXPANSION" << endl;
     }
 
-    while (!(*hd.maximal_expansion)){
+    help_others = false;
 
-        (*(hd.maximal_expansion)) = true;
-        chkerr(cudaMemset(h_dd.current_task, 0, sizeof(int)));
-        cudaDeviceSynchronize();
+    // wait after all work in process has been completed, loop if work has been given from another process, break if all process complete work
+    do{
 
-        // expand all tasks in 'tasks' array, each warp will write to their respective warp tasks buffer in global memory
-        d_expand_level<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
-        cudaDeviceSynchronize();
-
-        // DEBUG
-        if (DEBUG_TOGGLE) {
-            if (print_Warp_Data_Sizes_Every(h_dd, 1, output_file, dss)) { break; }
-        }
-
-        // consolidate all the warp tasks/cliques buffers into the next global tasks array, buffer, and cliques
-        transfer_buffers<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
-        cudaDeviceSynchronize();
-
-        // determine whether maximal expansion has been accomplished
-        chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-        chkerr(cudaMemcpy(&write_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-
-        if (write_count > 0 || buffer_count > 0) {
-            (*(hd.maximal_expansion)) = false;
-        }
-
-        chkerr(cudaMemset(h_dd.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
-        chkerr(cudaMemset(h_dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
-        if (write_count < dss.expand_threshold && buffer_count > 0) {
-            // if not enough tasks were generated when expanding the previous level to fill the next tasks array the program will attempt to fill the tasks array by popping tasks from the buffer
+        if(help_others){
+            // decode buffer
+            decode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer);
+            cudaDeviceSynchronize();
+            // populate tasks from buffer
             fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
             cudaDeviceSynchronize();
+            *hd.maximal_expansion = false;
+
+            // DEBUG
+            if (DEBUG_TOGGLE) {
+                cout << "--- RECIEVING WORK FROM PROCESS " << from << " ---" << endl << endl;
+                print_Data_Sizes(h_dd, output_file, dss);
+            }
         }
 
-        // determine whether cliques has exceeded defined threshold, if so dump them to a file
-        chkerr(cudaMemcpy(&cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-        chkerr(cudaMemcpy(&cliques_size, h_dd.cliques_offset + cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-        cudaDeviceSynchronize();
+        // loop while not all work has been completed
+        while (!(*hd.maximal_expansion)){
 
-        // if cliques is more than threshold dump
-        if (cliques_size > dss.cliques_dump) {
-            dump_cliques(hc, h_dd, temp_results, dss);
+            *hd.maximal_expansion = true;
+            chkerr(cudaMemset(h_dd.current_task, 0, sizeof(int)));
+            cudaDeviceSynchronize();
+
+            // expand all tasks in 'tasks' array, each warp will write to their respective warp tasks buffer in global memory
+            d_expand_level<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
+            cudaDeviceSynchronize();
+
+            // DEBUG
+            if (DEBUG_TOGGLE) {
+                print_Warp_Data_Sizes_Every(h_dd, 1, output_file, dss);
+            }
+
+            // consolidate all the warp tasks/cliques buffers into the next global tasks array, buffer, and cliques
+            transfer_buffers<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
+            cudaDeviceSynchronize();
+
+            // determine whether maximal expansion has been accomplished
+            chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+            chkerr(cudaMemcpy(&write_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+
+            if (write_count > 0 || buffer_count > 0) {
+                (*(hd.maximal_expansion)) = false;
+            }
+
+            chkerr(cudaMemset(h_dd.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
+            chkerr(cudaMemset(h_dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
+            if (write_count < dss.expand_threshold && buffer_count > 0) {
+                // if not enough tasks were generated when expanding the previous level to fill the next tasks array the program will attempt to fill the tasks array by popping tasks from the buffer
+                fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
+                cudaDeviceSynchronize();
+            }
+
+            // determine whether cliques has exceeded defined threshold, if so dump them to a file
+            chkerr(cudaMemcpy(&cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+            chkerr(cudaMemcpy(&cliques_size, h_dd.cliques_offset + cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+            cudaDeviceSynchronize();
+
+            // if cliques is more than threshold dump
+            if (cliques_size > dss.cliques_dump) {
+                dump_cliques(hc, h_dd, temp_results, dss);
+            }
+
+            // DEBUG
+            if (DEBUG_TOGGLE) {
+                print_Data_Sizes_Every(h_dd, 1, output_file, dss);
+            }
+
+            // TODO - should getting help go above or below expansion?
+            chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+            if(buffer_count > HELP_THRESHOLD){
+                // TODO -ensure this section works
+                // prepare extra work to be sent
+                encode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer, buffer_count);
+                // return whether work was successfully given
+                divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer);
+                // update buffer count if work was given
+                if(divided_work){
+                    buffer_count *= (HELP_PERCENT / 100.0);
+                    chkerr(cudaMemcpy(h_dd.buffer_count, &buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+
+                    // DEBUG
+                    if (DEBUG_TOGGLE) {
+                        cout << "--- SENDING WORK TO PROCESS " << taker << " ---" << endl << endl;
+                        print_Data_Sizes(h_dd, output_file, dss);
+                    }
+                }
+            }
         }
 
-        // DEBUG
-        if (DEBUG_TOGGLE) {
-            if (print_Data_Sizes_Every(h_dd, 1, output_file, dss)) { break; }
-        }
-    }
+        // we have finished all our work, so if we get to the top of the loop again it is because we are helping someone else
+        help_others = true;
+
+    // TODO - ensure this works
+    }while(wsize != take_work_wrap(grank, mpiSizeBuffer, mpiVertexBuffer, from));
 
     // TIME
     auto stop = chrono::high_resolution_clock::now();

@@ -57,7 +57,7 @@ void mpi_isend_all(int rank, char *msg) {
 }
 
 // attempts to recieve work from another thread, returns true if work recieved else false
-bool take_work(int from, int rank, unsigned int *buffer) {
+bool take_work(int from, int rank, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer) {
     /// first ask the other node to confirm that it has pending work
     /// it might have finished it by the time we received the processing request or
     /// someone else might have offered it help
@@ -85,14 +85,24 @@ bool take_work(int from, int rank, unsigned int *buffer) {
         // let other threads know this thread found work
         mpi_isend_all(rank, "t");
 
-        // initialize a new MPI dataype of 5 unsigned ints called dt_point
-        MPI_Datatype dt_point;
-        MPI_Type_contiguous(5, MPI_UNSIGNED, &dt_point);
-        MPI_Type_commit(&dt_point);
+        // Define the Vertex structure
+        int blocklengths[5] = {1, 1, 1, 1, 1};
+        MPI_Aint offsets[5];
+        offsets[0] = offsetof(Vertex, vertexid);
+        offsets[1] = offsetof(Vertex, label);
+        offsets[2] = offsetof(Vertex, indeg);
+        offsets[3] = offsetof(Vertex, exdeg);
+        offsets[4] = offsetof(Vertex, lvl2adj);
+        MPI_Datatype types[5] = {MPI_UINT32_T, MPI_INT8_T, MPI_UINT32_T, MPI_UINT32_T, MPI_UINT32_T};
+        MPI_Datatype dt_vertex;
+        MPI_Type_create_struct(5, blocklengths, offsets, types, &dt_vertex);
+        MPI_Type_commit(&dt_vertex);
 
-        // recieve MAXGB dt_points from the "from" thread, these dt_points will be interpreted as Point*
-        // NOTE - this seems to be their data format, our equivalent would probably be Vertex
-        MPI_Recv((Point *) buffer, MAXGB, dt_point, from, 1, MPI_COMM_WORLD, &status);
+        // recieve sizes
+        MPI_Recv(mpiSizeBuffer, MAX_MESSAGE, MPI_UINT64_T, from, 1, MPI_COMM_WORLD, &status);
+
+        // recieve vertices
+        MPI_Recv(mpiVertexBuffer, MAX_MESSAGE, dt_vertex, from, 1, MPI_COMM_WORLD, &status);
         
         // set current rank in free list as false
         global_free_list[rank] = false;
@@ -110,7 +120,7 @@ bool take_work(int from, int rank, unsigned int *buffer) {
 }
 
 // sends message to all other threads indicating it can recieve work, when it find a giver thread it requests confirmation
-int take_work_wrap(int rank, unsigned int *buffer) {
+int take_work_wrap(int rank, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer, int& from) {
 
     bool took_work = false;
 
@@ -168,7 +178,12 @@ int take_work_wrap(int rank, unsigned int *buffer) {
                 // have to check whether we've taken work because, when we do we will still check messages form other threads
                 // this is to see if they are also reporting free
                 if (!took_work) {
-                    took_work = take_work(i, rank, buffer);
+                    took_work = take_work(i, rank, mpiSizeBuffer, mpiVertexBuffer);
+
+                    // DEBUG
+                    if(took_work){
+                        from = i;
+                    }
                 }
             }
         }
@@ -179,7 +194,7 @@ int take_work_wrap(int rank, unsigned int *buffer) {
 }
 
 // actually sends work from current thread to "taker" thread
-void give_work(int rank, int taker, unsigned int *buffer) {
+void give_work(int rank, int taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer) {
 
     // not used, just needed as parameter
     MPI_Status status;
@@ -190,26 +205,30 @@ void give_work(int rank, int taker, unsigned int *buffer) {
     // wait until C is fully sent
     MPI_Wait(&rq_send_msg[taker], &status);
     /// At this point we know that the taker is waiting to recv data
-    /// TODO WRITE CODE HERE to initiate data transfer
-    /// USE TAG 1 for sync
 
-    unsigned int giveSize;
+    // Define the Vertex structure
+    int blocklengths[5] = {1, 1, 1, 1, 1};
+    MPI_Aint offsets[5];
+    offsets[0] = offsetof(Vertex, vertexid);
+    offsets[1] = offsetof(Vertex, label);
+    offsets[2] = offsetof(Vertex, indeg);
+    offsets[3] = offsetof(Vertex, exdeg);
+    offsets[4] = offsetof(Vertex, lvl2adj);
+    MPI_Datatype types[5] = {MPI_UINT32_T, MPI_INT8_T, MPI_UINT32_T, MPI_UINT32_T, MPI_UINT32_T};
+    MPI_Datatype dt_vertex;
+    MPI_Type_create_struct(5, blocklengths, offsets, types, &dt_vertex);
+    MPI_Type_commit(&dt_vertex);
 
-    // UNSURE - how much is this, will be important for our program as well
-    giveSize = ((buffer[0] + buffer[1])*2 + 2) / 5 + 1;
+    // send sizes
+    MPI_Send(mpiSizeBuffer, MAX_MESSAGE, MPI_UINT64_T, taker, 1, MPI_COMM_WORLD);
 
-    // declare new MPI data type
-    MPI_Datatype dt_point;
-    MPI_Type_contiguous(5, MPI_UNSIGNED, &dt_point);
-    MPI_Type_commit(&dt_point);
-
-    // send data
-    MPI_Send((Point *) buffer, giveSize, dt_point, taker, 1, MPI_COMM_WORLD);
+    // send vertices
+    MPI_Send(mpiVertexBuffer, MAX_MESSAGE, dt_vertex, taker, 1, MPI_COMM_WORLD);
 }
 
 // looks to see if another thread is requesting confirmation for transfer, if so transfers data to it and declines other threads askign for data
 // the taker parameter is really a return value of the thread id of the thread we gave work to
-bool check_for_confirmation(int rank, int &taker, unsigned int *buffer) {
+bool check_for_confirmation(int rank, int &taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer) {
 
     bool agreed_to_split_work = false;
 
@@ -262,7 +281,7 @@ bool check_for_confirmation(int rank, int &taker, unsigned int *buffer) {
             if (!agreed_to_split_work) {
 
                 // give work to the taker thread
-                give_work(rank, i, buffer); //give work to this node
+                give_work(rank, i, mpiSizeBuffer, mpiVertexBuffer); //give work to this node
                 agreed_to_split_work = true;
 
                 // set the return variable taker as the id of thread we gave the work to
@@ -279,15 +298,14 @@ bool check_for_confirmation(int rank, int &taker, unsigned int *buffer) {
     }
 
     // return whether we were able to give work to someone else
-    // NOTE - I don't think we will need this with how our adaptation might work
     return agreed_to_split_work;
 }
 
 // check to see if a previous request for help was responded to, then send  another request for help and see if anyone repsonds
-bool give_work_wrapper(int rank, int &taker, unsigned int *buffer) {
+bool give_work_wrapper(int rank, int &taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer) {
 
     // see if any thread has asked for confirmation from a previously sent request, if so this method also sends the data
-    bool agreed_to_split_work = check_for_confirmation(rank, taker, buffer);
+    bool agreed_to_split_work = check_for_confirmation(rank, taker, mpiSizeBuffer, mpiVertexBuffer);
 
 
     /// no one send confirmation
@@ -306,49 +324,48 @@ bool give_work_wrapper(int rank, int &taker, unsigned int *buffer) {
 
         /// retry to see someone send confirmation
         // now that new messages have been sent see if any thread is asking for confirmation
-        agreed_to_split_work = check_for_confirmation(rank, taker, buffer);
+        agreed_to_split_work = check_for_confirmation(rank, taker, mpiSizeBuffer, mpiVertexBuffer);
     }
 
     // return whether work was split with another thread
     return agreed_to_split_work;
 }
 
-// TODO - this should encode part of buffer
-// UNSURE - not sure how their data encoding works, don't think it is important as we will send our data differently either way
-// seems like the first three elements are size data and the rest is the actual data
-void encode_com_buffer(unsigned int *mpi_buffer,S_pointers s,unsigned iter,unsigned int buf_len){
-    unsigned int pre_len = s.lengths[iter - 1];
-    mpi_buffer[0] = pre_len;
-    mpi_buffer[1] = buf_len;
-    mpi_buffer[2] = iter;
-    unsigned int copy_offset = 3;
-    chkerr(cudaMemcpy(&mpi_buffer[copy_offset], s.results_table,pre_len * sizeof(unsigned int),
-                      cudaMemcpyDeviceToHost));
-    copy_offset+=(pre_len);
-    chkerr(cudaMemcpy(&mpi_buffer[copy_offset], &s.results_table[pre_len+buf_len],
-                      buf_len * sizeof(unsigned int),cudaMemcpyDeviceToHost));
-    copy_offset+=buf_len;
-    chkerr(cudaMemcpy(&mpi_buffer[copy_offset],s.indexes_table,pre_len * sizeof(unsigned int),
-                      cudaMemcpyDeviceToHost));
-    copy_offset+=pre_len;
-    chkerr(cudaMemcpy(&mpi_buffer[copy_offset],&s.indexes_table[pre_len+buf_len],
-                      buf_len * sizeof(unsigned int),cudaMemcpyDeviceToHost));
+// encode part of the buffer to be sent to another process
+void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer, uint64_t buffer_count) {
+    uint64_t split;
+    uint64_t count;
+    uint64_t adjust;
+    uint64_t size;
+
+    // what task to split the buffer at
+    split = buffer_count * (HELP_PERCENT / 100.0);
+    count = buffer_count - split;
+
+    // size index 0 is count
+    mpiSizeBuffer[0] = count;
+
+    // size index 1 and forward is offsets
+    chkerr(cudaMemcpy(mpiSizeBuffer + 1, h_dd.buffer_offset + split, sizeof(uint64_t) * (count + 1), cudaMemcpyDeviceToHost));
+
+    // adjust offsets for new start
+    adjust = mpiSizeBuffer[1];
+    for(int i = 1; i < count + 2; i++){
+        mpiSizeBuffer[i] -= adjust;
+    }
+
+    // copy vertices
+    chkerr(cudaMemcpy(&size, h_dd.buffer_offset + buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    size -= adjust;
+    chkerr(cudaMemcpy(mpiVertexBuffer, h_dd.buffer_vertices + adjust, sizeof(Vertex) * size, cudaMemcpyDeviceToHost));
 }
 
-// TODO - this should decode part of buffer
-// UNSURE - not sure how their data encoding works, don't think it is important as we will send our data differently either way
-// seems like the first three elements are size data and the rest is the actual data
-unsigned int decode_com_buffer(unsigned int *mpi_buffer,S_pointers &s){
-    unsigned int pre_len = mpi_buffer[0];
-    unsigned int buf_len = mpi_buffer[1];
-    unsigned int iter = mpi_buffer[2];
-    unsigned int copy_offset = 3;
-    chkerr(cudaMemcpy(s.results_table,&mpi_buffer[copy_offset],(pre_len+buf_len) * sizeof(unsigned int),
-                      cudaMemcpyHostToDevice));
-    copy_offset+=(pre_len+buf_len);
-    chkerr(cudaMemcpy(s.indexes_table,&mpi_buffer[copy_offset],(pre_len+buf_len) * sizeof(unsigned int),
-                      cudaMemcpyHostToDevice));
-    s.lengths[iter - 1] = pre_len;
-    s.lengths[iter] = s.lengths[iter - 1] + buf_len;
-    return iter;
+// decode message from another process to fill the buffer
+void decode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer) {
+    // copy size
+    chkerr(cudaMemcpy(h_dd.buffer_count, mpiSizeBuffer, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    // copy offsets
+    chkerr(cudaMemcpy(h_dd.buffer_offset, mpiSizeBuffer + 1, sizeof(uint64_t) * (mpiSizeBuffer[0] + 1), cudaMemcpyHostToDevice));
+    // copy vertices
+    chkerr(cudaMemcpy(h_dd.buffer_vertices, mpiVertexBuffer, sizeof(Vertex) * mpiSizeBuffer[mpiSizeBuffer[0] + 1], cudaMemcpyHostToDevice));
 }
