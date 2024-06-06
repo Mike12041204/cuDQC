@@ -5,10 +5,12 @@
 
 // TODO
 // - see whether it's possible to parallelize some of calculate_LU_bounds
-// - make debugging messages for mpi
 // - distribute work amongst processes in a more intelligent manner
 // - change tasks and buffer offet to offsets
 // - improve look of debug prints
+// - fix cuTS MPI compiler warnings
+
+// CURSOR - create test which has cuTS MPI activate
 
 // MAIN
 int main(int argc, char* argv[])
