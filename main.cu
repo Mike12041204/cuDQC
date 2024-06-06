@@ -9,8 +9,9 @@
 // - change tasks and buffer offet to offsets
 // - improve look of debug prints
 // - fix cuTS MPI compiler warnings
+// - make mpi send and recv only do necessary amount of data
 
-// CURSOR - create test which has cuTS MPI activate
+// CURSOR - program stops when processes are sending and recieving from one another find out why
 
 // MAIN
 int main(int argc, char* argv[])

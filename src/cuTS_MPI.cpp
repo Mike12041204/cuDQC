@@ -121,6 +121,7 @@ bool take_work(int from, int rank, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuf
 
 // sends message to all other threads indicating it can recieve work, when it find a giver thread it requests confirmation
 int take_work_wrap(int rank, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer, int& from) {
+    cout << "take_work_wrap" << endl;
 
     bool took_work = false;
 
@@ -303,6 +304,7 @@ bool check_for_confirmation(int rank, int &taker, uint64_t* mpiSizeBuffer, Verte
 
 // check to see if a previous request for help was responded to, then send  another request for help and see if anyone repsonds
 bool give_work_wrapper(int rank, int &taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer) {
+    cout << "give_work_wrapper" << endl;
 
     // see if any thread has asked for confirmation from a previously sent request, if so this method also sends the data
     bool agreed_to_split_work = check_for_confirmation(rank, taker, mpiSizeBuffer, mpiVertexBuffer);
@@ -333,6 +335,8 @@ bool give_work_wrapper(int rank, int &taker, uint64_t* mpiSizeBuffer, Vertex* mp
 
 // encode part of the buffer to be sent to another process
 void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer, uint64_t buffer_count) {
+    cout << "encode_com_buffer" << endl;
+
     uint64_t split;
     uint64_t count;
     uint64_t adjust;
@@ -362,6 +366,8 @@ void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVerte
 
 // decode message from another process to fill the buffer
 void decode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer) {
+    cout << "decode_com_buffer" << endl;
+
     // copy size
     chkerr(cudaMemcpy(h_dd.buffer_count, mpiSizeBuffer, sizeof(uint64_t), cudaMemcpyHostToDevice));
     // copy offsets

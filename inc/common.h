@@ -37,19 +37,16 @@ using namespace std;
 #define NUMBER_OF_WARPS (NUM_OF_BLOCKS * WARPS_PER_BLOCK)
 #define NUMBER_OF_THREADS (NUM_OF_BLOCKS * BLOCK_SIZE)
 
+// PROGRAM RUN SETTINGS
+// debug toggle 0-normal/1-debug
+#define DEBUG_TOGGLE 1
 // shared memory vertices
 #define VERTICES_SIZE 70
- 
-// PROGRAM RUN SETTINGS
 // cpu settings
 #define CPU_LEVELS 1
 #define CPU_EXPAND_THRESHOLD 1
-
-// debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 1
-
-// MPI SETTINGS
-#define NUMBER_OF_PROCESSESS 4
+// mpi settings
+#define NUMBER_OF_PROCESSESS 2
 #define MAX_MESSAGE 1000000000
 // TODO - test to see what is the best number for these
 #define HELP_THRESHOLD (NUMBER_OF_WARPS * 2)
