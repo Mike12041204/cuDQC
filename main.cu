@@ -9,11 +9,11 @@
 // - change tasks and buffer offet to offsets
 // - improve look of debug prints
 // - fix cuTS MPI compiler warnings
-// - make mpi send and recv only do necessary amount of data
-// - make debug output file global variable
-// - dont think we need current level on the gpu anymore
+// - make mpi recv only do necessary amount of data
+// - dont think we need current level on the gpu anymore, atleast dont print levels anymore
+// - how to not print MPI not matched message
 
-// CURSOR - program stops when processes are sending and recieving from one another find out why
+// CURSOR - do TODOs
 
 // MAIN
 int main(int argc, char* argv[])
@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
     filename = "output_DcuQC_" + to_string(grank) + ".txt";
     output_file.open(filename);
     if (DEBUG_TOGGLE) {
-        output_file << ">:OUTPUT FROM PROCESS: " << grank << endl << endl;
+        output_file << endl << ">:OUTPUT FROM PROCESS: " << grank << endl << endl;
         initialize_maxes();
     }
 

@@ -428,7 +428,7 @@ void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc)
 {
     output_file << "L: " << (*hd.current_level) << " T1: " << (*hd.tasks1_count) << " " << (*(hd.tasks1_offset + (*hd.tasks1_count))) << " T2: " << (*hd.tasks2_count) << " " << 
         (*(hd.tasks2_offset + (*hd.tasks2_count))) << " B: " << (*hd.buffer_count) << " " << (*(hd.buffer_offset + (*hd.buffer_count))) << " C: " << 
-        (*hc.cliques_count) << " " << (*(hc.cliques_offset + (*hc.cliques_count))) << endl;
+        (*hc.cliques_count) << " " << (*(hc.cliques_offset + (*hc.cliques_count))) << endl << endl;
 
     if ((*(hd.tasks1_offset + (*hd.tasks1_count))) > mts) {
         mts = (*(hd.tasks1_offset + (*hd.tasks1_count)));
@@ -633,7 +633,7 @@ void initialize_maxes()
 
 void print_maxes()
 {
-    output_file << endl
+    output_file
         << "TASKS SIZE: " << mts << endl
         << "BUFFER SIZE: " << mbs << endl
         << "BUFFER OFFSET SIZE: " << mbo << endl
@@ -643,6 +643,5 @@ void print_maxes()
         << "WCLIQUES OFFSET SIZE: " << wco << endl
         << "WTASKS SIZE: " << wts << endl
         << "WTASKS OFFSET SIZE: " << wto << endl
-        << "VERTICES SIZE: " << mvs << endl
-        << endl;
+        << "VERTICES SIZE: " << mvs << endl;
 }
