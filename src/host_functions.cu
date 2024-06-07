@@ -15,7 +15,7 @@ void calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double mini
     }
 }
 
-void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size) 
+void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size) 
 {
     CPU_Data hd;                    // host vertex structure data
     CPU_Cliques hc;                 // host results data
@@ -65,7 +65,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
             cout << "!!! VERTICES SIZE ERROR !!!" << endl;
             return;
         }
-        h_print_Data_Sizes(hd, hc, output_file);
+        h_print_Data_Sizes(hd, hc);
     }
 
     // CPU EXPANSION
@@ -81,7 +81,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
 
         // DEBUG
         if (DEBUG_TOGGLE) {
-            h_print_Data_Sizes(hd, hc, output_file);
+            h_print_Data_Sizes(hd, hc);
         }
     }
 
@@ -112,8 +112,8 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
 
             // DEBUG
             if (DEBUG_TOGGLE) {
-                cout << "--- RECIEVING WORK FROM PROCESS " << from << " ---" << endl << endl;
-                print_Data_Sizes(h_dd, output_file, dss);
+                output_file << "RECIEVING WORK FROM PROCESS " << from << endl;
+                print_Data_Sizes(h_dd, dss);
             }
         }
 
@@ -130,7 +130,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
 
             // DEBUG
             if (DEBUG_TOGGLE) {
-                print_Warp_Data_Sizes_Every(h_dd, 1, output_file, dss);
+                print_Warp_Data_Sizes_Every(h_dd, 1, dss);
             }
 
             // consolidate all the warp tasks/cliques buffers into the next global tasks array, buffer, and cliques
@@ -165,7 +165,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
 
             // DEBUG
             if (DEBUG_TOGGLE) {
-                print_Data_Sizes_Every(h_dd, 1, output_file, dss);
+                print_Data_Sizes_Every(h_dd, 1, dss);
             }
 
             // TODO - should getting help go above or below expansion?
@@ -183,8 +183,8 @@ void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Siz
 
                     // DEBUG
                     if (DEBUG_TOGGLE) {
-                        cout << "--- SENDING WORK TO PROCESS " << taker << " ---" << endl << endl;
-                        print_Data_Sizes(h_dd, output_file, dss);
+                        output_file << "SENDING WORK TO PROCESS " << taker << endl;
+                        print_Data_Sizes(h_dd, dss);
                     }
                 }
             }

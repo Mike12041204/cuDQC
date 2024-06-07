@@ -5,12 +5,12 @@
 
 // --- PRIMARY FUNCITONS ---
 void calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double minimum_degree_ratio);
-void search(CPU_Graph& hg, ofstream& temp_results, ofstream& output_file, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size);
+void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size);
 void allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph& hg, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size);
 void initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_degrees, int minimum_clique_size);
 void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size);
 void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss);
-void dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& output_file, DS_Sizes& dss);
+void dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& temp_results, DS_Sizes& dss);
 void flush_cliques(CPU_Cliques& hc, ofstream& temp_results);
 void free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc);
 

@@ -2,6 +2,7 @@
 
 // DEBUG - MAX TRACKER VARIABLES
 uint64_t mts, mbs, mbo, mcs, mco, wts, wto, wcs, wco, mvs;
+ofstream output_file;
 
 // MPI VARIABLES
 int wsize;

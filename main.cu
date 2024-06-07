@@ -10,6 +10,8 @@
 // - improve look of debug prints
 // - fix cuTS MPI compiler warnings
 // - make mpi send and recv only do necessary amount of data
+// - make debug output file global variable
+// - dont think we need current level on the gpu anymore
 
 // CURSOR - program stops when processes are sending and recieving from one another find out why
 
@@ -27,8 +29,7 @@ int main(int argc, char* argv[])
     int world_rank;                     // current cpu processes rank
     string filename;                    // used in concatenation for making filenames
     ifstream read_file;                 // multiple read files
-    ofstream write_file1;               // writing results to mutiple files
-    ofstream write_file2;               // writing output to file
+    ofstream write_file;                // writing results to mutiple files
     string line;                        // stores lines from read file
 
     // ENSURE PROPER USAGE
@@ -65,9 +66,9 @@ int main(int argc, char* argv[])
 
     // DEBUG
     filename = "output_DcuQC_" + to_string(grank) + ".txt";
-    write_file2.open(filename);
+    output_file.open(filename);
     if (DEBUG_TOGGLE) {
-        write_file2 << ">:OUTPUT FROM PROCESS: " << grank << endl << endl;
+        output_file << ">:OUTPUT FROM PROCESS: " << grank << endl << endl;
         initialize_maxes();
     }
 
@@ -82,7 +83,7 @@ int main(int argc, char* argv[])
     read_file.close();
     calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
     filename = "temp_DcuQC_" + to_string(grank) + ".txt";
-    write_file1.open(filename);
+    write_file.open(filename);
 
     // TIME
     auto stop = chrono::high_resolution_clock::now();
@@ -92,15 +93,15 @@ int main(int argc, char* argv[])
     }
 
     // SEARCH
-    search(hg, write_file1, write_file2, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
+    search(hg, write_file, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
 
-    write_file1.close();
+    write_file.close();
 
     // DEBUG
     if (DEBUG_TOGGLE) {
-        print_maxes(write_file2);
+        print_maxes();
     }
-    write_file2.close();
+    output_file.close();
 
     // TIME
     auto start1 = chrono::high_resolution_clock::now();
@@ -108,24 +109,24 @@ int main(int argc, char* argv[])
     MPI_Barrier(MPI_COMM_WORLD);
     if(grank == 0){
         // COMBINE RESULTS
-        write_file1.open("temp_DcuQC.txt");
+        write_file.open("temp_DcuQC.txt");
         for (int i = 0; i < NUMBER_OF_PROCESSESS; ++i) {
             filename = "temp_DcuQC_" + to_string(i) + ".txt";
             read_file.open(filename);
             while (getline(read_file, line)) {
-                write_file1 << line << endl;
+                write_file << line << endl;
             }
             read_file.close();
         }
 
         // RM NON-MAX
-        if(!(write_file1.tellp() == ofstream::pos_type(0))){
+        if(!(write_file.tellp() == ofstream::pos_type(0))){
             RemoveNonMax("temp_DcuQC.txt", "results_DcuQC.txt");
         }
         else{
             cout << ">:NUMBER OF MAXIMAL CLIQUES: 0" << endl;
         }
-        write_file1.close();
+        write_file.close();
     }
 
     // TIME

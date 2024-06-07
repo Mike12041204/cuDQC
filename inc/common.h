@@ -244,6 +244,7 @@ class DS_Sizes
 
 // DEBUG - MAX TRACKER VARIABLES
 extern uint64_t mts, mbs, mbo, mcs, mco, wts, wto, wcs, wco, mvs;
+extern ofstream output_file;
 
 // cuTS MPI VARIABLES
 extern int wsize;

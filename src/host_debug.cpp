@@ -242,7 +242,7 @@ void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss)
 }
 
 // returns true if warp buffer was too small causing error
-bool print_Warp_Data_Sizes(GPU_Data& h_dd, ofstream& output_file, DS_Sizes& dss)
+bool print_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
 {
     uint64_t* tasks_counts = new uint64_t[NUMBER_OF_WARPS];
     uint64_t* tasks_sizes = new uint64_t[NUMBER_OF_WARPS];
@@ -340,13 +340,13 @@ void print_All_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
     delete cliques_sizes;
 }
 
-bool print_Warp_Data_Sizes_Every(GPU_Data& h_dd, int every, ofstream& output_file, DS_Sizes& dss)
+bool print_Warp_Data_Sizes_Every(GPU_Data& h_dd, int every, DS_Sizes& dss)
 {
     bool result = false;
     uint64_t level;
     chkerr(cudaMemcpy(&level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     if (level % every == 0) {
-        result = print_Warp_Data_Sizes(h_dd, output_file, dss);
+        result = print_Warp_Data_Sizes(h_dd, dss);
     }
     return result;
 }
@@ -360,18 +360,18 @@ void print_All_Warp_Data_Sizes_Every(GPU_Data& h_dd, int every, DS_Sizes& dss)
     }
 }
 
-bool print_Data_Sizes_Every(GPU_Data& h_dd, int every, ofstream& output_file, DS_Sizes& dss)
+bool print_Data_Sizes_Every(GPU_Data& h_dd, int every, DS_Sizes& dss)
 {
     bool result = false;
     int level;
     chkerr(cudaMemcpy(&level, h_dd.current_level, sizeof(int), cudaMemcpyDeviceToHost));
     if (level % every == 0) {
-        result = print_Data_Sizes(h_dd, output_file, dss);
+        result = print_Data_Sizes(h_dd, dss);
     }
     return result;
 }
 
-bool print_Data_Sizes(GPU_Data& h_dd, ofstream& output_file, DS_Sizes& dss)
+bool print_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
 {
     uint64_t* current_level = new uint64_t;
     uint64_t* tasks1_count = new uint64_t;
@@ -424,7 +424,7 @@ bool print_Data_Sizes(GPU_Data& h_dd, ofstream& output_file, DS_Sizes& dss)
     return false;
 }
 
-void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc, ofstream& output_file)
+void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc)
 {
     output_file << "L: " << (*hd.current_level) << " T1: " << (*hd.tasks1_count) << " " << (*(hd.tasks1_offset + (*hd.tasks1_count))) << " T2: " << (*hd.tasks2_count) << " " << 
         (*(hd.tasks2_offset + (*hd.tasks2_count))) << " B: " << (*hd.buffer_count) << " " << (*(hd.buffer_offset + (*hd.buffer_count))) << " C: " << 
@@ -631,7 +631,7 @@ void initialize_maxes()
     mvs = 0;
 }
 
-void print_maxes(ofstream& output_file)
+void print_maxes()
 {
     output_file << endl
         << "TASKS SIZE: " << mts << endl
