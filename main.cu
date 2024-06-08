@@ -7,11 +7,8 @@
 // - see whether it's possible to parallelize some of calculate_LU_bounds
 // - distribute work amongst processes in a more intelligent manner
 // - change tasks and buffer offet to offsets
-// - improve look of debug prints
 // - fix cuTS MPI compiler warnings
 // - make mpi recv only do necessary amount of data
-// - dont think we need current level on the gpu anymore, atleast dont print levels anymore
-// - how to not print MPI not matched message
 
 // CURSOR - do TODOs
 

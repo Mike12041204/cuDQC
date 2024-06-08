@@ -283,7 +283,9 @@ bool print_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
         }
     }
 
-    output_file << "WTasks( TC: " << tasks_tcount << " TS: " << tasks_tsize << " MC: " << tasks_mcount << " MS: " << tasks_msize << ") WCliques ( TC: " << cliques_tcount << " TS: " << cliques_tsize << " MC: " << cliques_mcount << " MS: " << cliques_msize << ")" << endl;
+    // DEBUG - if you need total sizes back you can uncomment this line, but they dont decide ds sizes so they arent needed in most cases
+    //output_file << "WTasks( TC: " << tasks_tcount << " TS: " << tasks_tsize << " MC: " << tasks_mcount << " MS: " << tasks_msize << ") WCliques ( TC: " << cliques_tcount << " TS: " << cliques_tsize << " MC: " << cliques_mcount << " MS: " << cliques_msize << ")" << endl;
+    output_file << "T: " << tasks_mcount << " " << tasks_msize << " C: " << cliques_mcount << " " << cliques_msize << endl;
 
     if (tasks_mcount > wto) {
         wto = tasks_mcount;
@@ -389,7 +391,7 @@ bool print_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
     chkerr(cudaMemcpy(buffer_size, h_dd.buffer_offset + (*buffer_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_size, h_dd.cliques_offset + (*cliques_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
-    output_file << "L: " << (*current_level) << " T1: " << (*tasks1_count) << " " << (*tasks1_size) << " B: " << (*buffer_count) << " " << (*buffer_size) << " C: " << (*cliques_count) << " " << (*cliques_size) << endl << endl;
+    output_file << "L: " << (*current_level) << " T: " << (*tasks1_count) << " " << (*tasks1_size) << " B: " << (*buffer_count) << " " << (*buffer_size) << " C: " << (*cliques_count) << " " << (*cliques_size) << endl << endl;
 
     if (*tasks1_size > mts) {
         mts = *tasks1_size;

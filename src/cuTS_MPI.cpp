@@ -31,7 +31,7 @@ void mpi_irecv(int src) {
 }
 
 // asynchronously send a 1 char message to dest thread in msg_buffer with a handle rq_send_msg
-void mpi_isend(int dest, char *msg) {
+void mpi_isend(int dest, const char *msg) {
     //MPI_Isend(msg, strlen(msg) + 1, MPI_CHAR, dest, 0, MPI_COMM_WORLD,
     MPI_Isend(msg, 1, MPI_CHAR, dest, 0, MPI_COMM_WORLD,
               &rq_send_msg[dest]);
@@ -48,7 +48,7 @@ void mpi_irecv_all(int rank) {
 }
 
 // asynchronously sends messages to all other threads in world
-void mpi_isend_all(int rank, char *msg) {
+void mpi_isend_all(int rank, const char *msg) {
     for (int i = 0; i < wsize; i++) {
         if (i != rank) {
             mpi_isend(i, msg);
