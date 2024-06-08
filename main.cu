@@ -6,9 +6,9 @@
 // TODO
 // - see whether it's possible to parallelize some of calculate_LU_bounds
 // - distribute work amongst processes in a more intelligent manner
-// - update h_fill_from_buffer
+// - update h_fill_from_buffer to not have useless parameters, check for other cases as well
 
-// CURSOR - do TODOs
+// CURSOR - get updated move to gpu working
 
 // MAIN
 int main(int argc, char* argv[])
