@@ -663,6 +663,7 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
     uint64_t block_size;            // only certain block of data will be copied to each process
     uint64_t block_start;
     uint64_t offset_start;
+    uint64_t count;
 
     // get proper read location for level
     if(CPU_LEVELS % 2 == 1){
@@ -676,40 +677,53 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
         tasks_vertices = hd.tasks2_vertices;
     }
 
-    // get work size for tasks
-    block_size = *tasks_count / NUMBER_OF_PROCESSESS;
-    block_start = block_size * grank;
-    if(grank == NUMBER_OF_PROCESSESS - 1){
-        block_size += *tasks_count % NUMBER_OF_PROCESSESS;
+    // DEBUG
+    if(grank == 0){
+        print_CPU_Data(hd);
     }
 
-    // rearange tasks
-    memmove(tasks_count, &block_size, sizeof(uint64_t));
-    memmove(tasks_offset, tasks_offset + block_start, sizeof(uint64_t) * (block_size + 1));
-    memmove(tasks_vertices, tasks_vertices + tasks_offset[0], sizeof(Vertex) * (tasks_offset[block_size] - tasks_offset[0]));
+    // each process is assigned tasks in a strided manner, this step condenses those tasks
+    count = *tasks_count;
+    *tasks_count = 0;
+    offset_start = 0;
+    for(int i = grank; i < count; i += wsize){
+        // increment assigned tasks count
+        (*tasks_count)++;
 
-    // revalue tasks
-    offset_start = tasks_offset[0];
-    for(int i = 0; i <= block_size; i++){
-        tasks_offset[i] -= offset_start;
+        // copy vertices before offets are changed
+        for(int j = tasks_offset[i]; j < tasks_offset[i + 1]; j++){
+            tasks_vertices[offset_start + j - tasks_offset[i]] = tasks_vertices[j];
+        }
+
+        // copy offset and adjust
+        tasks_offset[*tasks_count] = tasks_offset[i + 1] - tasks_offset[i] + offset_start;
     }
 
-    // get work size for buffer
-    block_size = *hd.buffer_count / NUMBER_OF_PROCESSESS;
-    block_start = block_size * grank;
-    if(grank == NUMBER_OF_PROCESSESS - 1){
-        block_size += *hd.buffer_count % NUMBER_OF_PROCESSESS;
+    // DEBUG
+    if(grank == 0){
+        print_CPU_Data(hd);
     }
 
-    // rearange buffer
-    memmove(hd.buffer_count, &block_size, sizeof(uint64_t));
-    memmove(hd.buffer_offset, hd.buffer_offset + block_start, sizeof(uint64_t) * (block_size + 1));
-    memmove(hd.buffer_vertices, hd.buffer_vertices + hd.buffer_offset[0], sizeof(Vertex) * (hd.buffer_offset[block_size] - hd.buffer_offset[0]));
+    // each process is assigned tasks in a strided manner, this step condenses those tasks
+    count = *hd.buffer_count;
+    *hd.buffer_count = 0;
+    offset_start = 0;
+    for(int i = grank; i < count; i += wsize){
+        // increment assigned tasks count
+        (*hd.buffer_count)++;
 
-    // revalue buffer
-    offset_start = hd.buffer_offset[0];
-    for(int i = 0; i <= block_size; i++){
-        hd.buffer_offset[i] -= offset_start;
+        // copy vertices before offets are changed
+        for(int j = hd.buffer_offset[i]; j < hd.buffer_offset[i + 1]; j++){
+            hd.buffer_vertices[offset_start + j - hd.buffer_offset[i]] = hd.buffer_vertices[j];
+        }
+
+        // copy offset and adjust
+        hd.buffer_offset[*hd.buffer_count] = hd.buffer_offset[i + 1] - hd.buffer_offset[i] + offset_start;
+    }
+
+    // DEBUG
+    if(grank == 0){
+        print_CPU_Data(hd);
     }
 
     // condense tasks

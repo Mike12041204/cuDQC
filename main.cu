@@ -6,6 +6,7 @@
 // TODO
 // - see whether it's possible to parallelize some of calculate_LU_bounds
 // - distribute work amongst processes in a more intelligent manner
+// - update h_fill_from_buffer
 
 // CURSOR - do TODOs
 

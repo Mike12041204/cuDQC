@@ -1,0 +1,2 @@
+1 - recv only does necessary amount
+2 - use of mpi data structure
