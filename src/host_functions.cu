@@ -676,23 +676,6 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
         tasks_vertices = hd.tasks2_vertices;
     }
 
-    // DEBUG
-    chkerr(cudaMemcpy(h_dd.tasks_count, tasks_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.tasks_offset, tasks_offset, (dss.expand_threshold + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.tasks_vertices, tasks_vertices, (dss.tasks_size) * sizeof(Vertex), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.buffer_offset, hd.buffer_offset, (dss.buffer_offset_size) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.buffer_vertices, hd.buffer_vertices, (dss.buffer_size) * sizeof(int), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    if(grank == 1){
-        uint64_t zero = 0;
-        chkerr(cudaMemcpy(h_dd.tasks_count, &zero, sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(h_dd.buffer_count, &zero, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    }
-    if(DEBUG_TOGGLE){
-        return;
-    }
-
     // get work size for tasks
     block_size = *tasks_count / NUMBER_OF_PROCESSESS;
     block_start = block_size * grank;

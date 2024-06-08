@@ -66,6 +66,7 @@ bool take_work(int from, int rank, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuf
     mpi_isend(from, "c");
 
     MPI_Status status;
+    int size;
 
     // initialize last message to default value
     char last_msg = 'r';
@@ -99,10 +100,14 @@ bool take_work(int from, int rank, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuf
         MPI_Type_commit(&dt_vertex);
 
         // recieve sizes
-        MPI_Recv(mpiSizeBuffer, MAX_MESSAGE, MPI_UINT64_T, from, 1, MPI_COMM_WORLD, &status);
+        MPI_Probe(from, 1, MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, MPI_UINT64_T, &size);
+        MPI_Recv(mpiSizeBuffer, size, MPI_UINT64_T, from, 1, MPI_COMM_WORLD, &status);
 
         // recieve vertices
-        MPI_Recv(mpiVertexBuffer, MAX_MESSAGE, dt_vertex, from, 1, MPI_COMM_WORLD, &status);
+        MPI_Probe(from, 1, MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, dt_vertex, &size);
+        MPI_Recv(mpiVertexBuffer, size, dt_vertex, from, 1, MPI_COMM_WORLD, &status);
         
         // set current rank in free list as false
         global_free_list[rank] = false;
