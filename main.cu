@@ -6,7 +6,7 @@
 // TODO
 // - see whether it's possible to parallelize some of calculate_LU_bounds
 
-// CURSOR - 
+// CURSOR - make only copying whats needed in move to gpu work
 
 // MAIN
 int main(int argc, char* argv[])

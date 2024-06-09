@@ -654,14 +654,12 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
     (*hd.current_level)++;
 }
 
-// TODO - distribute work amongst processes in more intelligent manner 
+// TODO - distributes work amongst processes in strided manner
 void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
 {
     uint64_t* tasks_count;          // read vertices information
     uint64_t* tasks_offset;
     Vertex* tasks_vertices;         
-    uint64_t block_size;            // only certain block of data will be copied to each process
-    uint64_t block_start;
     uint64_t offset_start;
     uint64_t count;
 
@@ -675,11 +673,6 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
         tasks_count = hd.tasks2_count;
         tasks_offset = hd.tasks2_offset;
         tasks_vertices = hd.tasks2_vertices;
-    }
-
-    // DEBUG
-    if(grank == 0){
-        print_CPU_Data(hd);
     }
 
     // each process is assigned tasks in a strided manner, this step condenses those tasks
@@ -697,11 +690,7 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
 
         // copy offset and adjust
         tasks_offset[*tasks_count] = tasks_offset[i + 1] - tasks_offset[i] + offset_start;
-    }
-
-    // DEBUG
-    if(grank == 0){
-        print_CPU_Data(hd);
+        offset_start = tasks_offset[*tasks_count];
     }
 
     // each process is assigned tasks in a strided manner, this step condenses those tasks
@@ -719,11 +708,7 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
 
         // copy offset and adjust
         hd.buffer_offset[*hd.buffer_count] = hd.buffer_offset[i + 1] - hd.buffer_offset[i] + offset_start;
-    }
-
-    // DEBUG
-    if(grank == 0){
-        print_CPU_Data(hd);
+        offset_start = hd.buffer_offset[*hd.buffer_count];
     }
 
     // condense tasks
