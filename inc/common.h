@@ -39,7 +39,7 @@ using namespace std;
 
 // PROGRAM RUN SETTINGS
 // debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 0
+#define DEBUG_TOGGLE 1
 // shared memory vertices
 #define VERTICES_SIZE 70
 // cpu settings
