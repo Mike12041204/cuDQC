@@ -5,8 +5,9 @@
 
 // TODO
 // - see whether it's possible to parallelize some of calculate_LU_bounds
+// - what is the bets mpi parameters, when should we split, how much, how often
 
-// CURSOR - work on parallel cpu version for pre-processing
+// CURSOR - work on parallel cpu version for pre-processing, work on program2
 
 // MAIN
 int main(int argc, char* argv[])
@@ -18,8 +19,6 @@ int main(int argc, char* argv[])
     int minimum_clique_size;            // minimum size for cliques
     int* minimum_degrees;               // stores the minimum connections per vertex for all size cliques
     DS_Sizes dss("DS_Sizes.csv");       // reads the sizes of the data structures
-    int world_size;                     // number of cpu processes
-    int world_rank;                     // current cpu processes rank
     string filename;                    // used in concatenation for making filenames
     ifstream read_file;                 // multiple read files
     ofstream write_file;                // writing results to mutiple files
@@ -51,10 +50,10 @@ int main(int argc, char* argv[])
     }
 
     // DEBUG
-    filename = "output_DcuQC_" + to_string(grank) + ".txt";
+    filename = "output_DcuQC_cpu.txt";
     output_file.open(filename);
     if (DEBUG_TOGGLE) {
-        output_file << endl << ">:OUTPUT FROM PROCESS: " << grank << endl << endl;
+        output_file << endl << ">:OUTPUT FROM PRE-PROCESS: " << endl << endl;
         initialize_maxes();
     }
 
@@ -74,9 +73,7 @@ int main(int argc, char* argv[])
     // TIME
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
-    if(grank == 0){
-        cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
-    }
+    cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
 
     // SEARCH
     p1_search(hg, write_file, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
@@ -86,10 +83,8 @@ int main(int argc, char* argv[])
 
     auto stop2 = chrono::high_resolution_clock::now();
     auto duration2 = chrono::duration_cast<chrono::milliseconds>(stop2 - start2);
-    if(grank == 0){
-        cout << "--->:TOTAL TIME: " << duration2.count() << " ms" << endl;
-        cout << ">:PROGRAM1 END" << endl;
-    }
+    cout << "--->:TOTAL TIME: " << duration2.count() << " ms" << endl;
+    cout << ">:PROGRAM1 END" << endl;
 
     return 0;
 }

@@ -19,10 +19,6 @@ void p1_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
 {
     CPU_Data hd;                    // host vertex structure data
     CPU_Cliques hc;                 // host results data
-    uint64_t write_count;           // how many tasks in tasks
-    uint64_t buffer_count;          // how many tasks in buffer
-    uint64_t cliques_size;          // how many results stored
-    uint64_t cliques_count;         // size of results stored
 
     // HANDLE MEMORY
     p1_allocate_memory(hd, hc, hg, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
@@ -65,6 +61,11 @@ void p1_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
 
     flush_cliques(hc, temp_results);
 
+    // TIME
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+    cout << "--->:INITIALIZATION TIME: " << duration.count() << " ms" << endl;
+
     // TRANSFER TO GPU
     serialize_tasks(hd, dss);
 
@@ -88,6 +89,7 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
     bool divided_work;
     int from;
 
+    // MPI
     mpiSizeBuffer = new uint64_t[MAX_MESSAGE];
     mpiVertexBuffer = new Vertex[MAX_MESSAGE];
 
@@ -107,41 +109,6 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
 
     // TIME
     auto start = chrono::high_resolution_clock::now();
-
-    // INITIALIZE TASKS
-    if(grank == 0){
-        cout << ">:INITIALIZING TASKS" << endl;
-    }
-    initialize_tasks(hg, hd, minimum_degrees, minimum_clique_size);
-
-    // DEBUG
-    if (DEBUG_TOGGLE) {
-        mvs = (*(hd.tasks1_offset + (*hd.tasks1_count)));
-        if ((*(hd.tasks1_offset + (*hd.tasks1_count))) > dss.wvertices_size) {
-            cout << "!!! VERTICES SIZE ERROR !!!" << endl;
-            return;
-        }
-        h_print_Data_Sizes(hd, hc);
-    }
-
-    // CPU EXPANSION
-    // cpu expand must be called atleast one time to handle first round cover pruning as the gpu code cannot do this
-    for (int i = 0; i < CPU_LEVELS + 1 && !(*hd.maximal_expansion); i++) {
-        // will set maximal expansion false if no work generated
-        h_expand_level(hg, hd, hc, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
-    
-        // if cliques is more than threshold dump
-        if (hc.cliques_offset[(*hc.cliques_count)] > dss.cliques_dump) {
-            flush_cliques(hc, temp_results);
-        }
-
-        // DEBUG
-        if (DEBUG_TOGGLE) {
-            h_print_Data_Sizes(hd, hc);
-        }
-    }
-
-    flush_cliques(hc, temp_results);
 
     // TRANSFER TO GPU
     move_to_gpu(hd, h_dd, dss);
@@ -224,10 +191,8 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
                 print_Data_Sizes_Every(h_dd, 1, dss);
             }
 
-            // TODO - should getting help go above or below expansion?
             chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
             if(buffer_count > HELP_THRESHOLD){
-                // TODO -ensure this section works
                 // prepare extra work to be sent
                 encode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer, buffer_count);
                 // return whether work was successfully given
@@ -257,7 +222,7 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
     auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
     MPI_Barrier(MPI_COMM_WORLD);
     if(grank == 0){
-        cout << "--->:ENUMERATION TIME: " << duration.count() << " ms" << endl;
+        cout << "--->:EXPANSION TIME: " << duration.count() << " ms" << endl;
     }
 
     dump_cliques(hc, h_dd, temp_results, dss);
@@ -325,31 +290,13 @@ void p2_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph
     hd.tasks1_count = new uint64_t;
     hd.tasks1_offset = new uint64_t[dss.expand_threshold + 1];
     hd.tasks1_vertices = new Vertex[dss.tasks_size];
-    hd.tasks1_offset[0] = 0;
-    (*(hd.tasks1_count)) = 0;
     hd.tasks2_count = new uint64_t;
     hd.tasks2_offset = new uint64_t[dss.expand_threshold + 1];
     hd.tasks2_vertices = new Vertex[dss.tasks_size];
-    hd.tasks2_offset[0] = 0;
-    (*(hd.tasks2_count)) = 0;
     hd.buffer_count = new uint64_t;
     hd.buffer_offset = new uint64_t[dss.buffer_offset_size];
     hd.buffer_vertices = new Vertex[dss.buffer_size];
-    hd.buffer_offset[0] = 0;
-    (*(hd.buffer_count)) = 0;
     hd.current_level = new uint64_t;
-    hd.maximal_expansion = new bool;
-    hd.dumping_cliques = new bool;
-    (*hd.current_level) = 0;
-    (*hd.maximal_expansion) = false;
-    (*hd.dumping_cliques) = false;
-    hd.vertex_order_map = new int[hg.number_of_vertices];
-    hd.remaining_candidates = new int[hg.number_of_vertices];
-    hd.removed_candidates = new int[hg.number_of_vertices];
-    hd.remaining_count = new int;
-    hd.removed_count = new int;
-    hd.candidate_indegs = new int[hg.number_of_vertices];
-    memset(hd.vertex_order_map, -1, sizeof(int) * hg.number_of_vertices);
     // GPU DATA
     chkerr(cudaMalloc((void**)&h_dd.current_level, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.tasks_count, sizeof(uint64_t)));
@@ -757,6 +704,7 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
     Vertex* tasks_vertices;         
     uint64_t offset_start;
     uint64_t count;
+    ifstream buffer_file;
 
     // get proper read location for level
     if(CPU_LEVELS % 2 == 1){
@@ -769,6 +717,19 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
         tasks_offset = hd.tasks2_offset;
         tasks_vertices = hd.tasks2_vertices;
     }
+
+    // deserialize tasks
+    buffer_file.open("serialize.bin", ios::binary);
+
+    buffer_file.read(reinterpret_cast<char*>(tasks_count), sizeof(uint64_t));
+    buffer_file.read(reinterpret_cast<char*>(tasks_offset), (*tasks_count + 1) * sizeof(uint64_t));
+    buffer_file.read(reinterpret_cast<char*>(tasks_vertices), tasks_offset[*tasks_count] * sizeof(Vertex));
+    buffer_file.read(reinterpret_cast<char*>(hd.buffer_count), sizeof(uint64_t));
+    buffer_file.read(reinterpret_cast<char*>(hd.buffer_offset), (*hd.buffer_count + 1) * sizeof(uint64_t));
+    buffer_file.read(reinterpret_cast<char*>(hd.buffer_vertices), hd.buffer_offset[*hd.buffer_count] * sizeof(Vertex));
+    buffer_file.read(reinterpret_cast<char*>(hd.current_level), sizeof(uint64_t));
+
+    buffer_file.close();
 
     // each process is assigned tasks in a strided manner, this step condenses those tasks
     count = *tasks_count;
@@ -898,14 +859,6 @@ void p2_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     delete hd.buffer_offset;
     delete hd.buffer_vertices;
     delete hd.current_level;
-    delete hd.maximal_expansion;
-    delete hd.dumping_cliques;
-    delete hd.vertex_order_map;
-    delete hd.remaining_candidates;
-    delete hd.remaining_count;
-    delete hd.removed_candidates;
-    delete hd.removed_count;
-    delete hd.candidate_indegs;
     // GPU DATA
     chkerr(cudaFree(h_dd.current_level));
     chkerr(cudaFree(h_dd.tasks_count));
@@ -981,7 +934,7 @@ void serialize_tasks(CPU_Data& hd, DS_Sizes& dss)
         tasks_vertices = hd.tasks2_vertices;
     }
 
-    buffer_file.open("buffer.bin", ios::binary);
+    buffer_file.open("serialize.bin", ios::binary);
 
     buffer_file.write(reinterpret_cast<const char*>(tasks_count), sizeof(uint64_t));
     buffer_file.write(reinterpret_cast<const char*>(tasks_offset), (*tasks_count + 1) * sizeof(uint64_t));

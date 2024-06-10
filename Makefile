@@ -48,4 +48,4 @@ src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.h inc/cuTS_MPI.h
 
 .PHONY: clean
 clean:
-	rm -f $(OBJECTS1) $(TARGET1) $(OBJECTS2) $(TARGET2) error_DcuQC.txt results_DcuQC.txt output_DcuQC* temp_DcuQC*
+	rm -f $(OBJECTS1) $(TARGET1) $(OBJECTS2) $(TARGET2) error_DcuQC.txt results_DcuQC.txt output_DcuQC* temp_DcuQC* serialize.bin

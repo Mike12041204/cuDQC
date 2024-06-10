@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
     read_file.close();
     calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
     filename = "temp_DcuQC_" + to_string(grank) + ".txt";
-    write_file.open(filename);
+    write_file.open(filename, ios::app);
 
     // TIME
     auto stop = chrono::high_resolution_clock::now();
