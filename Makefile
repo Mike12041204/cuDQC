@@ -8,13 +8,24 @@ CXXFLAGS = -O3 -std=c++11
 LDFLAGS := -lmpi
 INCLUDES = -Iinc
 
-OBJECTS = src/common.o src/host_debug.o src/Quick_rmnonmax.o src/cuTS_MPI.o src/device_kernels.o src/host_functions.o main.o
-TARGET = DcuQC
+OBJECTS1 = src/common.o src/host_debug.o src/Quick_rmnonmax.o src/cuTS_MPI.o src/device_kernels.o src/host_functions.o program1.o
+TARGET1 = program1
 
-$(TARGET): $(OBJECTS)
+OBJECTS2 = src/common.o src/host_debug.o src/Quick_rmnonmax.o src/cuTS_MPI.o src/device_kernels.o src/host_functions.o program2.o
+TARGET2 = program2
+
+all: $(TARGET1) $(TARGET2)
+
+$(TARGET1): $(OBJECTS1)
 	$(NVCC) $^ -o $@ $(LDFLAGS)
 
-main.o: main.cu inc/common.h inc/host_functions.h inc/host_debug.h inc/Quick_rmnonmax.h
+$(TARGET2): $(OBJECTS2)
+	$(NVCC) $^ -o $@ $(LDFLAGS)
+
+program1.o: program1.cu inc/common.h inc/host_functions.h inc/host_debug.h inc/Quick_rmnonmax.h
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
+
+program2.o: program2.cu inc/common.h inc/host_functions.h inc/host_debug.h inc/Quick_rmnonmax.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
 src/common.o: src/common.cpp inc/common.h

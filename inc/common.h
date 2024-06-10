@@ -21,6 +21,7 @@
 #include <sm_30_intrinsics.h>
 #include <device_atomic_functions.h>
 #include <mpi.h>
+//#include <pthread.h>
 using namespace std;
 
 // GPU KERNEL LAUNCH

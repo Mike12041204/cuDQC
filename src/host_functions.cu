@@ -15,7 +15,63 @@ void calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double mini
     }
 }
 
-void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size) 
+void p1_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size) 
+{
+    CPU_Data hd;                    // host vertex structure data
+    CPU_Cliques hc;                 // host results data
+    uint64_t write_count;           // how many tasks in tasks
+    uint64_t buffer_count;          // how many tasks in buffer
+    uint64_t cliques_size;          // how many results stored
+    uint64_t cliques_count;         // size of results stored
+
+    // HANDLE MEMORY
+    p1_allocate_memory(hd, hc, hg, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
+
+    // TIME
+    auto start = chrono::high_resolution_clock::now();
+
+    // INITIALIZE TASKS
+    if(grank == 0){
+        cout << ">:INITIALIZING TASKS" << endl;
+    }
+    initialize_tasks(hg, hd, minimum_degrees, minimum_clique_size);
+
+    // DEBUG
+    if (DEBUG_TOGGLE) {
+        mvs = (*(hd.tasks1_offset + (*hd.tasks1_count)));
+        if (mvs > dss.wvertices_size) {
+            cout << "!!! VERTICES SIZE ERROR !!!" << endl;
+            return;
+        }
+        h_print_Data_Sizes(hd, hc);
+    }
+
+    // CPU EXPANSION
+    // cpu expand must be called atleast one time to handle first round cover pruning as the gpu code cannot do this
+    for (int i = 0; i < CPU_LEVELS + 1 && !(*hd.maximal_expansion); i++) {
+        // will set maximal expansion false if no work generated
+        h_expand_level(hg, hd, hc, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
+    
+        // if cliques is more than threshold dump
+        if (hc.cliques_offset[(*hc.cliques_count)] > dss.cliques_dump) {
+            flush_cliques(hc, temp_results);
+        }
+
+        // DEBUG
+        if (DEBUG_TOGGLE) {
+            h_print_Data_Sizes(hd, hc);
+        }
+    }
+
+    flush_cliques(hc, temp_results);
+
+    // TRANSFER TO GPU
+    serialize_tasks(hd, dss);
+
+    p1_free_memory(hd, hc);
+}
+
+void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size) 
 {
     CPU_Data hd;                    // host vertex structure data
     CPU_Cliques hc;                 // host results data
@@ -43,7 +99,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_d
     }
 
     // HANDLE MEMORY
-    allocate_memory(hd, h_dd, hc, hg, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
+    p2_allocate_memory(hd, h_dd, hc, hg, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
     cudaDeviceSynchronize();
     chkerr(cudaMalloc((void**)&dd, sizeof(GPU_Data)));
     chkerr(cudaMemcpy(dd, &h_dd, sizeof(GPU_Data), cudaMemcpyHostToDevice));
@@ -206,12 +262,51 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_d
 
     dump_cliques(hc, h_dd, temp_results, dss);
 
-    free_memory(hd, h_dd, hc);
+    p2_free_memory(hd, h_dd, hc);
     chkerr(cudaFree(dd));
 }
 
+void p1_allocate_memory(CPU_Data& hd, CPU_Cliques& hc, CPU_Graph& hg, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size)
+{
+    // CPU DATA
+    hd.tasks1_count = new uint64_t;
+    hd.tasks1_offset = new uint64_t[dss.expand_threshold + 1];
+    hd.tasks1_vertices = new Vertex[dss.tasks_size];
+    hd.tasks1_offset[0] = 0;
+    (*(hd.tasks1_count)) = 0;
+    hd.tasks2_count = new uint64_t;
+    hd.tasks2_offset = new uint64_t[dss.expand_threshold + 1];
+    hd.tasks2_vertices = new Vertex[dss.tasks_size];
+    hd.tasks2_offset[0] = 0;
+    (*(hd.tasks2_count)) = 0;
+    hd.buffer_count = new uint64_t;
+    hd.buffer_offset = new uint64_t[dss.buffer_offset_size];
+    hd.buffer_vertices = new Vertex[dss.buffer_size];
+    hd.buffer_offset[0] = 0;
+    (*(hd.buffer_count)) = 0;
+    hd.current_level = new uint64_t;
+    hd.maximal_expansion = new bool;
+    hd.dumping_cliques = new bool;
+    (*hd.current_level) = 0;
+    (*hd.maximal_expansion) = false;
+    (*hd.dumping_cliques) = false;
+    hd.vertex_order_map = new int[hg.number_of_vertices];
+    hd.remaining_candidates = new int[hg.number_of_vertices];
+    hd.removed_candidates = new int[hg.number_of_vertices];
+    hd.remaining_count = new int;
+    hd.removed_count = new int;
+    hd.candidate_indegs = new int[hg.number_of_vertices];
+    memset(hd.vertex_order_map, -1, sizeof(int) * hg.number_of_vertices);
+    // CPU CLIQUES
+    hc.cliques_count = new uint64_t;
+    hc.cliques_vertex = new int[dss.cliques_size];
+    hc.cliques_offset = new uint64_t[dss.cliques_offset_size];
+    hc.cliques_offset[0] = 0;
+    (*(hc.cliques_count)) = 0;
+}
+
 // allocates memory for the data structures on the host and device   
-void allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph& hg, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size)
+void p2_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph& hg, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size)
 {
     // GPU GRAPH
     chkerr(cudaMalloc((void**)&h_dd.number_of_vertices, sizeof(int)));
@@ -756,7 +851,34 @@ void flush_cliques(CPU_Cliques& hc, ofstream& temp_results)
     ((*hc.cliques_count)) = 0;
 }
 
-void free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
+void p1_free_memory(CPU_Data& hd, CPU_Cliques& hc)
+{
+    // CPU DATA
+    delete hd.tasks1_count;
+    delete hd.tasks1_offset;
+    delete hd.tasks1_vertices;
+    delete hd.tasks2_count;
+    delete hd.tasks2_offset;
+    delete hd.tasks2_vertices;
+    delete hd.buffer_count;
+    delete hd.buffer_offset;
+    delete hd.buffer_vertices;
+    delete hd.current_level;
+    delete hd.maximal_expansion;
+    delete hd.dumping_cliques;
+    delete hd.vertex_order_map;
+    delete hd.remaining_candidates;
+    delete hd.remaining_count;
+    delete hd.removed_candidates;
+    delete hd.removed_count;
+    delete hd.candidate_indegs;
+    // CPU CLIQUES
+    delete hc.cliques_count;
+    delete hc.cliques_vertex;
+    delete hc.cliques_offset;
+}
+
+void p2_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
 {
     // GPU GRAPH
     chkerr(cudaFree(h_dd.number_of_vertices));
@@ -838,6 +960,38 @@ void free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     chkerr(cudaFree(h_dd.wvertices_size));
     chkerr(cudaFree(h_dd.expand_threshold));
     chkerr(cudaFree(h_dd.cliques_dump));
+}
+
+void serialize_tasks(CPU_Data& hd, DS_Sizes& dss)
+{
+    uint64_t* tasks_count;          // read vertices information
+    uint64_t* tasks_offset;
+    Vertex* tasks_vertices;
+    ofstream buffer_file;
+
+    // get proper read location for level
+    if(CPU_LEVELS % 2 == 1){
+        tasks_count = hd.tasks1_count;
+        tasks_offset = hd.tasks1_offset;
+        tasks_vertices = hd.tasks1_vertices;
+    }
+    else{
+        tasks_count = hd.tasks2_count;
+        tasks_offset = hd.tasks2_offset;
+        tasks_vertices = hd.tasks2_vertices;
+    }
+
+    buffer_file.open("buffer.bin", ios::binary);
+
+    buffer_file.write(reinterpret_cast<const char*>(tasks_count), sizeof(uint64_t));
+    buffer_file.write(reinterpret_cast<const char*>(tasks_offset), (*tasks_count + 1) * sizeof(uint64_t));
+    buffer_file.write(reinterpret_cast<const char*>(tasks_vertices), tasks_offset[*tasks_count] * sizeof(Vertex));
+    buffer_file.write(reinterpret_cast<const char*>(hd.buffer_count), sizeof(uint64_t));
+    buffer_file.write(reinterpret_cast<const char*>(hd.buffer_offset), (*hd.buffer_count + 1) * sizeof(uint64_t));
+    buffer_file.write(reinterpret_cast<const char*>(hd.buffer_vertices), hd.buffer_offset[*hd.buffer_count] * sizeof(Vertex));
+    buffer_file.write(reinterpret_cast<const char*>(hd.current_level), sizeof(uint64_t));
+
+    buffer_file.close();
 }
 
 // --- SECONDARY EXPNASION FUNCTIONS ---
