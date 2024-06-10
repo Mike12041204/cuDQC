@@ -714,14 +714,23 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
     // condense tasks
     h_fill_from_buffer(hd, tasks_vertices, tasks_offset, tasks_count, dss.expand_threshold);
 
-    // TODO - only copy whats needed
+    // DEBUG
+    if(grank == 0){
+        printf("tasks_count: %lu\n", *tasks_count);
+        printf("tasks_offset size: %lu\n", (*tasks_count + 1) * sizeof(uint64_t));
+        printf("tasks_vertices size: %lu\n", tasks_offset[*tasks_count] * sizeof(Vertex));
+        printf("buffer_count: %lu\n", *hd.buffer_count);
+        printf("buffer_offset size: %lu\n", (*hd.buffer_count + 1) * sizeof(uint64_t));
+        printf("buffer_vertices size: %lu\n", hd.buffer_offset[*hd.buffer_count] * sizeof(Vertex));
+    }
+
     // move to GPU
     chkerr(cudaMemcpy(h_dd.tasks_count, tasks_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.tasks_offset, tasks_offset, (dss.expand_threshold + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.tasks_vertices, tasks_vertices, (dss.tasks_size) * sizeof(Vertex), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.tasks_offset, tasks_offset, (*tasks_count + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.tasks_vertices, tasks_vertices, tasks_offset[*tasks_count] * sizeof(Vertex), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.buffer_offset, hd.buffer_offset, (dss.buffer_offset_size) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.buffer_vertices, hd.buffer_vertices, (dss.buffer_size) * sizeof(int), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.buffer_offset, hd.buffer_offset, (*hd.buffer_count + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.buffer_vertices, hd.buffer_vertices, hd.buffer_offset[*hd.buffer_count] * sizeof(Vertex), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
 }
 
