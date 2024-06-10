@@ -6,7 +6,7 @@
 // TODO
 // - see whether it's possible to parallelize some of calculate_LU_bounds
 
-// CURSOR - 
+// CURSOR - work on parallel cpu version for pre-processing
 
 // MAIN
 int main(int argc, char* argv[])
