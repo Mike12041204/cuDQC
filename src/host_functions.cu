@@ -654,7 +654,7 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
     (*hd.current_level)++;
 }
 
-// TODO - distributes work amongst processes in strided manner
+// distributes work amongst processes in strided manner
 void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
 {
     uint64_t* tasks_count;          // read vertices information
@@ -713,16 +713,6 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
 
     // condense tasks
     h_fill_from_buffer(hd, tasks_vertices, tasks_offset, tasks_count, dss.expand_threshold);
-
-    // DEBUG
-    if(grank == 0){
-        printf("tasks_count: %lu\n", *tasks_count);
-        printf("tasks_offset size: %lu\n", (*tasks_count + 1) * sizeof(uint64_t));
-        printf("tasks_vertices size: %lu\n", tasks_offset[*tasks_count] * sizeof(Vertex));
-        printf("buffer_count: %lu\n", *hd.buffer_count);
-        printf("buffer_offset size: %lu\n", (*hd.buffer_count + 1) * sizeof(uint64_t));
-        printf("buffer_vertices size: %lu\n", hd.buffer_offset[*hd.buffer_count] * sizeof(Vertex));
-    }
 
     // move to GPU
     chkerr(cudaMemcpy(h_dd.tasks_count, tasks_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
