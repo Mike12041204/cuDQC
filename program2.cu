@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
         return 1;
     }
     minimum_degree_ratio = atof(argv[2]);
-    if (minimum_degree_ratio < .5 || minimum_degree_ratio>1) {
+    if (minimum_degree_ratio < .5 || minimum_degree_ratio > 1) {
         printf("minimum degree ratio must be between .5 and 1 inclusive\n");
         return 1;
     }
@@ -58,10 +58,10 @@ int main(int argc, char* argv[])
     grank = world_rank;
 
     // DEBUG
-    filename = "output_DcuQC_" + to_string(grank) + ".txt";
+    filename = "output_DcuQC_p2_" + to_string(grank) + ".txt";
     output_file.open(filename);
     if (DEBUG_TOGGLE) {
-        output_file << endl << ">:OUTPUT FROM PROCESS: " << grank << endl << endl;
+        output_file << endl << ">:OUTPUT FROM P2 PROCESS: " << grank << endl << endl;
         initialize_maxes();
     }
 
@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
 
     // GRAPH / MINDEGS
     if(grank == 0){
-        cout << ">:PRE-PROCESSING" << endl;
+        cout << ">:PROGRAM 2 START" << endl << ">:PRE-PROCESSING" << endl;
     }
     CPU_Graph hg(read_file);
     read_file.close();
@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
     auto duration2 = chrono::duration_cast<chrono::milliseconds>(stop2 - start2);
     if(grank == 0){
         cout << "--->:TOTAL TIME: " << duration2.count() << " ms" << endl;
-        cout << ">:PROGRAM END" << endl;
+        cout << ">:PROGRAM 2 END" << endl;
     }
 
     MPI_Finalize();

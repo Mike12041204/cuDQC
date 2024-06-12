@@ -297,6 +297,8 @@ void p2_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph
     hd.buffer_offset = new uint64_t[dss.buffer_offset_size];
     hd.buffer_vertices = new Vertex[dss.buffer_size];
     hd.current_level = new uint64_t;
+    hd.maximal_expansion = new bool;
+    (*hd.maximal_expansion) = false;
     // GPU DATA
     chkerr(cudaMalloc((void**)&h_dd.current_level, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.tasks_count, sizeof(uint64_t)));
@@ -698,32 +700,17 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
 
 // distributes work amongst processes in strided manner
 void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
-{
-    uint64_t* tasks_count;          // read vertices information
-    uint64_t* tasks_offset;
-    Vertex* tasks_vertices;         
+{       
     uint64_t offset_start;
     uint64_t count;
     ifstream buffer_file;
 
-    // get proper read location for level
-    if(CPU_LEVELS % 2 == 1){
-        tasks_count = hd.tasks1_count;
-        tasks_offset = hd.tasks1_offset;
-        tasks_vertices = hd.tasks1_vertices;
-    }
-    else{
-        tasks_count = hd.tasks2_count;
-        tasks_offset = hd.tasks2_offset;
-        tasks_vertices = hd.tasks2_vertices;
-    }
-
     // deserialize tasks
     buffer_file.open("serialize.bin", ios::binary);
 
-    buffer_file.read(reinterpret_cast<char*>(tasks_count), sizeof(uint64_t));
-    buffer_file.read(reinterpret_cast<char*>(tasks_offset), (*tasks_count + 1) * sizeof(uint64_t));
-    buffer_file.read(reinterpret_cast<char*>(tasks_vertices), tasks_offset[*tasks_count] * sizeof(Vertex));
+    buffer_file.read(reinterpret_cast<char*>(hd.tasks1_count), sizeof(uint64_t));
+    buffer_file.read(reinterpret_cast<char*>(hd.tasks1_offset), (*hd.tasks1_count + 1) * sizeof(uint64_t));
+    buffer_file.read(reinterpret_cast<char*>(hd.tasks1_vertices), hd.tasks1_offset[*hd.tasks1_count] * sizeof(Vertex));
     buffer_file.read(reinterpret_cast<char*>(hd.buffer_count), sizeof(uint64_t));
     buffer_file.read(reinterpret_cast<char*>(hd.buffer_offset), (*hd.buffer_count + 1) * sizeof(uint64_t));
     buffer_file.read(reinterpret_cast<char*>(hd.buffer_vertices), hd.buffer_offset[*hd.buffer_count] * sizeof(Vertex));
@@ -732,21 +719,21 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
     buffer_file.close();
 
     // each process is assigned tasks in a strided manner, this step condenses those tasks
-    count = *tasks_count;
-    *tasks_count = 0;
+    count = *hd.tasks1_count;
+    *hd.tasks1_count = 0;
     offset_start = 0;
     for(int i = grank; i < count; i += wsize){
         // increment assigned tasks count
-        (*tasks_count)++;
+        (*hd.tasks1_count)++;
 
         // copy vertices before offets are changed
-        for(int j = tasks_offset[i]; j < tasks_offset[i + 1]; j++){
-            tasks_vertices[offset_start + j - tasks_offset[i]] = tasks_vertices[j];
+        for(int j = hd.tasks1_offset[i]; j < hd.tasks1_offset[i + 1]; j++){
+            hd.tasks1_vertices[offset_start + j - hd.tasks1_offset[i]] = hd.tasks1_vertices[j];
         }
 
         // copy offset and adjust
-        tasks_offset[*tasks_count] = tasks_offset[i + 1] - tasks_offset[i] + offset_start;
-        offset_start = tasks_offset[*tasks_count];
+        hd.tasks1_offset[*hd.tasks1_count] = hd.tasks1_offset[i + 1] - hd.tasks1_offset[i] + offset_start;
+        offset_start = hd.tasks1_offset[*hd.tasks1_count];
     }
 
     // each process is assigned tasks in a strided manner, this step condenses those tasks
@@ -768,16 +755,21 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
     }
 
     // condense tasks
-    h_fill_from_buffer(hd, tasks_vertices, tasks_offset, tasks_count, dss.expand_threshold);
+    h_fill_from_buffer(hd, hd.tasks1_vertices, hd.tasks1_offset, hd.tasks1_count, dss.expand_threshold);
 
     // move to GPU
-    chkerr(cudaMemcpy(h_dd.tasks_count, tasks_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.tasks_offset, tasks_offset, (*tasks_count + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.tasks_vertices, tasks_vertices, tasks_offset[*tasks_count] * sizeof(Vertex), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.tasks_count, hd.tasks1_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.tasks_offset, hd.tasks1_offset, (*hd.tasks1_count + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.tasks_vertices, hd.tasks1_vertices, hd.tasks1_offset[*hd.tasks1_count] * sizeof(Vertex), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.buffer_offset, hd.buffer_offset, (*hd.buffer_count + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.buffer_vertices, hd.buffer_vertices, hd.buffer_offset[*hd.buffer_count] * sizeof(Vertex), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
+
+    // DEBUG
+    if(DEBUG_TOGGLE){
+        print_Data_Sizes(h_dd, dss);
+    }
 }
 
 // move cliques from device to host

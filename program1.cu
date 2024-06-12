@@ -50,10 +50,10 @@ int main(int argc, char* argv[])
     }
 
     // DEBUG
-    filename = "output_DcuQC_cpu.txt";
+    filename = "output_DcuQC_p1_0.txt";
     output_file.open(filename);
     if (DEBUG_TOGGLE) {
-        output_file << endl << ">:OUTPUT FROM PRE-PROCESS: " << endl << endl;
+        output_file << endl << ">:OUTPUT FROM P1 PROCESS 0: " << endl << endl;
         initialize_maxes();
     }
 
@@ -62,12 +62,12 @@ int main(int argc, char* argv[])
 
     // GRAPH / MINDEGS
     if(grank == 0){
-        cout << ">:PRE-PROCESSING" << endl;
+        cout << ">:PROGRAM 1 START" << endl << ">:PRE-PROCESSING" << endl;
     }
     CPU_Graph hg(read_file);
     read_file.close();
     calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
-    filename = "temp_DcuQC_" + to_string(grank) + ".txt";
+    filename = "temp_DcuQC_0.txt";
     write_file.open(filename);
 
     // TIME
@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
     auto stop2 = chrono::high_resolution_clock::now();
     auto duration2 = chrono::duration_cast<chrono::milliseconds>(stop2 - start2);
     cout << "--->:TOTAL TIME: " << duration2.count() << " ms" << endl;
-    cout << ">:PROGRAM1 END" << endl;
+    cout << ">:PROGRAM 1 END" << endl;
 
     return 0;
 }
