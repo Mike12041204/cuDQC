@@ -6,8 +6,13 @@
 // TODO
 // - see whether it's possible to parallelize some of calculate_LU_bounds
 // - what is the bets mpi parameters, when should we split, how much, how often
+// - do we need dumping cliques on the gpu?
+// - add mem for slurm for p1
+// - add serialization of debug maxes
+// - dont need rmnonmax for p1
+// - move programs to src folder
 
-// CURSOR - work on parallel cpu version for pre-processing, work on program2
+// CURSOR - do TODOs
 
 // MAIN
 int main(int argc, char* argv[])
