@@ -49,8 +49,10 @@ using namespace std;
 #define NUMBER_OF_PROCESSESS 4
 #define MAX_MESSAGE 1000000000
 // TODO - test to see what is the best number for these
-#define HELP_THRESHOLD (NUMBER_OF_WARPS * 2)
+// must be atleast be 1
+#define HELP_MULTIPLIER 2
 #define HELP_PERCENT 50
+#define HELP_THRESHOLD (NUMBER_OF_WARPS * HELP_MULTIPLIER)
 
 // VERTEX DATA
 struct Vertex

@@ -65,6 +65,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_d
             cout << "!!! VERTICES SIZE ERROR !!!" << endl;
             return;
         }
+        output_file << "CPU START" << endl;
         h_print_Data_Sizes(hd, hc);
     }
 
@@ -168,17 +169,13 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_d
                 print_Data_Sizes_Every(h_dd, 1, dss);
             }
 
-            // TODO - should getting help go above or below expansion?
             chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
             if(buffer_count > HELP_THRESHOLD){
-                // TODO -ensure this section works
-                // prepare extra work to be sent
-                encode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer, buffer_count);
                 // return whether work was successfully given
-                divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer);
+                divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, h_dd, buffer_count, dss);
                 // update buffer count if work was given
                 if(divided_work){
-                    buffer_count *= (HELP_PERCENT / 100.0);
+                    buffer_count -= dss.expand_threshold + ((buffer_count - dss.expand_threshold) * ((100 - HELP_PERCENT) / 100.0));
                     chkerr(cudaMemcpy(h_dd.buffer_count, &buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
 
                     // DEBUG
@@ -193,7 +190,6 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_d
         // we have finished all our work, so if we get to the top of the loop again it is because we are helping someone else
         help_others = true;
 
-    // TODO - ensure this works
     }while(wsize != take_work_wrap(grank, mpiSizeBuffer, mpiVertexBuffer, from));
 
     // TIME
@@ -673,6 +669,29 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
         tasks_count = hd.tasks2_count;
         tasks_offset = hd.tasks2_offset;
         tasks_vertices = hd.tasks2_vertices;
+    }
+
+    // DEBUG
+    // first process gets all work others get none for debugging mpi
+    uint64_t z = 0;
+    chkerr(cudaMemcpy(h_dd.tasks_count, &z, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.buffer_count, &z, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    if(grank == 0){
+        // move to GPU
+        chkerr(cudaMemcpy(h_dd.tasks_count, tasks_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(h_dd.tasks_offset, tasks_offset, (*tasks_count + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(h_dd.tasks_vertices, tasks_vertices, tasks_offset[*tasks_count] * sizeof(Vertex), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(h_dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(h_dd.buffer_offset, hd.buffer_offset, (*hd.buffer_count + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(h_dd.buffer_vertices, hd.buffer_vertices, hd.buffer_offset[*hd.buffer_count] * sizeof(Vertex), cudaMemcpyHostToDevice));
+    }
+    if(DEBUG_TOGGLE){
+        output_file << "GPU START" << endl;
+        print_Data_Sizes(h_dd, dss);
+    }
+    if(true){
+        return;
     }
 
     // each process is assigned tasks in a strided manner, this step condenses those tasks
