@@ -38,8 +38,6 @@ using namespace std;
 #define NUMBER_OF_THREADS (NUM_OF_BLOCKS * BLOCK_SIZE)
 
 // PROGRAM RUN SETTINGS
-// debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 0
 // shared memory vertices
 #define VERTICES_SIZE 70
 // cpu settings
@@ -53,6 +51,9 @@ using namespace std;
 #define HELP_MULTIPLIER 2
 #define HELP_PERCENT 50
 #define HELP_THRESHOLD (NUMBER_OF_WARPS * HELP_MULTIPLIER)
+
+// debug toggle 0-normal/1-debug
+#define DEBUG_TOGGLE 0
 
 // VERTEX DATA
 struct Vertex

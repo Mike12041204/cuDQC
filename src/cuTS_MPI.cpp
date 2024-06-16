@@ -349,6 +349,13 @@ void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVerte
     // size index 0 is count
     mpiSizeBuffer[0] = count;
 
+    // DEBUG
+    if(DEBUG_TOGGLE){
+        if(count + 2 > MAX_MESSAGE){
+            cout << "MESSAGE SIZE ERROR" << endl;
+        }
+    }
+
     // size index 1 and forward is offsets
     chkerr(cudaMemcpy(mpiSizeBuffer + 1, h_dd.buffer_offset + split, sizeof(uint64_t) * (count + 1), cudaMemcpyDeviceToHost));
 
@@ -356,6 +363,13 @@ void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVerte
     adjust = mpiSizeBuffer[1];
     for(int i = 1; i < count + 2; i++){
         mpiSizeBuffer[i] -= adjust;
+    }
+
+    // DEBUG
+    if(DEBUG_TOGGLE){
+        if(mpiSizeBuffer[count + 1] > MAX_MESSAGE){
+            cout << "MESSAGE SIZE ERROR" << endl;
+        }
     }
 
     // copy vertices
