@@ -23,17 +23,21 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
     twohop_neighbors = new int[number_of_lvl2adj];
     twohop_offsets = new uint64_t[number_of_vertices + 1];
 
-    for (int i = 0; i < number_of_edges; i++) {
+    for (uint64_t i = 0; i < number_of_edges; i++) {
         graph_stream >> onehop_neighbors[i];
     }
-    for (int i = 0; i < number_of_vertices + 1; i++) {
+    for (uint64_t i = 0; i < number_of_vertices + 1; i++) {
         graph_stream >> onehop_offsets[i];
     }
-    for (int i = 0; i < number_of_lvl2adj; i++) {
+    for (uint64_t i = 0; i < number_of_lvl2adj; i++) {
         graph_stream >> twohop_neighbors[i];
     }
-    for (int i = 0; i < number_of_vertices + 1; i++) {
+    for (uint64_t i = 0; i < number_of_vertices + 1; i++) {
         graph_stream >> twohop_offsets[i];
+        // DEBUG - rm
+        if(grank == 0){
+            //cout << twohop_offsets[i] << flush;
+        }
     }
 }
 

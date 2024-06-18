@@ -366,14 +366,32 @@ void initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_degrees, int min
         vertices[i].indeg = 0;
         vertices[i].exdeg = hg.onehop_offsets[i + 1] - hg.onehop_offsets[i];
         vertices[i].lvl2adj = hg.twohop_offsets[i + 1] - hg.twohop_offsets[i];
-        if (vertices[i].exdeg >= minimum_degrees[minimum_clique_size] && vertices[i].lvl2adj >= minimum_clique_size - 1) {
-            vertices[i].label = 0;
-            hd.remaining_candidates[(*hd.remaining_count)++] = i;
+        // DEBUG - rm
+        if (vertices[i].exdeg >= minimum_degrees[minimum_clique_size]) {
+            if(grank == 0){
+                //cout << hg.twohop_offsets[i + 1] << " " << hg.twohop_offsets[i] << " " << hg.twohop_offsets[i + 1] - hg.twohop_offsets[i] << endl;
+            }
+            if(vertices[i].lvl2adj >= minimum_clique_size - 1){
+                if(grank == 0){
+                    cout << "2" << endl;
+                }
+                vertices[i].label = 0;
+                hd.remaining_candidates[(*hd.remaining_count)++] = i;
+            }
         }
         else {
             vertices[i].label = -1;
             hd.removed_candidates[(*hd.removed_count)++] = i;
         }
+    }
+
+    // DEBUG
+    if(grank == 0){
+        cout << total_vertices << "!!!" << endl;
+    }
+    // DEBUG
+    if(grank == 0){
+        cout << (*hd.remaining_count) << " " << (*hd.removed_count) << " " << minimum_degrees[minimum_clique_size] << endl;
     }
 
     // DEGREE-BASED PRUNING
@@ -465,6 +483,11 @@ void initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_degrees, int min
     // sort enumeration order before writing to tasks
     qsort(vertices, total_vertices, sizeof(Vertex), h_comp_vert_Q);
     total_vertices = number_of_candidates;
+
+    // DEBUG
+    if(grank == 0){
+        cout << total_vertices << "!!!" << endl;
+    }
 
     // WRITE TO TASKS
     if (total_vertices > 0)
@@ -671,29 +694,6 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
         tasks_vertices = hd.tasks2_vertices;
     }
 
-    // DEBUG
-    // first process gets all work others get none for debugging mpi
-    uint64_t z = 0;
-    chkerr(cudaMemcpy(h_dd.tasks_count, &z, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.buffer_count, &z, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    if(grank == 0){
-        // move to GPU
-        chkerr(cudaMemcpy(h_dd.tasks_count, tasks_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(h_dd.tasks_offset, tasks_offset, (*tasks_count + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(h_dd.tasks_vertices, tasks_vertices, tasks_offset[*tasks_count] * sizeof(Vertex), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(h_dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(h_dd.buffer_offset, hd.buffer_offset, (*hd.buffer_count + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(h_dd.buffer_vertices, hd.buffer_vertices, hd.buffer_offset[*hd.buffer_count] * sizeof(Vertex), cudaMemcpyHostToDevice));
-    }
-    if(DEBUG_TOGGLE){
-        output_file << "GPU START" << endl;
-        print_Data_Sizes(h_dd, dss);
-    }
-    if(true){
-        return;
-    }
-
     // each process is assigned tasks in a strided manner, this step condenses those tasks
     count = *tasks_count;
     *tasks_count = 0;
@@ -741,6 +741,12 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
     chkerr(cudaMemcpy(h_dd.buffer_offset, hd.buffer_offset, (*hd.buffer_count + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.buffer_vertices, hd.buffer_vertices, hd.buffer_offset[*hd.buffer_count] * sizeof(Vertex), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
+
+    // DEBUG
+    if(DEBUG_TOGGLE){
+        output_file << "GPU START" << endl;
+        print_Data_Sizes(h_dd, dss);
+    }
 }
 
 // move cliques from device to host

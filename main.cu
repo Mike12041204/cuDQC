@@ -30,8 +30,8 @@ int main(int argc, char* argv[])
         printf("Usage: ./main <graph_file> <gamma> <min_size>\n");
         return 1;
     }
-    read_file.open(argv[1], ios::in);
-    if (!read_file.is_open()) {
+    ifstream graph_stream(argv[1], ios::in);
+    if (!graph_stream.is_open()) {
         printf("invalid graph file\n");
         return 1;
     }
@@ -70,10 +70,12 @@ int main(int argc, char* argv[])
 
     // GRAPH / MINDEGS
     if(grank == 0){
+        // DEBUG - rm
+        cout << HELP_MULTIPLIER << endl;
         cout << ">:PRE-PROCESSING" << endl;
     }
-    CPU_Graph hg(read_file);
-    read_file.close();
+    CPU_Graph hg(graph_stream);
+    graph_stream.close();
     calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
     filename = "temp_DcuQC_" + to_string(grank) + ".txt";
     write_file.open(filename);
@@ -83,6 +85,17 @@ int main(int argc, char* argv[])
     auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
     if(grank == 0){
         cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
+    }
+
+    // DEBUG - rm
+    if(grank == 0){
+        cout << minimum_degree_ratio << " " << minimum_clique_size << endl;
+        for(int i = 0; i < 1000; i++){
+            //cout << hg.onehop_offsets[i] << " " << flush;
+        }
+        for(int i = 0; i < 100000; i++){
+            cout << hg.twohop_offsets[i] << " " << flush;
+        }
     }
 
     // SEARCH

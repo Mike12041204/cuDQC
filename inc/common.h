@@ -48,12 +48,12 @@ using namespace std;
 #define MAX_MESSAGE 1000000000
 // TODO - test to see what is the best number for these
 // must be atleast be 1
-#define HELP_MULTIPLIER 2
+#define HELP_MULTIPLIER 1
 #define HELP_PERCENT 50
 #define HELP_THRESHOLD (NUMBER_OF_WARPS * HELP_MULTIPLIER)
 
 // debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 0
+#define DEBUG_TOGGLE 1
 
 // VERTEX DATA
 struct Vertex
