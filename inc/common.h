@@ -65,24 +65,6 @@ struct Vertex
     uint32_t lvl2adj;
 };
 
-// CPU GRAPH / CONSTRUCTOR
-class CPU_Graph
-{
-    public:
-
-    int number_of_vertices;
-    int number_of_edges;
-    uint64_t number_of_lvl2adj;
-    // one dimentional arrays of 1hop and 2hop neighbors and the offsets for each vertex
-    int* onehop_neighbors;
-    uint64_t* onehop_offsets;
-    int* twohop_neighbors;
-    uint64_t* twohop_offsets;
-
-    CPU_Graph(ifstream& graph_stream);
-    ~CPU_Graph();
-};
-
 // CPU DATA
 struct CPU_Data
 {
