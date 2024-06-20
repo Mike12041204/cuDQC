@@ -27,9 +27,7 @@ void p1_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
     auto start = chrono::high_resolution_clock::now();
 
     // INITIALIZE TASKS
-    if(grank == 0){
-        cout << ">:INITIALIZING TASKS" << endl;
-    }
+    cout << ">:INITIALIZING TASKS" << endl;
     initialize_tasks(hg, hd, minimum_degrees, minimum_clique_size);
 
     // DEBUG

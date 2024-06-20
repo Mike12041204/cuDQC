@@ -40,7 +40,7 @@ using namespace std;
 
 // PROGRAM RUN SETTINGS
 // debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 0
+#define DEBUG_TOGGLE 1
 // shared memory vertices
 #define VERTICES_SIZE 70
 // cpu settings
@@ -77,8 +77,45 @@ class CPU_Graph
     int* twohop_neighbors;
     uint64_t* twohop_offsets;
 
-    CPU_Graph(ifstream& graph_stream);
-    ~CPU_Graph();
+    // CPU_Graph(ifstream& graph_stream);
+    // ~CPU_Graph();
+
+    // DEBUG - rm
+    CPU_Graph(ifstream& graph_stream)
+    {
+        graph_stream >> number_of_vertices;
+        graph_stream >> number_of_edges;
+        graph_stream >> number_of_lvl2adj;
+
+        onehop_neighbors = new int[number_of_edges];
+        onehop_offsets = new uint64_t[number_of_vertices + 1];
+        twohop_neighbors = new int[number_of_lvl2adj];
+        twohop_offsets = new uint64_t[number_of_vertices + 1];
+
+        for (int i = 0; i < number_of_edges; i++) {
+            graph_stream >> onehop_neighbors[i];
+        }
+
+        for (int i = 0; i < number_of_vertices + 1; i++) {
+            graph_stream >> onehop_offsets[i];
+        }
+
+        for (int i = 0; i < number_of_lvl2adj; i++) {
+            graph_stream >> twohop_neighbors[i];
+        }
+
+        for (int i = 0; i < number_of_vertices + 1; i++) {
+            graph_stream >> twohop_offsets[i];
+        }
+    }
+
+    ~CPU_Graph() 
+    {
+        delete onehop_neighbors;
+        delete onehop_offsets;
+        delete twohop_neighbors;
+        delete twohop_offsets;
+    }
 };
 
 // CPU DATA

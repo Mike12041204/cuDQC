@@ -34,7 +34,8 @@ int main(int argc, char* argv[])
         printf("Usage: ./main <graph_file> <gamma> <min_size>\n");
         return 1;
     }
-    read_file.open(argv[1], ios::in);
+    // DEBUG - rm
+    ifstream graph_stream(argv[1], ios::in);
     if (!read_file.is_open()) {
         printf("invalid graph file\n");
         return 1;
@@ -66,12 +67,14 @@ int main(int argc, char* argv[])
     auto start = chrono::high_resolution_clock::now();
 
     // GRAPH / MINDEGS
-    if(grank == 0){
-        cout << ">:PROGRAM 1 START" << endl << ">:PRE-PROCESSING" << endl;
-    }
-    CPU_Graph hg(read_file);
-    read_file.close();
+    cout << ">:PROGRAM 1 START" << endl << ">:PRE-PROCESSING" << endl;
+    CPU_Graph hg(graph_stream);
+    // DEBUG - rm
+    cout << "graph" << endl;
+    graph_stream.close();
     calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
+    // DEBUG - rm
+    cout << "mindegs" << endl;
     filename = "temp_DcuQC_0.txt";
     write_file.open(filename);
 
