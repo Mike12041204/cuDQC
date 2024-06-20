@@ -12,62 +12,38 @@ MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];          // array of handles for 
 MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
 bool global_free_list[NUMBER_OF_PROCESSESS];
 
-// DEBUG - rm
-// CPU_Graph::CPU_Graph(ifstream& graph_stream)
-// {
-//     graph_stream >> number_of_vertices;
-//     graph_stream >> number_of_edges;
-//     graph_stream >> number_of_lvl2adj;
-//     // DEBUG - rm
-//     cout << "set" << endl;
+CPU_Graph::CPU_Graph(ifstream& graph_stream)
+{
+    graph_stream >> number_of_vertices;
+    graph_stream >> number_of_edges;
+    graph_stream >> number_of_lvl2adj;
 
-//     onehop_neighbors = new int[number_of_edges];
-//     onehop_offsets = new uint64_t[number_of_vertices + 1];
-//     twohop_neighbors = new int[number_of_lvl2adj];
-//     twohop_offsets = new uint64_t[number_of_vertices + 1];
-//     // DEBUG - rm
-//     cout << "alloc " << number_of_vertices << " " << number_of_edges << " " << number_of_lvl2adj << endl;
+    onehop_neighbors = new int[number_of_edges];
+    onehop_offsets = new uint64_t[number_of_vertices + 1];
+    twohop_neighbors = new int[number_of_lvl2adj];
+    twohop_offsets = new uint64_t[number_of_vertices + 1];
 
-//     for (int i = 0; i < number_of_edges; i++) {
-//         graph_stream >> onehop_neighbors[i];
-//     }
-//     // DEBUG - rm
-//     cout << "ohn" << endl;
-//     for (int i = 0; i < number_of_vertices + 1; i++) {
-//         graph_stream >> onehop_offsets[i];
-//     }
-//     // DEBUG - rm
-//     cout << "oho" << endl;
-//     for (uint64_t i = 0; i < number_of_lvl2adj; i++) {
-//         graph_stream >> twohop_neighbors[i];
-//         // DEBUG - rm
-//         //uint64_t temp;
-//         //graph_stream >> temp;
-//         //cout << temp << " ";
-//         //cout << twohop_neighbors[i] << " ";
-//     }
-//     // DEBUG - rm
-//     uint64_t ttemp;
-//     cout << "thn" << ttemp << endl;
-//     for (int i = 0; i < number_of_vertices + 1; i++) {
-//         //graph_stream >> twohop_offsets[i];
-//         // DEBUG - rm
-//         //cout << twohop_offsets[i] << " ";
-//         uint64_t temp;
-//         graph_stream >> temp;
-//         cout << temp << endl;
-//     }
-//     // DEBUG - rm
-//     cout << "tho" << endl;
-// }
+    for (int i = 0; i < number_of_edges; i++) {
+        graph_stream >> onehop_neighbors[i];
+    }
+    for (int i = 0; i < number_of_vertices + 1; i++) {
+        graph_stream >> onehop_offsets[i];
+    }
+    for (int i = 0; i < number_of_lvl2adj; i++) {
+        graph_stream >> twohop_neighbors[i];
+    }
+    for (int i = 0; i < number_of_vertices + 1; i++) {
+        graph_stream >> twohop_offsets[i];
+    }
+}
 
-// CPU_Graph::~CPU_Graph() 
-// {
-//     delete[] onehop_neighbors;
-//     delete[] onehop_offsets;
-//     delete[] twohop_neighbors;
-//     delete[] twohop_offsets;
-// }
+CPU_Graph::~CPU_Graph() 
+{
+    delete onehop_neighbors;
+    delete onehop_offsets;
+    delete twohop_neighbors;
+    delete twohop_offsets;
+}
 
 DS_Sizes::DS_Sizes(const string& filename)
 {
