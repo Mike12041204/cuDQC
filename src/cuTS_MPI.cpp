@@ -6,7 +6,7 @@ TYPES OF MESSAGES AND THEIR MEANING:
 c - taker thread asking for confirmation from giver thread
 r - giver thread is requesting another thread to help take some of its work
 C - giver thread giving confirmation to taker that it will send work
-t - taker thread letting others know it has found worksss
+t - taker thread letting others know it has found works
 f - taker thread letting others know it is free and could recieve work
 D - giver thread declining to confirm to a taker that it will send work
 * z - not an actual message but used as a place holder to indicate that
@@ -198,7 +198,7 @@ int take_work_wrap(int rank, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer, i
 }
 
 // actually sends work from current thread to "taker" thread
-void give_work(int rank, int taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer) {
+void give_work(int rank, int taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer, GPU_Data& h_dd, uint64_t buffer_count, DS_Sizes& dss) {
     // not used, just needed as parameter
     MPI_Status status;
 
@@ -208,6 +208,9 @@ void give_work(int rank, int taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBu
     // wait until C is fully sent
     MPI_Wait(&rq_send_msg[taker], &status);
     /// At this point we know that the taker is waiting to recv data
+
+    // prepare extra work to be sent
+    encode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer, buffer_count, dss);
 
     // Define the Vertex structure
     int blocklengths[5] = {1, 1, 1, 1, 1};
@@ -231,7 +234,7 @@ void give_work(int rank, int taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBu
 
 // looks to see if another thread is requesting confirmation for transfer, if so transfers data to it and declines other threads askign for data
 // the taker parameter is really a return value of the thread id of the thread we gave work to
-bool check_for_confirmation(int rank, int &taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer) {
+bool check_for_confirmation(int rank, int &taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer, GPU_Data& h_dd, uint64_t buffer_count, DS_Sizes& dss) {
 
     bool agreed_to_split_work = false;
 
@@ -284,7 +287,7 @@ bool check_for_confirmation(int rank, int &taker, uint64_t* mpiSizeBuffer, Verte
             if (!agreed_to_split_work) {
 
                 // give work to the taker thread
-                give_work(rank, i, mpiSizeBuffer, mpiVertexBuffer); //give work to this node
+                give_work(rank, i, mpiSizeBuffer, mpiVertexBuffer, h_dd, buffer_count, dss); //give work to this node
                 agreed_to_split_work = true;
 
                 // set the return variable taker as the id of thread we gave the work to
@@ -305,9 +308,9 @@ bool check_for_confirmation(int rank, int &taker, uint64_t* mpiSizeBuffer, Verte
 }
 
 // check to see if a previous request for help was responded to, then send  another request for help and see if anyone repsonds
-bool give_work_wrapper(int rank, int &taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer) {
+bool give_work_wrapper(int rank, int &taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer, GPU_Data& h_dd, uint64_t buffer_count, DS_Sizes& dss) {
     // see if any thread has asked for confirmation from a previously sent request, if so this method also sends the data
-    bool agreed_to_split_work = check_for_confirmation(rank, taker, mpiSizeBuffer, mpiVertexBuffer);
+    bool agreed_to_split_work = check_for_confirmation(rank, taker, mpiSizeBuffer, mpiVertexBuffer, h_dd, buffer_count, dss);
 
 
     /// no one send confirmation
@@ -326,7 +329,7 @@ bool give_work_wrapper(int rank, int &taker, uint64_t* mpiSizeBuffer, Vertex* mp
 
         /// retry to see someone send confirmation
         // now that new messages have been sent see if any thread is asking for confirmation
-        agreed_to_split_work = check_for_confirmation(rank, taker, mpiSizeBuffer, mpiVertexBuffer);
+        agreed_to_split_work = check_for_confirmation(rank, taker, mpiSizeBuffer, mpiVertexBuffer, h_dd, buffer_count, dss);
     }
 
     // return whether work was split with another thread
@@ -334,18 +337,24 @@ bool give_work_wrapper(int rank, int &taker, uint64_t* mpiSizeBuffer, Vertex* mp
 }
 
 // encode part of the buffer to be sent to another process
-void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer, uint64_t buffer_count) {
+void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer, uint64_t buffer_count, DS_Sizes& dss) {
     uint64_t split;
     uint64_t count;
     uint64_t adjust;
-    uint64_t size;
 
     // what task to split the buffer at
-    split = buffer_count * (HELP_PERCENT / 100.0);
-    count = buffer_count - split;
+    count = dss.expand_threshold + ((buffer_count - dss.expand_threshold) * ((100 - HELP_PERCENT) / 100.0));
+    split = buffer_count - count;
 
     // size index 0 is count
     mpiSizeBuffer[0] = count;
+
+    // DEBUG
+    if(DEBUG_TOGGLE){
+        if(count + 2 > MAX_MESSAGE){
+            cout << "MESSAGE SIZE ERROR" << endl;
+        }
+    }
 
     // size index 1 and forward is offsets
     chkerr(cudaMemcpy(mpiSizeBuffer + 1, h_dd.buffer_offset + split, sizeof(uint64_t) * (count + 1), cudaMemcpyDeviceToHost));
@@ -356,10 +365,15 @@ void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVerte
         mpiSizeBuffer[i] -= adjust;
     }
 
+    // DEBUG
+    if(DEBUG_TOGGLE){
+        if(mpiSizeBuffer[count + 1] > MAX_MESSAGE){
+            cout << "MESSAGE SIZE ERROR" << endl;
+        }
+    }
+
     // copy vertices
-    chkerr(cudaMemcpy(&size, h_dd.buffer_offset + buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    size -= adjust;
-    chkerr(cudaMemcpy(mpiVertexBuffer, h_dd.buffer_vertices + adjust, sizeof(Vertex) * size, cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(mpiVertexBuffer, h_dd.buffer_vertices + adjust, sizeof(Vertex) * mpiSizeBuffer[count + 1], cudaMemcpyDeviceToHost));
 }
 
 // decode message from another process to fill the buffer

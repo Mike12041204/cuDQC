@@ -39,8 +39,6 @@ using namespace std;
 #define NUMBER_OF_THREADS (NUM_OF_BLOCKS * BLOCK_SIZE)
 
 // PROGRAM RUN SETTINGS
-// debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 0
 // shared memory vertices
 #define VERTICES_SIZE 70
 // cpu settings
@@ -50,8 +48,13 @@ using namespace std;
 #define NUMBER_OF_PROCESSESS 4
 #define MAX_MESSAGE 1000000000
 // TODO - test to see what is the best number for these
-#define HELP_THRESHOLD (NUMBER_OF_WARPS * 2)
+// must be atleast be 1
+#define HELP_MULTIPLIER 2
 #define HELP_PERCENT 50
+#define HELP_THRESHOLD (NUMBER_OF_WARPS * HELP_MULTIPLIER)
+
+// debug toggle 0-normal/1-debug
+#define DEBUG_TOGGLE 0
 
 // VERTEX DATA
 struct Vertex

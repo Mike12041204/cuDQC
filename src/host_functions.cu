@@ -39,6 +39,7 @@ void p1_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             cout << "!!! VERTICES SIZE ERROR !!!" << endl;
             return;
         }
+        output_file << "CPU START" << endl;
         h_print_Data_Sizes(hd, hc);
     }
 
@@ -193,13 +194,11 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
 
             chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
             if(buffer_count > HELP_THRESHOLD){
-                // prepare extra work to be sent
-                encode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer, buffer_count);
                 // return whether work was successfully given
-                divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer);
+                divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, h_dd, buffer_count, dss);
                 // update buffer count if work was given
                 if(divided_work){
-                    buffer_count *= (HELP_PERCENT / 100.0);
+                    buffer_count -= dss.expand_threshold + ((buffer_count - dss.expand_threshold) * ((100 - HELP_PERCENT) / 100.0));
                     chkerr(cudaMemcpy(h_dd.buffer_count, &buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
 
                     // DEBUG
@@ -214,7 +213,6 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
         // we have finished all our work, so if we get to the top of the loop again it is because we are helping someone else
         help_others = true;
 
-    // TODO - ensure this works
     }while(wsize != take_work_wrap(grank, mpiSizeBuffer, mpiVertexBuffer, from));
 
     // TIME
