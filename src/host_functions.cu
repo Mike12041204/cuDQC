@@ -671,29 +671,6 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
         tasks_vertices = hd.tasks2_vertices;
     }
 
-    // DEBUG
-    // first process gets all work others get none for debugging mpi
-    uint64_t z = 0;
-    chkerr(cudaMemcpy(h_dd.tasks_count, &z, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.buffer_count, &z, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    if(grank == 0){
-        // move to GPU
-        chkerr(cudaMemcpy(h_dd.tasks_count, tasks_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(h_dd.tasks_offset, tasks_offset, (*tasks_count + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(h_dd.tasks_vertices, tasks_vertices, tasks_offset[*tasks_count] * sizeof(Vertex), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(h_dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(h_dd.buffer_offset, hd.buffer_offset, (*hd.buffer_count + 1) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-        chkerr(cudaMemcpy(h_dd.buffer_vertices, hd.buffer_vertices, hd.buffer_offset[*hd.buffer_count] * sizeof(Vertex), cudaMemcpyHostToDevice));
-    }
-    if(DEBUG_TOGGLE){
-        output_file << "GPU START" << endl;
-        print_Data_Sizes(h_dd, dss);
-    }
-    if(true){
-        return;
-    }
-
     // each process is assigned tasks in a strided manner, this step condenses those tasks
     count = *tasks_count;
     *tasks_count = 0;
