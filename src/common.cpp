@@ -29,6 +29,7 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
     for (int i = 0; i < number_of_vertices + 1; i++) {
         graph_stream >> onehop_offsets[i];
     }
+    // NOTE - making i a uint64_t here breaks the code even though it is being compared to a uint64_t
     for (int i = 0; i < number_of_lvl2adj; i++) {
         graph_stream >> twohop_neighbors[i];
     }
@@ -39,10 +40,10 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
 
 CPU_Graph::~CPU_Graph() 
 {
-    delete onehop_neighbors;
-    delete onehop_offsets;
-    delete twohop_neighbors;
-    delete twohop_offsets;
+    delete[] onehop_neighbors;
+    delete[] onehop_offsets;
+    delete[] twohop_neighbors;
+    delete[] twohop_offsets;
 }
 
 DS_Sizes::DS_Sizes(const string& filename)

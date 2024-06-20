@@ -53,8 +53,8 @@ using namespace std;
 #define HELP_PERCENT 50
 #define HELP_THRESHOLD (NUMBER_OF_WARPS * HELP_MULTIPLIER)
 
-// debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 0
+// debug toggle 0-normal/1-debug 
+#define DEBUG_TOGGLE 1
 
 // VERTEX DATA
 struct Vertex

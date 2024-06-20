@@ -766,6 +766,7 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
 
     // DEBUG
     if(DEBUG_TOGGLE){
+        output_file << "GPU START" << endl;
         print_Data_Sizes(h_dd, dss);
     }
 }
@@ -806,27 +807,27 @@ void p1_free_memory(CPU_Data& hd, CPU_Cliques& hc)
 {
     // CPU DATA
     delete hd.tasks1_count;
-    delete hd.tasks1_offset;
-    delete hd.tasks1_vertices;
+    delete[] hd.tasks1_offset;
+    delete[] hd.tasks1_vertices;
     delete hd.tasks2_count;
-    delete hd.tasks2_offset;
-    delete hd.tasks2_vertices;
+    delete[] hd.tasks2_offset;
+    delete[] hd.tasks2_vertices;
     delete hd.buffer_count;
-    delete hd.buffer_offset;
-    delete hd.buffer_vertices;
+    delete[] hd.buffer_offset;
+    delete[] hd.buffer_vertices;
     delete hd.current_level;
     delete hd.maximal_expansion;
     delete hd.dumping_cliques;
-    delete hd.vertex_order_map;
-    delete hd.remaining_candidates;
+    delete[] hd.vertex_order_map;
+    delete[] hd.remaining_candidates;
     delete hd.remaining_count;
-    delete hd.removed_candidates;
+    delete[] hd.removed_candidates;
     delete hd.removed_count;
-    delete hd.candidate_indegs;
+    delete[] hd.candidate_indegs;
     // CPU CLIQUES
     delete hc.cliques_count;
-    delete hc.cliques_vertex;
-    delete hc.cliques_offset;
+    delete[] hc.cliques_vertex;
+    delete[] hc.cliques_offset;
 }
 
 void p2_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
@@ -840,14 +841,14 @@ void p2_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     chkerr(cudaFree(h_dd.twohop_offsets));
     // CPU DATA
     delete hd.tasks1_count;
-    delete hd.tasks1_offset;
-    delete hd.tasks1_vertices;
+    delete[] hd.tasks1_offset;
+    delete[] hd.tasks1_vertices;
     delete hd.tasks2_count;
-    delete hd.tasks2_offset;
-    delete hd.tasks2_vertices;
+    delete[] hd.tasks2_offset;
+    delete[] hd.tasks2_vertices;
     delete hd.buffer_count;
-    delete hd.buffer_offset;
-    delete hd.buffer_vertices;
+    delete[] hd.buffer_offset;
+    delete[] hd.buffer_vertices;
     delete hd.current_level;
     // GPU DATA
     chkerr(cudaFree(h_dd.current_level));
@@ -875,8 +876,8 @@ void p2_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     chkerr(cudaFree(h_dd.current_task));
     // CPU CLIQUES
     delete hc.cliques_count;
-    delete hc.cliques_vertex;
-    delete hc.cliques_offset;
+    delete[] hc.cliques_vertex;
+    delete[] hc.cliques_offset;
     // GPU CLIQUES
     chkerr(cudaFree(h_dd.cliques_count));
     chkerr(cudaFree(h_dd.cliques_vertex));

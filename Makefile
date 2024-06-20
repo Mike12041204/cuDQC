@@ -2,7 +2,8 @@
 CXX = g++
 NVCC = nvcc
 
-# Compiler flags, -O optimization flags cause bugs, don't use them
+# Compiler flags
+# NOTE - -O optimization flags cause bugs, don't use them
 NVCCFLAGS = -gencode arch=compute_80,code=sm_80 -std=c++11
 CXXFLAGS = -std=c++11
 LDFLAGS := -lmpi
