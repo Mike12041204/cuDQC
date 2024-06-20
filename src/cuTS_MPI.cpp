@@ -6,7 +6,7 @@ TYPES OF MESSAGES AND THEIR MEANING:
 c - taker thread asking for confirmation from giver thread
 r - giver thread is requesting another thread to help take some of its work
 C - giver thread giving confirmation to taker that it will send work
-t - taker thread letting others know it has found works
+t - taker thread letting others know it has found worksss
 f - taker thread letting others know it is free and could recieve work
 D - giver thread declining to confirm to a taker that it will send work
 * z - not an actual message but used as a place holder to indicate that
