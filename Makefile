@@ -2,9 +2,9 @@
 CXX = g++
 NVCC = nvcc
 
-# Compiler flags
-NVCCFLAGS = -O3 -gencode arch=compute_80,code=sm_80 -std=c++11
-CXXFLAGS = -O3 -std=c++11
+# Compiler flags, -O optimization flags cause bugs, don't use them
+NVCCFLAGS = -gencode arch=compute_80,code=sm_80 -std=c++11
+CXXFLAGS = -std=c++11
 LDFLAGS := -lmpi
 INCLUDES = -Iinc
 
