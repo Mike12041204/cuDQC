@@ -161,13 +161,26 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             transfer_buffers<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
             cudaDeviceSynchronize();
 
+            // DEBUG - rm
+            //output_file << "1" << endl;
+
             // determine whether maximal expansion has been accomplished
             chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+
+            // DEBUG - rm
+            //output_file << "11" << endl;
+
             chkerr(cudaMemcpy(&write_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+
+            // DEBUG - rm
+            //output_file << "12" << endl;
 
             if (write_count > 0 || buffer_count > 0) {
                 (*(hd.maximal_expansion)) = false;
             }
+
+            // DEBUG - rm
+            //output_file << "2" << endl;
 
             chkerr(cudaMemset(h_dd.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
             chkerr(cudaMemset(h_dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
@@ -176,6 +189,9 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
                 fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
                 cudaDeviceSynchronize();
             }
+
+            // DEBUG - rm
+            //output_file << "3" << endl;
 
             // determine whether cliques has exceeded defined threshold, if so dump them to a file
             chkerr(cudaMemcpy(&cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
@@ -186,6 +202,9 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             if (cliques_size > dss.cliques_dump) {
                 dump_cliques(hc, h_dd, temp_results, dss);
             }
+
+            // DEBUG - rm
+            //output_file << "4" << endl;
 
             // DEBUG
             if (DEBUG_TOGGLE) {
@@ -198,7 +217,7 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
                 divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, h_dd, buffer_count, dss);
                 // update buffer count if work was given
                 if(divided_work){
-                    buffer_count -= dss.expand_threshold + ((buffer_count - dss.expand_threshold) * ((100 - HELP_PERCENT) / 100.0));
+                    buffer_count -= (buffer_count > dss.expand_threshold) ? dss.expand_threshold + ((buffer_count - dss.expand_threshold) * ((100 - HELP_PERCENT) / 100.0)) : buffer_count;
                     chkerr(cudaMemcpy(h_dd.buffer_count, &buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
 
                     // DEBUG

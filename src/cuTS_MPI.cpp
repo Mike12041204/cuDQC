@@ -342,8 +342,9 @@ void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVerte
     uint64_t count;
     uint64_t adjust;
 
+    // how many tasks to give, all if less greater than help threshold but less than expand threshold, half after filling expand threshold if greater than both
+    count = (buffer_count > dss.expand_threshold) ? dss.expand_threshold + ((buffer_count - dss.expand_threshold) * ((100 - HELP_PERCENT) / 100.0)) : buffer_count;
     // what task to split the buffer at
-    count = dss.expand_threshold + ((buffer_count - dss.expand_threshold) * ((100 - HELP_PERCENT) / 100.0));
     split = buffer_count - count;
 
     // size index 0 is count

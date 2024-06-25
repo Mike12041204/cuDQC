@@ -285,7 +285,7 @@ bool print_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
 
     // DEBUG - if you need total sizes back you can uncomment this line, but they dont decide ds sizes so they arent needed in most cases
     //output_file << "WTasks( TC: " << tasks_tcount << " TS: " << tasks_tsize << " MC: " << tasks_mcount << " MS: " << tasks_msize << ") WCliques ( TC: " << cliques_tcount << " TS: " << cliques_tsize << " MC: " << cliques_mcount << " MS: " << cliques_msize << ")" << endl;
-    output_file << "T: " << tasks_mcount << " " << tasks_msize << " C: " << cliques_mcount << " " << cliques_msize << endl;
+    output_file << "T: " << tasks_tcount << "(" << tasks_mcount << ") " << tasks_tsize << "(" << tasks_msize << ") C: " << cliques_tcount << "(" << cliques_mcount << ") " << cliques_tsize << "("<< cliques_msize << ")" << endl;
 
     if (tasks_mcount > wto) {
         wto = tasks_mcount;
