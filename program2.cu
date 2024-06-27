@@ -12,7 +12,6 @@ int main(int argc, char* argv[])
     double minimum_degree_ratio;        // connection requirement for cliques
     int minimum_clique_size;            // minimum size for cliques
     int* minimum_degrees;               // stores the minimum connections per vertex for all size cliques
-    DS_Sizes dss("DS_Sizes.csv");       // reads the sizes of the data structures
     int world_size;                     // number of cpu processes
     int world_rank;                     // current cpu processes rank
     string filename;                    // used in concatenation for making filenames
@@ -21,10 +20,17 @@ int main(int argc, char* argv[])
     string line;                        // stores lines from read file
 
     // ENSURE PROPER USAGE
-    if (argc != 4) {
-        printf("Usage: ./main <graph_file> <gamma> <min_size>\n");
+    if (argc != 5) {
+        printf("Usage: ./main <graph_file> <gamma> <min_size> <ds_sizes_file>\n");
         return 1;
     }
+    read_file.open(argv[4], ios::in);
+    if(!read_file.is_open()){
+        cout << "invalid data structure sizes file\n" << endl;
+    }
+    read_file.close();
+    // reads the sizes of the data structures
+    DS_Sizes dss("DS_Sizes.csv");
     read_file.open(argv[1], ios::in);
     if (!read_file.is_open()) {
         printf("invalid graph file\n");
