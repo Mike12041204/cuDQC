@@ -673,12 +673,9 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     int phelper2;
     Vertex* read;
     Vertex* write;
-
     // counter for lane intersection results
     int lane_remaining_count;
     int lane_removed_count;
-
-
 
     d_oe_sort_int(dd->candidate_indegs + (*dd->wvertices_size * WARP_IDX), wd.remaining_count[WIB_IDX], d_comp_int_desc);
 
@@ -706,8 +703,6 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         wd.removed_count[WIB_IDX] = 0;
         wd.rw_counter[WIB_IDX] = 0;
     }
-
-
 
     lane_remaining_count = 0;
     lane_removed_count = 0;
@@ -756,8 +751,6 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         }
     }
     __syncwarp();
-
-
     
     while (wd.remaining_count[WIB_IDX] > 0 && wd.removed_count[WIB_IDX] > 0) {
         // we alternate reading and writing remaining variables from two arrays
@@ -780,8 +773,6 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                 read[i].exdeg = 0;
             }
             __syncwarp();
-
-
 
             // update exdeg based on remaining candidates, every lane should get the next vertex to intersect dynamically
             for (int i = LANE_IDX; i < wd.number_of_members[WIB_IDX]; i += WARP_SIZE) {
@@ -875,8 +866,6 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         }
         __syncwarp();
 
-
-
         d_oe_sort_int(dd->candidate_indegs + (*dd->wvertices_size * WARP_IDX), wd.num_val_cands[WIB_IDX], d_comp_int_desc);
 
         d_calculate_LU_bounds(dd, wd, ld, wd.num_val_cands[WIB_IDX]);
@@ -896,8 +885,6 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         if (wd.success[WIB_IDX]) {
             return true;
         }
-
-
 
         lane_remaining_count = 0;
         lane_removed_count = 0;
@@ -947,15 +934,11 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
             }
         }
 
-
-
         if (LANE_IDX == 0) {
             wd.remaining_count[WIB_IDX] = wd.num_val_cands[WIB_IDX];
             wd.rw_counter[WIB_IDX]++;
         }
     }
-
-
 
     // condense vertices so remaining are after members, only needs to be done if they were not written into vertices last time
     if (wd.rw_counter[WIB_IDX] % 2 == 0) {
@@ -1196,28 +1179,26 @@ __device__ int d_b_search_int(int* search_array, int array_size, int search_numb
     // TYPE - SERIAL
     // SPEED - O(log(n))
     
+    int low;
     int high;
     int mid;
-    int low;
+    int mid_value;
+    int comp;
 
     low = 0;
     high = array_size - 1;
 
-    while (low <= high) {
+    while (low < high) {
         mid = (low + high) / 2;
+        mid_value = search_array[mid];
+        comp = (mid_value < search_number);
 
-        if (search_array[mid] == search_number) {
-            return mid;
-        }
-        else if (search_array[mid] > search_number) {
-            high = mid - 1;
-        }
-        else {
-            low = mid + 1;
-        }
+        low = low + comp * (mid + 1 - low);
+        high = high - !comp * (high - mid);
     }
 
-    return -1;
+    // Now low == high, check if it's the search_number
+    return (search_array[low] == search_number) ? low : -1;
 }
 
 // consider using merge
