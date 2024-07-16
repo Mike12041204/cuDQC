@@ -45,7 +45,7 @@ using namespace std;
 #define CPU_LEVELS 1
 #define CPU_EXPAND_THRESHOLD 1
 // mpi settings
-#define NUMBER_OF_PROCESSESS 4
+#define NUMBER_OF_PROCESSESS 1
 #define MAX_MESSAGE 1000000000
 // TODO - test to see what is the best number for these
 // must be atleast be 1
@@ -53,7 +53,7 @@ using namespace std;
 #define HELP_PERCENT 50
 #define HELP_THRESHOLD (NUMBER_OF_WARPS * HELP_MULTIPLIER)
 
-// debug toggle 0-normal/1-debug 
+// debug toggle 0-normal/1-debug
 #define DEBUG_TOGGLE 1
 
 // VERTEX DATA

@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
     }
     read_file.close();
     // reads the sizes of the data structures
-    DS_Sizes dss("DS_Sizes.csv");
+    DS_Sizes dss(argv[4]);
     read_file.open(argv[1], ios::in);
     if (!read_file.is_open()) {
         printf("invalid graph file\n");
