@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
 
     // DEBUG
     output = argv[5];
-    filename = "o_" + output + to_string(grank) + ".txt";
+    filename = "o_" + output + "_" + to_string(grank) + ".txt";
     output_file.open(filename);
     if (DEBUG_TOGGLE) {
         output_file << endl << ">:OUTPUT FROM P2 PROCESS: " << grank << endl << endl;
@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
     CPU_Graph hg(read_file);
     read_file.close();
     calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
-    filename = "t_" + output + to_string(grank) + ".txt";
+    filename = "t_" + output + "_" + to_string(grank) + ".txt";
     write_file.open(filename);
 
     // TIME
@@ -109,7 +109,7 @@ int main(int argc, char* argv[])
         filename = "t_" + output + ".txt";
         write_file.open(filename);
         for (int i = 0; i < NUMBER_OF_PROCESSESS; ++i) {
-            filename = "t_" + output + to_string(i) + ".txt";
+            filename = "t_" + output + "_" + to_string(i) + ".txt";
             read_file.open(filename);
             while (getline(read_file, line)) {
                 write_file << line << endl;

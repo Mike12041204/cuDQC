@@ -49,4 +49,8 @@ src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.h inc/cuTS_MPI.h
 
 .PHONY: clean
 clean:
-	rm -f $(OBJECTS1) $(TARGET1) $(OBJECTS2) $(TARGET2) error_DcuQC* results_DcuQC.txt output_DcuQC* temp_DcuQC* serialize.bin
+	rm -f $(OBJECTS1) $(TARGET1) $(OBJECTS2) $(TARGET2) e_* t_* r_* serialize.bin
+
+.PHONY: wipe
+wipe:
+	rm -f o_*
