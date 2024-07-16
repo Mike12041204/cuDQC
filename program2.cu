@@ -15,13 +15,15 @@ int main(int argc, char* argv[])
     int world_size;                     // number of cpu processes
     int world_rank;                     // current cpu processes rank
     string filename;                    // used in concatenation for making filenames
+    string filename2;                   // used for second filename in remove non max
     ifstream read_file;                 // multiple read files
     ofstream write_file;                // writing results to mutiple files
     string line;                        // stores lines from read file
+    string output;                      // distinct output name so programs can be run simultaneously
 
     // ENSURE PROPER USAGE
-    if (argc != 5) {
-        printf("Usage: ./main <graph_file> <gamma> <min_size> <ds_sizes_file>\n");
+    if (argc != 6) {
+        printf("Usage: ./main <graph_file> <gamma> <min_size> <ds_sizes_file> <output_file>\n");
         return 1;
     }
     read_file.open(argv[4], ios::in);
@@ -59,7 +61,8 @@ int main(int argc, char* argv[])
     grank = world_rank;
 
     // DEBUG
-    filename = "output_DcuQC_p2_" + to_string(grank) + ".txt";
+    output = argv[5];
+    filename = "o_" + output + to_string(grank) + ".txt";
     output_file.open(filename);
     if (DEBUG_TOGGLE) {
         output_file << endl << ">:OUTPUT FROM P2 PROCESS: " << grank << endl << endl;
@@ -76,8 +79,8 @@ int main(int argc, char* argv[])
     CPU_Graph hg(read_file);
     read_file.close();
     calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
-    filename = "temp_DcuQC_" + to_string(grank) + ".txt";
-    write_file.open(filename, ios::app);
+    filename = "t_" + output + to_string(grank) + ".txt";
+    write_file.open(filename);
 
     // TIME
     auto stop = chrono::high_resolution_clock::now();
@@ -103,9 +106,10 @@ int main(int argc, char* argv[])
     MPI_Barrier(MPI_COMM_WORLD);
     if(grank == 0){
         // COMBINE RESULTS
-        write_file.open("temp_DcuQC.txt");
+        filename = "t_" + output + ".txt";
+        write_file.open(filename);
         for (int i = 0; i < NUMBER_OF_PROCESSESS; ++i) {
-            filename = "temp_DcuQC_" + to_string(i) + ".txt";
+            filename = "t_" + output + to_string(i) + ".txt";
             read_file.open(filename);
             while (getline(read_file, line)) {
                 write_file << line << endl;
@@ -115,7 +119,9 @@ int main(int argc, char* argv[])
 
         // RM NON-MAX
         if(!(write_file.tellp() == ofstream::pos_type(0))){
-            RemoveNonMax("temp_DcuQC.txt", "results_DcuQC.txt");
+            filename = "t_" + output + ".txt";
+            filename2 = "r_" + output + ".txt";
+            RemoveNonMax(filename.c_str(), filename2.c_str());
         }
         else{
             cout << ">:NUMBER OF MAXIMAL CLIQUES: 0" << endl;
