@@ -232,6 +232,8 @@ __global__ void transfer_buffers(GPU_Data* dd)
             dd->buffer_vertices[*dd->buffer_start + tasks_write[WIB_IDX] + i - tasks_end] = dd->wtasks_vertices[(*dd->wtasks_size * WARP_IDX) + i];
         }
     }
+    // NOTE - this sync is important for some reason, larger graphs/et dont work without it
+    __syncthreads();
 
     //move to cliques
     for (int i = LANE_IDX + 1; i <= dd->wcliques_count[WARP_IDX]; i += WARP_SIZE) {
