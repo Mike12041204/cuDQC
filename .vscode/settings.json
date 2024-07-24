@@ -12,7 +12,8 @@
         "iostream": "cpp",
         "new": "cpp",
         "cstddef": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "filesystem": "cpp"
     },
     "makefile.makefilePath": "${workspaceFolder}/Makefile",
     "makefile.makePath": "C:/Program Files (x86)/GnuWin32/bin/make.exe"

@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
 
     // DEBUG
     output = argv[5];
-    filename = "o_" + output + "_" + to_string(grank) + ".txt";
+    filename = "o_" + output + "_p2_" + to_string(grank) + ".txt";
     output_file.open(filename);
     if (DEBUG_TOGGLE) {
         output_file << endl << ">:OUTPUT FROM P2 PROCESS: " << grank << endl << endl;
@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
     read_file.close();
     calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
     filename = "t_" + output + "_" + to_string(grank) + ".txt";
-    write_file.open(filename);
+    write_file.open(filename, ios::app);
 
     // TIME
     auto stop = chrono::high_resolution_clock::now();

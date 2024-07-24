@@ -23,24 +23,31 @@ int main(int argc, char* argv[])
     double minimum_degree_ratio;        // connection requirement for cliques
     int minimum_clique_size;            // minimum size for cliques
     int* minimum_degrees;               // stores the minimum connections per vertex for all size cliques
-    DS_Sizes dss("DS_Sizes.csv");       // reads the sizes of the data structures
     string filename;                    // used in concatenation for making filenames
     ifstream read_file;                 // multiple read files
     ofstream write_file;                // writing results to mutiple files
     string line;                        // stores lines from read file
+    string output;
 
     // ENSURE PROPER USAGE
-    if (argc != 4) {
-        printf("Usage: ./main <graph_file> <gamma> <min_size>\n");
+    if (argc != 6) {
+        printf("Usage: ./main <graph_file> <gamma> <min_size> <ds_sizes_file> <output_file>\n");
         return 1;
     }
+    read_file.open(argv[4], ios::in);
+    if(!read_file.is_open()){
+        cout << "invalid data structure sizes file\n" << endl;
+    }
+    read_file.close();
+    // reads the sizes of the data structures
+    DS_Sizes dss(argv[4]);
     read_file.open(argv[1], ios::in);
     if (!read_file.is_open()) {
         printf("invalid graph file\n");
         return 1;
     }
     minimum_degree_ratio = atof(argv[2]);
-    if (minimum_degree_ratio < .5 || minimum_degree_ratio>1) {
+    if (minimum_degree_ratio < .5 || minimum_degree_ratio > 1) {
         printf("minimum degree ratio must be between .5 and 1 inclusive\n");
         return 1;
     }
@@ -55,7 +62,8 @@ int main(int argc, char* argv[])
     }
 
     // DEBUG
-    filename = "output_DcuQC_p1_0.txt";
+    output = argv[5];
+    filename = "o_" + output + "_p1_" + to_string(grank) + ".txt";
     output_file.open(filename);
     if (DEBUG_TOGGLE) {
         output_file << endl << ">:OUTPUT FROM P1 PROCESS 0: " << endl << endl;
@@ -72,7 +80,7 @@ int main(int argc, char* argv[])
     CPU_Graph hg(read_file);
     read_file.close();
     calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
-    filename = "temp_DcuQC_0.txt";
+    filename = "t_" + output + "_" + to_string(grank) + ".txt";
     write_file.open(filename);
 
     // TIME

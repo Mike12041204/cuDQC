@@ -716,13 +716,15 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
 }
 
 // distributes work amongst processes in strided manner
-void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss)
+void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss, string output)
 {       
     uint64_t offset_start;
     uint64_t count;
     ifstream buffer_file;
+    string filename;
 
     // deserialize tasks
+    filename  = "s_" + output + ".bin";
     buffer_file.open("serialize.bin", ios::binary);
 
     buffer_file.read(reinterpret_cast<char*>(hd.tasks1_count), sizeof(uint64_t));
@@ -925,12 +927,13 @@ void p2_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     chkerr(cudaFree(h_dd.cliques_dump));
 }
 
-void serialize_tasks(CPU_Data& hd, DS_Sizes& dss)
+void serialize_tasks(CPU_Data& hd, DS_Sizes& dss, string output)
 {
     uint64_t* tasks_count;          // read vertices information
     uint64_t* tasks_offset;
     Vertex* tasks_vertices;
     ofstream buffer_file;
+    string filename;
 
     // get proper read location for level
     if(CPU_LEVELS % 2 == 1){
@@ -944,7 +947,8 @@ void serialize_tasks(CPU_Data& hd, DS_Sizes& dss)
         tasks_vertices = hd.tasks2_vertices;
     }
 
-    buffer_file.open("serialize.bin", ios::binary);
+    filename  = "s_" + output + ".bin";
+    buffer_file.open(filename, ios::binary);
 
     buffer_file.write(reinterpret_cast<const char*>(tasks_count), sizeof(uint64_t));
     buffer_file.write(reinterpret_cast<const char*>(tasks_offset), (*tasks_count + 1) * sizeof(uint64_t));
