@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
     cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
 
     // SEARCH
-    p1_search(hg, write_file, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
+    p1_search(hg, write_file, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size, output);
 
     write_file.close();
     output_file.close();

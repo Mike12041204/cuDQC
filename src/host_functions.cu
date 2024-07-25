@@ -15,7 +15,7 @@ void calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double mini
     }
 }
 
-void p1_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size) 
+void p1_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size, string output) 
 {
     CPU_Data hd;                    // host vertex structure data
     CPU_Cliques hc;                 // host results data
@@ -68,12 +68,12 @@ void p1_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
     cout << "--->:INITIALIZATION TIME: " << duration.count() << " ms" << endl;
 
     // TRANSFER TO GPU
-    serialize_tasks(hd, dss);
+    serialize_tasks(hd, dss, output);
 
     p1_free_memory(hd, hc);
 }
 
-void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size) 
+void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size, string output) 
 {
     CPU_Data hd;                    // host vertex structure data
     CPU_Cliques hc;                 // host results data
@@ -112,7 +112,7 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
     auto start = chrono::high_resolution_clock::now();
 
     // TRANSFER TO GPU
-    move_to_gpu(hd, h_dd, dss);
+    move_to_gpu(hd, h_dd, dss, output);
     cudaDeviceSynchronize();
 
     // EXPAND LEVEL

@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
     }
 
     // SEARCH
-    p2_search(hg, write_file, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
+    p2_search(hg, write_file, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size, output);
 
     write_file.close();
 
