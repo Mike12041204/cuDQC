@@ -49,8 +49,8 @@ src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.h inc/cuTS_MPI.h
 
 .PHONY: clean
 clean:
-	rm -f $(OBJECTS1) $(TARGET1) $(OBJECTS2) $(TARGET2) e_* t_* r_* s_*
+	rm -f $(OBJECTS1) $(OBJECTS2) e_* t_* r_* s_*
 
 .PHONY: wipe
 wipe:
-	rm -f o_*
+	rm -f $(TARGET1) $(TARGET2) o_*

@@ -725,7 +725,7 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss, string output)
 
     // deserialize tasks
     filename  = "s_" + output + ".bin";
-    buffer_file.open("serialize.bin", ios::binary);
+    buffer_file.open(filename, ios::binary);
 
     buffer_file.read(reinterpret_cast<char*>(hd.tasks1_count), sizeof(uint64_t));
     buffer_file.read(reinterpret_cast<char*>(hd.tasks1_offset), (*hd.tasks1_count + 1) * sizeof(uint64_t));
