@@ -82,5 +82,5 @@ DS_Sizes::DS_Sizes(const string& filename)
     file.close();
 
     expand_threshold = (tasks_per_warp * NUMBER_OF_WARPS);
-    cliques_dump = (cliques_size * (cliques_percent / 100.0));
+    cliques_dump = (cliques_offset_size * (cliques_percent / 100.0));
 }

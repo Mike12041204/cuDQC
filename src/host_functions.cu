@@ -81,14 +81,14 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
     GPU_Data* dd;                   // device pointers to device global memory
     uint64_t write_count;           // how many tasks in tasks
     uint64_t buffer_count;          // how many tasks in buffer
-    uint64_t cliques_size;          // how many results stored
-    uint64_t cliques_count;         // size of results stored
+    uint64_t cliques_count;         // number of results stored
     uint64_t* mpiSizeBuffer;        // where data transfered intranode is stored
-    Vertex* mpiVertexBuffer;
-    bool help_others;
-    int taker;
-    bool divided_work;
-    int from;
+    Vertex* mpiVertexBuffer;        // vertex intranode data
+    bool help_others;               // whether node helped other
+    int taker;                      // taker node id for debugging
+    bool divided_work;              // whether node gave work
+    int from;                       // sending node id for debugging
+
 
     // MPI
     mpiSizeBuffer = new uint64_t[MAX_MESSAGE];
@@ -145,6 +145,8 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
         while (!(*hd.maximal_expansion)){
 
             *hd.maximal_expansion = true;
+            // TODO - memset this in allocation then reset in kernel at end of level
+            // reset dynamic scheduling counter to 0
             chkerr(cudaMemset(h_dd.current_task, 0, sizeof(int)));
             cudaDeviceSynchronize();
 
@@ -161,27 +163,14 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             transfer_buffers<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
             cudaDeviceSynchronize();
 
-            // DEBUG - rm
-            //output_file << "1" << endl;
-
             // determine whether maximal expansion has been accomplished
             chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-
-            // DEBUG - rm
-            //output_file << "11" << endl;
-
             chkerr(cudaMemcpy(&write_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-
-            // DEBUG - rm
-            //output_file << "12" << endl;
-
             if (write_count > 0 || buffer_count > 0) {
                 (*(hd.maximal_expansion)) = false;
             }
 
-            // DEBUG - rm
-            //output_file << "2" << endl;
-
+            // TODO - since every warp does this it can be moved into the kernel
             chkerr(cudaMemset(h_dd.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
             chkerr(cudaMemset(h_dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
             if (write_count < dss.expand_threshold && buffer_count > 0) {
@@ -190,21 +179,14 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
                 cudaDeviceSynchronize();
             }
 
-            // DEBUG - rm
-            //output_file << "3" << endl;
-
             // determine whether cliques has exceeded defined threshold, if so dump them to a file
             chkerr(cudaMemcpy(&cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-            chkerr(cudaMemcpy(&cliques_size, h_dd.cliques_offset + cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
             cudaDeviceSynchronize();
 
             // if cliques is more than threshold dump
-            if (cliques_size > dss.cliques_dump) {
+            if (cliques_count > dss.cliques_dump) {
                 dump_cliques(hc, h_dd, temp_results, dss);
             }
-
-            // DEBUG - rm
-            //output_file << "4" << endl;
 
             // DEBUG
             if (dss.debug_toggle) {
