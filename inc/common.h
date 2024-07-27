@@ -53,9 +53,6 @@ using namespace std;
 #define HELP_PERCENT 50
 #define HELP_THRESHOLD (NUMBER_OF_WARPS * HELP_MULTIPLIER)
 
-// debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 1
-
 // VERTEX DATA
 struct Vertex
 {
@@ -242,6 +239,7 @@ class DS_Sizes
     uint64_t wvertices_size;
     uint64_t expand_threshold;
     uint64_t cliques_dump;
+    int debug_toggle;
 
     DS_Sizes(const string& filename);
 };

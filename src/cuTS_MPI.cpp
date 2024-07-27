@@ -351,7 +351,7 @@ void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVerte
     mpiSizeBuffer[0] = count;
 
     // DEBUG
-    if(DEBUG_TOGGLE){
+    if(dss.debug_toggle){
         if(count + 2 > MAX_MESSAGE){
             cout << "MESSAGE SIZE ERROR" << endl;
         }
@@ -367,7 +367,7 @@ void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVerte
     }
 
     // DEBUG
-    if(DEBUG_TOGGLE){
+    if(dss.debug_toggle){
         if(mpiSizeBuffer[count + 1] > MAX_MESSAGE){
             cout << "MESSAGE SIZE ERROR" << endl;
         }

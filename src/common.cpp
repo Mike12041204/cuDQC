@@ -72,6 +72,7 @@ DS_Sizes::DS_Sizes(const string& filename)
                 case 9: wtasks_size = value; break;
                 case 10: wtasks_offset_size = value; break;
                 case 11: wvertices_size = value; break;
+                case 12: debug_toggle = value; break;
             }
         }
 

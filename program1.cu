@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
     output = argv[5];
     filename = "o_" + output + "_p1_" + to_string(grank) + ".txt";
     output_file.open(filename);
-    if (DEBUG_TOGGLE) {
+    if (dss.debug_toggle) {
         output_file << endl << ">:OUTPUT FROM P1 PROCESS 0: " << endl << endl;
         initialize_maxes();
     }

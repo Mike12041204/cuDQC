@@ -33,7 +33,7 @@ void p1_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
     initialize_tasks(hg, hd, minimum_degrees, minimum_clique_size);
 
     // DEBUG
-    if (DEBUG_TOGGLE) {
+    if (dss.debug_toggle) {
         mvs = (*(hd.tasks1_offset + (*hd.tasks1_count)));
         if (mvs > dss.wvertices_size) {
             cout << "!!! VERTICES SIZE ERROR !!!" << endl;
@@ -55,7 +55,7 @@ void p1_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
         }
 
         // DEBUG
-        if (DEBUG_TOGGLE) {
+        if (dss.debug_toggle) {
             h_print_Data_Sizes(hd, hc);
         }
     }
@@ -135,7 +135,7 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             *hd.maximal_expansion = false;
 
             // DEBUG
-            if (DEBUG_TOGGLE) {
+            if (dss.debug_toggle) {
                 output_file << "RECIEVING WORK FROM PROCESS " << from << endl;
                 print_Data_Sizes(h_dd, dss);
             }
@@ -153,7 +153,7 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             cudaDeviceSynchronize();
 
             // DEBUG
-            if (DEBUG_TOGGLE) {
+            if (dss.debug_toggle) {
                 print_Warp_Data_Sizes_Every(h_dd, 1, dss);
             }
 
@@ -207,7 +207,7 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             //output_file << "4" << endl;
 
             // DEBUG
-            if (DEBUG_TOGGLE) {
+            if (dss.debug_toggle) {
                 print_Data_Sizes_Every(h_dd, 1, dss);
             }
 
@@ -221,7 +221,7 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
                     chkerr(cudaMemcpy(h_dd.buffer_count, &buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
 
                     // DEBUG
-                    if (DEBUG_TOGGLE) {
+                    if (dss.debug_toggle) {
                         output_file << "SENDING WORK TO PROCESS " << taker << endl;
                         print_Data_Sizes(h_dd, dss);
                     }
@@ -786,7 +786,7 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss, string output)
     chkerr(cudaMemcpy(h_dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
 
     // DEBUG
-    if(DEBUG_TOGGLE){
+    if(dss.debug_toggle){
         output_file << "GPU START" << endl;
         print_Data_Sizes(h_dd, dss);
     }
