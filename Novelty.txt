@@ -1,5 +1,1 @@
-1 - recv only does necessary amount
-2 - use of mpi data structure
-3 - split data in strided manner
-4 - only encodes buffer when we know we are going to be sending
-5 - program is split into two parts, for cpu and gpu to allow for use of best hardware
+1 - program is split into two parts, for cpu and gpu to allow for use of best hardware
