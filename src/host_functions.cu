@@ -797,8 +797,8 @@ void dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& temp_results, DS_Si
 {
     // gpu cliques to cpu cliques
     chkerr(cudaMemcpy(hc.cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(hc.cliques_offset, h_dd.cliques_offset, sizeof(uint64_t) * dss.cliques_offset_size, cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(hc.cliques_vertex, h_dd.cliques_vertex, sizeof(int) * dss.cliques_size, cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(hc.cliques_offset, h_dd.cliques_offset, sizeof(uint64_t) * (*hc.cliques_count + 1), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(hc.cliques_vertex, h_dd.cliques_vertex, sizeof(int) * hc.cliques_offset[*hc.cliques_count], cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
 
     flush_cliques(hc, temp_results);
