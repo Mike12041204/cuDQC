@@ -79,15 +79,15 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
     CPU_Cliques hc;                 // host results data
     GPU_Data h_dd;                  // host pointers to device global memory
     GPU_Data* dd;                   // device pointers to device global memory
-    uint64_t write_count;           // how many tasks in tasks
-    uint64_t buffer_count;          // how many tasks in buffer
-    uint64_t cliques_count;         // number of results stored
     uint64_t* mpiSizeBuffer;        // where data transfered intranode is stored
     Vertex* mpiVertexBuffer;        // vertex intranode data
     bool help_others;               // whether node helped other
     int taker;                      // taker node id for debugging
     bool divided_work;              // whether node gave work
     int from;                       // sending node id for debugging
+    uint64_t* tasks_count;           // unified memory for tasks count
+    uint64_t* buffer_count;          // unified memory for buffer count
+    uint64_t* cliques_count;         // unified memory for cliques count
 
 
     // MPI
@@ -103,10 +103,11 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
 
     // HANDLE MEMORY
     p2_allocate_memory(hd, h_dd, hc, hg, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size);
-    cudaDeviceSynchronize();
     chkerr(cudaMalloc((void**)&dd, sizeof(GPU_Data)));
     chkerr(cudaMemcpy(dd, &h_dd, sizeof(GPU_Data), cudaMemcpyHostToDevice));
-    cudaDeviceSynchronize();
+    chkerr(cudaMallocManaged((void**)&tasks_count, sizeof(uint64_t)));
+    chkerr(cudaMallocManaged((void**)&buffer_count, sizeof(uint64_t)));
+    chkerr(cudaMallocManaged((void**)&cliques_count, sizeof(uint64_t)));
 
     // TIME
     auto start = chrono::high_resolution_clock::now();
@@ -128,7 +129,6 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
         if(help_others){
             // decode buffer
             decode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer);
-            cudaDeviceSynchronize();
             // populate tasks from buffer
             fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
             cudaDeviceSynchronize();
@@ -148,7 +148,6 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             // TODO - memset this in allocation then reset in kernel at end of level
             // reset dynamic scheduling counter to 0
             chkerr(cudaMemset(h_dd.current_task, 0, sizeof(int)));
-            cudaDeviceSynchronize();
 
             // expand all tasks in 'tasks' array, each warp will write to their respective warp tasks buffer in global memory
             d_expand_level<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
@@ -164,27 +163,26 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             cudaDeviceSynchronize();
 
             // determine whether maximal expansion has been accomplished
-            chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-            chkerr(cudaMemcpy(&write_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-            if (write_count > 0 || buffer_count > 0) {
+            chkerr(cudaMemcpy(buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+            chkerr(cudaMemcpy(tasks_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+            if (*tasks_count > 0 || *buffer_count > 0) {
                 (*(hd.maximal_expansion)) = false;
             }
 
             // TODO - since every warp does this it can be moved into the kernel
             chkerr(cudaMemset(h_dd.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
             chkerr(cudaMemset(h_dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
-            if (write_count < dss.expand_threshold && buffer_count > 0) {
+            if (*tasks_count < dss.expand_threshold && *buffer_count > 0) {
                 // if not enough tasks were generated when expanding the previous level to fill the next tasks array the program will attempt to fill the tasks array by popping tasks from the buffer
                 fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
                 cudaDeviceSynchronize();
             }
 
             // determine whether cliques has exceeded defined threshold, if so dump them to a file
-            chkerr(cudaMemcpy(&cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-            cudaDeviceSynchronize();
+            chkerr(cudaMemcpy(cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
             // if cliques is more than threshold dump
-            if (cliques_count > dss.cliques_dump) {
+            if (*cliques_count > dss.cliques_dump) {
                 dump_cliques(hc, h_dd, temp_results, dss);
             }
 
@@ -193,14 +191,14 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
                 print_Data_Sizes_Every(h_dd, 1, dss);
             }
 
-            chkerr(cudaMemcpy(&buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-            if(buffer_count > HELP_THRESHOLD){
+            chkerr(cudaMemcpy(buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+            if(*buffer_count > HELP_THRESHOLD){
                 // return whether work was successfully given
-                divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, h_dd, buffer_count, dss);
+                divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, h_dd, *buffer_count, dss);
                 // update buffer count if work was given
                 if(divided_work){
-                    buffer_count -= (buffer_count > dss.expand_threshold) ? dss.expand_threshold + ((buffer_count - dss.expand_threshold) * ((100 - HELP_PERCENT) / 100.0)) : buffer_count;
-                    chkerr(cudaMemcpy(h_dd.buffer_count, &buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+                    *buffer_count -= (*buffer_count > dss.expand_threshold) ? dss.expand_threshold + ((*buffer_count - dss.expand_threshold) * ((100 - HELP_PERCENT) / 100.0)) : *buffer_count;
+                    chkerr(cudaMemcpy(h_dd.buffer_count, buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
 
                     // DEBUG
                     if (dss.debug_toggle) {
@@ -228,6 +226,9 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
 
     p2_free_memory(hd, h_dd, hc);
     chkerr(cudaFree(dd));
+    chkerr(cudaFree(tasks_count));
+    chkerr(cudaFree(buffer_count));
+    chkerr(cudaFree(cliques_count));
 }
 
 void p1_allocate_memory(CPU_Data& hd, CPU_Cliques& hc, CPU_Graph& hg, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size)
