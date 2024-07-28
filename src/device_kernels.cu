@@ -156,6 +156,7 @@ __global__ void d_expand_level(GPU_Data* dd)
         *dd->buffer_start = dd->buffer_offset[*dd->buffer_count];
         *dd->cliques_offset_start = *dd->cliques_count + 1;
         *dd->cliques_start = dd->cliques_offset[*dd->cliques_count];
+        *dd->current_task = 0;
     }
 }
 

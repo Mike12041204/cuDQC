@@ -143,11 +143,7 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
 
         // loop while not all work has been completed
         while (!(*hd.maximal_expansion)){
-
             *hd.maximal_expansion = true;
-            // TODO - memset this in allocation then reset in kernel at end of level
-            // reset dynamic scheduling counter to 0
-            chkerr(cudaMemset(h_dd.current_task, 0, sizeof(int)));
 
             // expand all tasks in 'tasks' array, each warp will write to their respective warp tasks buffer in global memory
             d_expand_level<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
@@ -356,6 +352,7 @@ void p2_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph
     chkerr(cudaMalloc((void**)&h_dd.cliques_offset_start, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.cliques_start, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.current_task, sizeof(int)));
+    chkerr(cudaMemset(h_dd.current_task, 0, sizeof(int)));
     // DATA STRUCTURE SIZES
     chkerr(cudaMalloc((void**)&h_dd.tasks_size, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.tasks_per_warp, sizeof(uint64_t)));
