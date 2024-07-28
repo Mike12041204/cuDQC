@@ -155,12 +155,10 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             }
 
             // consolidate all the warp tasks/cliques buffers into the next global tasks array, buffer, and cliques
-            transfer_buffers<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
+            transfer_buffers<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count, cliques_count);
             cudaDeviceSynchronize();
 
             // determine whether maximal expansion has been accomplished
-            chkerr(cudaMemcpy(buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-            chkerr(cudaMemcpy(tasks_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
             if (*tasks_count > 0 || *buffer_count > 0) {
                 (*(hd.maximal_expansion)) = false;
             }
@@ -175,9 +173,6 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             }
 
             // determine whether cliques has exceeded defined threshold, if so dump them to a file
-            chkerr(cudaMemcpy(cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-
-            // if cliques is more than threshold dump
             if (*cliques_count > dss.cliques_dump) {
                 dump_cliques(hc, h_dd, temp_results, dss);
             }
