@@ -130,7 +130,7 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             // decode buffer
             decode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer);
             // populate tasks from buffer
-            fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
+            fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd, buffer_count);
             cudaDeviceSynchronize();
             *hd.maximal_expansion = false;
 
