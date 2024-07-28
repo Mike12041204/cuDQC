@@ -85,9 +85,9 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
     int taker;                      // taker node id for debugging
     bool divided_work;              // whether node gave work
     int from;                       // sending node id for debugging
-    uint64_t* tasks_count;           // unified memory for tasks count
-    uint64_t* buffer_count;          // unified memory for buffer count
-    uint64_t* cliques_count;         // unified memory for cliques count
+    uint64_t* tasks_count;          // unified memory for tasks count
+    uint64_t* buffer_count;         // unified memory for buffer count
+    uint64_t* cliques_count;        // unified memory for cliques count
 
 
     // MPI
@@ -158,7 +158,7 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             transfer_buffers<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count, cliques_count);
             cudaDeviceSynchronize();
 
-            // determine whether maximal expansion has been accomplished
+            // determine whether maximal expansion has been accomplished, variables changed in kernel
             if (*tasks_count > 0 || *buffer_count > 0) {
                 (*(hd.maximal_expansion)) = false;
             }
@@ -168,11 +168,11 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
             chkerr(cudaMemset(h_dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
             if (*tasks_count < dss.expand_threshold && *buffer_count > 0) {
                 // if not enough tasks were generated when expanding the previous level to fill the next tasks array the program will attempt to fill the tasks array by popping tasks from the buffer
-                fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
+                fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd, buffer_count);
                 cudaDeviceSynchronize();
             }
 
-            // determine whether cliques has exceeded defined threshold, if so dump them to a file
+            // determine whether cliques has exceeded defined threshold, if so dump them to a file, variables changed in kernel
             if (*cliques_count > dss.cliques_dump) {
                 dump_cliques(hc, h_dd, temp_results, dss);
             }
@@ -182,7 +182,6 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
                 print_Data_Sizes_Every(h_dd, 1, dss);
             }
 
-            chkerr(cudaMemcpy(buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
             if(*buffer_count > HELP_THRESHOLD){
                 // return whether work was successfully given
                 divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, h_dd, *buffer_count, dss);

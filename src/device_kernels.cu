@@ -266,7 +266,7 @@ __global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* 
     }
 }
 
-__global__ void fill_from_buffer(GPU_Data* dd)
+__global__ void fill_from_buffer(GPU_Data* dd, uint64_t* buffer_count)
 {
     // get read and write locations
     int write_amount = (*dd->buffer_count >= *dd->expand_threshold - *dd->tasks_count) ? *dd->expand_threshold - *dd->tasks_count : *dd->buffer_count;
@@ -288,6 +288,8 @@ __global__ void fill_from_buffer(GPU_Data* dd)
     if (IDX == 0) {
         *dd->tasks_count += write_amount;
         *dd->buffer_count -= write_amount;
+
+        *buffer_count = *dd->buffer_count;
     }
 }
 
