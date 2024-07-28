@@ -160,7 +160,7 @@ __global__ void d_expand_level(GPU_Data* dd)
     }
 }
 
-__global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* buffer_count, uint64_t* cliques_count)
+__global__ void transfer_buffers(GPU_Data* dd)
 {
     __shared__ uint64_t tasks_write[WARPS_PER_BLOCK];
     __shared__ int tasks_offset_write[WARPS_PER_BLOCK];
@@ -259,10 +259,6 @@ __global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* 
         *dd->total_tasks = 0;
         *dd->total_cliques = 0;
         (*dd->current_level)++;
-
-        *tasks_count = *dd->tasks_count;
-        *buffer_count = *dd->buffer_count;
-        *cliques_count = *dd->cliques_count;
     }
 }
 
