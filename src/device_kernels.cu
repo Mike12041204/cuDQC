@@ -16,6 +16,10 @@ __global__ void d_expand_level(GPU_Data* dd)
     int i = 0;
     if (LANE_IDX == 0) {
         i = atomicAdd(dd->current_task, 1);
+
+        // reset warp tasks and cliques counts
+        dd->wtasks_count[WARP_IDX] = 0;
+        dd->wcliques_count[WARP_IDX] = 0;
     }
     i = __shfl_sync(0xFFFFFFFF, i, 0);
 

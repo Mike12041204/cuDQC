@@ -163,9 +163,6 @@ void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimu
                 (*(hd.maximal_expansion)) = false;
             }
 
-            // TODO - since every warp does this it can be moved into the kernel
-            chkerr(cudaMemset(h_dd.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
-            chkerr(cudaMemset(h_dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
             if (*tasks_count < dss.expand_threshold && *buffer_count > 0) {
                 // if not enough tasks were generated when expanding the previous level to fill the next tasks array the program will attempt to fill the tasks array by popping tasks from the buffer
                 fill_from_buffer<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd, buffer_count);
@@ -305,7 +302,6 @@ void p2_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph
     chkerr(cudaMalloc((void**)&h_dd.wtasks_offset, (sizeof(uint64_t) * dss.wtasks_offset_size) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.wtasks_vertices, (sizeof(Vertex) * dss.wtasks_size) * NUMBER_OF_WARPS));
     chkerr(cudaMemset(h_dd.wtasks_offset, 0, (sizeof(uint64_t) * dss.wtasks_offset_size) * NUMBER_OF_WARPS));
-    chkerr(cudaMemset(h_dd.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.global_vertices, (sizeof(Vertex) * dss.wvertices_size) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.removed_candidates, (sizeof(int) * dss.wvertices_size) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.lane_removed_candidates, (sizeof(int) * dss.wvertices_size) * NUMBER_OF_WARPS));
@@ -338,7 +334,6 @@ void p2_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph
     chkerr(cudaMalloc((void**)&h_dd.wcliques_offset, (sizeof(uint64_t) * dss.wcliques_offset_size) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.wcliques_vertex, (sizeof(int) * dss.wcliques_size) * NUMBER_OF_WARPS));
     chkerr(cudaMemset(h_dd.wcliques_offset, 0, (sizeof(uint64_t) * dss.wcliques_offset_size) * NUMBER_OF_WARPS));
-    chkerr(cudaMemset(h_dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.total_cliques, sizeof(int)));
     chkerr(cudaMemset(h_dd.total_cliques, 0, sizeof(int)));
     chkerr(cudaMalloc((void**)&h_dd.buffer_offset_start, sizeof(uint64_t)));
