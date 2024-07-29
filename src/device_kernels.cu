@@ -177,7 +177,7 @@ __global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* 
     // point of this is to find how many vertices will be transfered to tasks, it is easy to know how many tasks as it will just
     // be the expansion threshold, but to find how many vertices we must now the total size of all the tasks that will be copied.
     // each block does this but really could be done by one thread outside the GPU
-    if (threadIdx.x == 0) {
+    if (BLOCK_IDX == 0) {
         toffsetwrite = 0;
         twrite = 0;
 
