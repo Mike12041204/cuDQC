@@ -47,10 +47,14 @@ src/Quick_rmnonmax.o: src/Quick_rmnonmax.cpp inc/common.h inc/Quick_rmnonmax.h
 src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.h inc/cuTS_MPI.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-.PHONY: clean
-clean:
+.PHONY: ct
+ct:
 	rm -f $(OBJECTS1) $(OBJECTS2) e_* t_* r_* s_*
 
-.PHONY: wipe
-wipe:
-	rm -f $(TARGET1) $(TARGET2) o_*
+.PHONY: co
+co:
+	rm -f o_*
+
+.PHONY: cp
+cp:
+	rm -f $(TARGET1) $(TARGET2)

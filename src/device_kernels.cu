@@ -12,17 +12,15 @@ __global__ void d_expand_level(GPU_Data* dd)
 
     // --- CURRENT LEVEL ---
 
-    // initialize i for each warp
-    int i = 0;
+    // reset warp tasks and cliques counts
     if (LANE_IDX == 0) {
-        i = atomicAdd(dd->current_task, 1);
-
-        // reset warp tasks and cliques counts
         dd->wtasks_count[WARP_IDX] = 0;
         dd->wcliques_count[WARP_IDX] = 0;
     }
-    i = __shfl_sync(0xFFFFFFFF, i, 0);
 
+    // initialize i for each warp
+    int i = WARP_IDX;
+    
     while (i < *dd->tasks_count) {
 
         // get information on vertices being handled within tasks
