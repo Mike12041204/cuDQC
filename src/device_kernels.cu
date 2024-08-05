@@ -17,6 +17,7 @@ __global__ void d_expand_level(GPU_Data* dd)
         dd->wtasks_count[WARP_IDX] = 0;
         dd->wcliques_count[WARP_IDX] = 0;
     }
+    __syncwarp();
 
     // initialize i for each warp
     int i = WARP_IDX;
@@ -261,7 +262,7 @@ __global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* 
         *dd->total_cliques = 0;
         (*dd->current_level)++;
 
-        *dd->current_task = 0;
+        *dd->current_task = NUMBER_OF_WARPS;
         *tasks_count = *dd->tasks_count;
         *buffer_count = *dd->buffer_count;
         *cliques_count = *dd->cliques_count;

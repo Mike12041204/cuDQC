@@ -341,7 +341,9 @@ void p2_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph
     chkerr(cudaMalloc((void**)&h_dd.cliques_offset_start, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.cliques_start, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.current_task, sizeof(int)));
-    chkerr(cudaMemset(h_dd.current_task, 0, sizeof(int)));
+    int current = NUMBER_OF_WARPS;
+    int* pcurrent = &current;
+    chkerr(cudaMemcpy(h_dd.current_task, pcurrent, sizeof(int), cudaMemcpyHostToDevice));
     // DATA STRUCTURE SIZES
     chkerr(cudaMalloc((void**)&h_dd.tasks_size, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.tasks_per_warp, sizeof(uint64_t)));
