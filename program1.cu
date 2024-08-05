@@ -1,17 +1,6 @@
 #include "./inc/common.h"
 #include "./inc/host_functions.h"
 #include "./inc/host_debug.h"
-#include "./inc/Quick_rmnonmax.h"
-
-// TODO
-// - see whether it's possible to parallelize some of calculate_LU_bounds
-// - do we need dumping cliques on the gpu?
-// - add mem for slurm for p1
-// - add serialization of debug maxes
-// - dont need rmnonmax for p1
-// - move programs to src folder
-
-// CURSOR - do TODOs
 
 // MAIN
 int main(int argc, char* argv[])
@@ -30,7 +19,7 @@ int main(int argc, char* argv[])
 
     // ENSURE PROPER USAGE
     if (argc != 6) {
-        printf("Usage: ./main <graph_file> <gamma> <min_size> <ds_sizes_file> <output_file>\n");
+        printf("Usage: ./program1 <graph_file> <gamma> <min_size> <ds_sizes_file> <output_file>\n");
         return 1;
     }
     read_file.open(argv[4], ios::in);
@@ -62,7 +51,7 @@ int main(int argc, char* argv[])
 
     // DEBUG
     output = argv[5];
-    filename = "o_" + output + "_p1_" + to_string(grank) + ".txt";
+    filename = "o_" + output + "_p1_0.txt";
     output_file.open(filename);
     if (dss.debug_toggle) {
         output_file << endl << ">:OUTPUT FROM P1 PROCESS 0: " << endl << endl;
@@ -73,13 +62,11 @@ int main(int argc, char* argv[])
     auto start = chrono::high_resolution_clock::now();
 
     // GRAPH / MINDEGS
-    if(grank == 0){
-        cout << ">:PROGRAM 1 START" << endl << ">:PRE-PROCESSING" << endl;
-    }
+    cout << ">:PROGRAM 1 START" << endl << ">:PRE-PROCESSING" << endl;
     CPU_Graph hg(read_file);
     read_file.close();
     calculate_minimum_degrees(hg, minimum_degrees, minimum_degree_ratio);
-    filename = "t_" + output + "_" + to_string(grank) + ".txt";
+    filename = "t_" + output + "_0.txt";
     write_file.open(filename);
 
     // TIME

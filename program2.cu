@@ -1,7 +1,6 @@
 #include "./inc/common.h"
 #include "./inc/host_functions.h"
 #include "./inc/host_debug.h"
-#include "./inc/Quick_rmnonmax.h"
 
 // MAIN
 int main(int argc, char* argv[])
@@ -23,7 +22,7 @@ int main(int argc, char* argv[])
 
     // ENSURE PROPER USAGE
     if (argc != 6) {
-        printf("Usage: ./main <graph_file> <gamma> <min_size> <ds_sizes_file> <output_file>\n");
+        printf("Usage: ./program2 <graph_file> <gamma> <min_size> <ds_sizes_file> <output_file>\n");
         return 1;
     }
     read_file.open(argv[4], ios::in);
@@ -101,40 +100,6 @@ int main(int argc, char* argv[])
     output_file.close();
 
     // TIME
-    auto start1 = chrono::high_resolution_clock::now();
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(grank == 0){
-        // COMBINE RESULTS
-        filename = "t_" + output + ".txt";
-        write_file.open(filename);
-        for (int i = 0; i < NUMBER_OF_PROCESSESS; ++i) {
-            filename = "t_" + output + "_" + to_string(i) + ".txt";
-            read_file.open(filename);
-            while (getline(read_file, line)) {
-                write_file << line << endl;
-            }
-            read_file.close();
-        }
-
-        // RM NON-MAX
-        if(!(write_file.tellp() == ofstream::pos_type(0))){
-            filename = "t_" + output + ".txt";
-            filename2 = "r_" + output + ".txt";
-            RemoveNonMax(filename.c_str(), filename2.c_str());
-        }
-        else{
-            cout << ">:NUMBER OF MAXIMAL CLIQUES: 0" << endl;
-        }
-        write_file.close();
-    }
-
-    // TIME
-    auto stop1 = chrono::high_resolution_clock::now();
-    auto duration1 = chrono::duration_cast<chrono::milliseconds>(stop1 - start1);
-    if(grank == 0){
-        cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
-    }
     auto stop2 = chrono::high_resolution_clock::now();
     auto duration2 = chrono::duration_cast<chrono::milliseconds>(stop2 - start2);
     if(grank == 0){
