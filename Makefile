@@ -15,7 +15,11 @@ TARGET1 = program1
 OBJECTS2 = src/common.o src/host_debug.o src/Quick_rmnonmax.o src/cuTS_MPI.o src/device_kernels.o src/host_functions.o program2.o
 TARGET2 = program2
 
-all: $(TARGET1) $(TARGET2)
+all: d2u $(TARGET1) $(TARGET2)
+
+.PHONY: d2u
+d2u:
+	dos2unix *.sh
 
 $(TARGET1): $(OBJECTS1)
 	$(NVCC) $^ -o $@ $(LDFLAGS)
@@ -46,6 +50,9 @@ src/Quick_rmnonmax.o: src/Quick_rmnonmax.cpp inc/common.h inc/Quick_rmnonmax.h
 
 src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.h inc/cuTS_MPI.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+.PHONY: c
+c: ct co cp
 
 .PHONY: ct
 ct:
