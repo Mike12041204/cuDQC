@@ -72,17 +72,23 @@ int main(int argc, char* argv[])
     // TIME
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
-    cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
+    cout << ">:LOADING TIME: " << duration.count() << " ms" << endl;
 
     // SEARCH
     p1_search(hg, write_file, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size, output);
 
     write_file.close();
+
+    // DEBUG
+    if (dss.debug_toggle) {
+        print_maxes();
+        output_file << endl;
+    }
     output_file.close();
 
     auto stop2 = chrono::high_resolution_clock::now();
     auto duration2 = chrono::duration_cast<chrono::milliseconds>(stop2 - start2);
-    cout << "--->:TOTAL TIME: " << duration2.count() << " ms" << endl;
+    cout << ">:TOTAL TIME: " << duration2.count() << " ms" << endl;
     cout << ">:PROGRAM 1 END" << endl;
 
     return 0;

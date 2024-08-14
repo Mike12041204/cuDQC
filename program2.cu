@@ -85,7 +85,7 @@ int main(int argc, char* argv[])
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
     if(grank == 0){
-        cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
+        cout << ">:LOADING TIME: " << duration.count() << " ms" << endl;
     }
 
     // SEARCH
@@ -96,6 +96,9 @@ int main(int argc, char* argv[])
     // DEBUG
     if (dss.debug_toggle) {
         print_maxes();
+        if(grank == NUMBER_OF_PROCESSESS - 1){
+            output_file << endl;
+        }
     }
     output_file.close();
 
@@ -103,7 +106,7 @@ int main(int argc, char* argv[])
     auto stop2 = chrono::high_resolution_clock::now();
     auto duration2 = chrono::duration_cast<chrono::milliseconds>(stop2 - start2);
     if(grank == 0){
-        cout << "--->:TOTAL TIME: " << duration2.count() << " ms" << endl;
+        cout << ">:TOTAL TIME: " << duration2.count() << " ms" << endl;
         cout << ">:PROGRAM 2 END" << endl;
     }
 

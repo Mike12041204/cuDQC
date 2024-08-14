@@ -390,5 +390,5 @@ void RemoveNonMax(const char* szset_filename, const char* szoutput_filename)
     ftime(&end);
 
 
-    printf(">:NUMBER OF MAXIMAL CLIQUES: %d\n", gntotal_max_cliques);
+    printf("--->:NUMBER OF MAXIMAL CLIQUES: %d\n", gntotal_max_cliques);
 }

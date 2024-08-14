@@ -27,7 +27,11 @@ int main(int argc, char* argv[])
     }
     read_file.close();
 
+    // TIME
+    auto start3 = chrono::high_resolution_clock::now();
+
     // COMBINE RESULTS 
+    cout << ">:PROGRAM 3 START" << endl << ">:COMBINING RESULTS" << endl;
     filename = "t_" + output + ".txt";
     write_file.open(filename);
     for (int i = 0; i < NUMBER_OF_PROCESSESS; ++i) {
@@ -39,6 +43,12 @@ int main(int argc, char* argv[])
         read_file.close();
     }
 
+    // TIME
+    auto stop3 = chrono::high_resolution_clock::now();
+    auto duration3 = chrono::duration_cast<chrono::milliseconds>(stop3 - start3);
+    cout << ">:COMBINE RESULTS TIME: " << duration3.count() << " ms" << endl;
+    auto start2 = chrono::high_resolution_clock::now();
+
     // RM NON-MAX
     if(!(write_file.tellp() == ofstream::pos_type(0))){
         filename = "t_" + output + ".txt";
@@ -46,12 +56,16 @@ int main(int argc, char* argv[])
         RemoveNonMax(filename.c_str(), filename2.c_str());
     }
     else{
-        cout << ">:NUMBER OF MAXIMAL CLIQUES: 0" << endl;
+        cout << "--->:NUMBER OF MAXIMAL CLIQUES: 0" << endl;
     }
     write_file.close();
 
     // TIME
+    auto stop2 = chrono::high_resolution_clock::now();
+    auto duration2 = chrono::duration_cast<chrono::milliseconds>(stop2 - start2);
+    cout << ">:REMOVE NON-MAX TIME: " << duration2.count() << " ms" << endl;
     auto stop1 = chrono::high_resolution_clock::now();
     auto duration1 = chrono::duration_cast<chrono::milliseconds>(stop1 - start1);
-    cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
+    cout << ">:TOTAL TIME: " << duration1.count() << " ms" << endl;
+    cout << ">:PROGRAM 3 END" << endl;
 }
