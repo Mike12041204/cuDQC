@@ -7,7 +7,7 @@ print_job_script() {
     cat <<EOT
 #!/bin/bash
 #SBATCH --job-name=DcuQC_${output}_p3           # set job name
-#SBATCH --partition=amperenodes                 # set job partition
+#SBATCH --partition=amd-hdr100                  # set job partition
 #SBATCH --time=12:00:00                         # set job max time
 #SBATCH --output=o_${output}_p3.txt             # set output path for nodes
 #SBATCH --error=e_${output}_p3.txt              # set error path for nodes
@@ -15,7 +15,7 @@ print_job_script() {
 #SBATCH --ntasks-per-node=1                     # 1 process per node
 #SBATCH --cpus-per-task=1                       # 1 thread per process
 #SBATCH --mem-per-cpu=80G                       # 80GB memory per thread
-#SBATCH --gres=gpu:1                            # 1 GPU per node
+#SBATCH --gres=gpu:0                            # 1 GPU per node
 
 # Load the MPI module
 module load OpenMPI/4.1.5-GCC-12.3.0

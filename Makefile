@@ -65,7 +65,7 @@ c: ct co cp
 
 .PHONY: ct
 ct:
-	rm -f $(OBJECTS1) $(OBJECTS2) e_* t_* r_* s_*
+	rm -f $(OBJECTS1) $(OBJECTS2) $(OBJECTS3) e_* t_* r_* s_*
 
 .PHONY: co
 co:
@@ -73,4 +73,4 @@ co:
 
 .PHONY: cp
 cp:
-	rm -f $(TARGET1) $(TARGET2)
+	rm -f $(TARGET1) $(TARGET2) $(TARGET3)

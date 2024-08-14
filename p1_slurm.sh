@@ -11,7 +11,7 @@ print_job_script() {
     cat <<EOT
 #!/bin/bash
 #SBATCH --job-name=DcuQC_${output}_p1		    # set job name
-#SBATCH --partition=amperenodes                 # set job partition
+#SBATCH --partition=amd-hdr100                  # set job partition
 #SBATCH --time=12:00:00                         # set job max time
 #SBATCH --output=o_${output}_p1.txt	            # set output path for nodes
 #SBATCH --error=e_${output}_p1.txt      	    # set error path for nodes

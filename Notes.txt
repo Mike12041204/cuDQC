@@ -1,0 +1,13 @@
+TODO
+- do we need dumping cliques on the gpu?
+- add serialization of debug maxes
+
+CURSOR
+- do TODOs
+
+BUGS
+- ablation study lookahead pruning only gets wrong results sometimes
+
+NOVELTY
+- program is split into two parts, for cpu and gpu to allow for use of best hardware
+- use unified memory for checking tasks, buffer, and cliques count in search method rather than memcpy
