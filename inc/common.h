@@ -33,7 +33,7 @@ using namespace std;
 #define IDX ((blockIdx.x * blockDim.x) + threadIdx.x)
 #define WARP_IDX (IDX / WARP_SIZE)
 #define LANE_IDX (IDX % WARP_SIZE)
-#define BLOCK_IDX threadIdx.x
+#define THREAD_IDX threadIdx.x
 #define WIB_IDX (threadIdx.x / WARP_SIZE)
 #define WARPS_PER_BLOCK (BLOCK_SIZE / WARP_SIZE)
 #define NUMBER_OF_WARPS (NUM_OF_BLOCKS * WARPS_PER_BLOCK)

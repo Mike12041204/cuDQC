@@ -1,9 +1,6 @@
 TODO
-- do we need dumping cliques on the gpu?
-- add serialization of debug maxes
 
 CURSOR
-- do TODOs
 
 BUGS
 - ablation study lookahead pruning only gets wrong results sometimes
