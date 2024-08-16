@@ -25,6 +25,7 @@
 using namespace std;
 
 // GPU KERNEL LAUNCH
+// note program, specifically transfer scan, will break if launch parameters are changed
 #define BLOCK_SIZE 1024
 #define NUM_OF_BLOCKS 216
 #define WARP_SIZE 32
@@ -34,6 +35,7 @@ using namespace std;
 #define WARP_IDX (IDX / WARP_SIZE)
 #define LANE_IDX (IDX % WARP_SIZE)
 #define THREAD_IDX threadIdx.x
+#define BLOCK_IDX blockIdx.x
 #define WIB_IDX (threadIdx.x / WARP_SIZE)
 #define WARPS_PER_BLOCK (BLOCK_SIZE / WARP_SIZE)
 #define NUMBER_OF_WARPS (NUM_OF_BLOCKS * WARPS_PER_BLOCK)
@@ -46,7 +48,7 @@ using namespace std;
 #define CPU_LEVELS 1
 #define CPU_EXPAND_THRESHOLD 1
 // mpi settings
-#define NUMBER_OF_PROCESSESS 2
+#define NUMBER_OF_PROCESSESS 4
 #define MAX_MESSAGE 1000000000
 // TODO - test to see what is the best number for these
 // must be atleast be 1
@@ -177,6 +179,15 @@ struct GPU_Data
     uint64_t* wvertices_size;
     uint64_t* expand_threshold;
     uint64_t* cliques_dump;
+    // TRANSFER BUFFERS SCAN ARRAYS
+    uint64_t* scan_tasks_count;
+    uint64_t* scan_tasks_size;
+    uint64_t* scan_cliques_count;
+    uint64_t* scan_cliques_size;
+    uint64_t* block_tasks_count;
+    uint64_t* block_tasks_size;
+    uint64_t* block_cliques_count;
+    uint64_t* block_cliques_size;
 };
 
 // WARP DATA

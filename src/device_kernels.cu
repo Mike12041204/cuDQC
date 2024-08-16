@@ -148,6 +148,59 @@ __global__ void d_expand_level(GPU_Data* dd)
         i = __shfl_sync(0xFFFFFFFF, i, 0);
     }
 
+    uint64_t tasks_count;
+    uint64_t tasks_size;
+    uint64_t cliques_count;
+    uint64_t cliques_size;
+    int target_warp;
+    int temp1;
+    int temp2;
+    int temp3;
+    int temp4;
+
+    // ensure all warps in block are done so we can perform transfer scan operations
+    __syncthreads();
+    // each block has 32 warps and each warp has 32 lanes so we can load block data into warp 0 for processing
+    if(WIB_IDX == 0){
+        target_warp = (BLOCK_IDX * WARPS_PER_BLOCK) + LANE_IDX;
+
+        // each lane gets a warps data
+        tasks_count = dd->wtasks_count[target_warp];
+        tasks_size = dd->wtasks_offset[target_warp * *dd->wtasks_offset_size + tasks_count];
+        cliques_count = dd->wcliques_count[target_warp];
+        cliques_size = dd->wcliques_offset[target_warp * *dd->wcliques_offset_size + cliques_count];
+
+        // lanes perform scan across data
+        for (int i = 1; i < WARP_SIZE; i *= 2) {
+            temp1 = __shfl_up_sync(0xFFFFFFFF, tasks_count, i, WARP_SIZE);
+            temp2 = __shfl_up_sync(0xFFFFFFFF, tasks_size, i, WARP_SIZE);
+            temp3 = __shfl_up_sync(0xFFFFFFFF, cliques_count, i, WARP_SIZE);
+            temp4 = __shfl_up_sync(0xFFFFFFFF, cliques_size, i, WARP_SIZE);
+
+            if (LANE_IDX >= i) {
+                tasks_count += temp1;
+                tasks_size += temp2;
+                cliques_count += temp3;
+                cliques_size += temp4;
+            }
+            __syncwarp();
+        }
+
+        // lanes write to global scan arrays
+        dd->scan_tasks_count[target_warp] = tasks_count;
+        dd->scan_tasks_size[target_warp] = tasks_size;
+        dd->scan_cliques_count[target_warp] = cliques_count;
+        dd->scan_cliques_size[target_warp] = cliques_size;
+
+        // last lane write block sum information
+        if(LANE_IDX == WARP_SIZE - 1){
+            dd->block_tasks_count[BLOCK_IDX] = tasks_count;
+            dd->block_tasks_size[BLOCK_IDX] = tasks_size;
+            dd->block_cliques_count[BLOCK_IDX] = cliques_count;
+            dd->block_cliques_size[BLOCK_IDX] = cliques_size;
+        }
+    }
+
     if (LANE_IDX == 0) {
         // sum to find tasks count
         atomicAdd(dd->total_tasks, dd->wtasks_count[WARP_IDX]);

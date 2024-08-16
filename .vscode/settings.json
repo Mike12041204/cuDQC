@@ -15,7 +15,11 @@
         "string": "cpp",
         "filesystem": "cpp",
         "xiosbase": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "chrono": "cpp",
+        "functional": "cpp",
+        "__functional_03": "cpp",
+        "target": "cpp"
     },
     "makefile.makefilePath": "${workspaceFolder}/Makefile",
     "makefile.makePath": "C:/Program Files (x86)/GnuWin32/bin/make.exe"

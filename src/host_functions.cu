@@ -373,6 +373,15 @@ void p2_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph
     chkerr(cudaMemcpy(h_dd.wvertices_size, &dss.wvertices_size, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.expand_threshold, &dss.expand_threshold, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.cliques_dump, &dss.cliques_dump, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    // TRANSFER BUFFERS SCAN ARRAYS
+    chkerr(cudaMalloc((void**)&h_dd.scan_tasks_count, sizeof(uint64_t) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.scan_tasks_size, sizeof(uint64_t) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.scan_cliques_count, sizeof(uint64_t) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.scan_cliques_size, sizeof(uint64_t) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.block_tasks_count, sizeof(uint64_t) * NUM_OF_BLOCKS));
+    chkerr(cudaMalloc((void**)&h_dd.block_tasks_size, sizeof(uint64_t) * NUM_OF_BLOCKS));
+    chkerr(cudaMalloc((void**)&h_dd.block_cliques_count, sizeof(uint64_t) * NUM_OF_BLOCKS));
+    chkerr(cudaMalloc((void**)&h_dd.block_cliques_size, sizeof(uint64_t) * NUM_OF_BLOCKS));
 }
 
 // processes 0th level of expansion
@@ -896,6 +905,15 @@ void p2_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     chkerr(cudaFree(h_dd.wvertices_size));
     chkerr(cudaFree(h_dd.expand_threshold));
     chkerr(cudaFree(h_dd.cliques_dump));
+    // TRANSFER BUFFERS SCAN ARRAYS
+    chkerr(cudaFree(h_dd.scan_tasks_count));
+    chkerr(cudaFree(h_dd.scan_tasks_size));
+    chkerr(cudaFree(h_dd.scan_cliques_count));
+    chkerr(cudaFree(h_dd.scan_cliques_size));
+    chkerr(cudaFree(h_dd.block_tasks_count));
+    chkerr(cudaFree(h_dd.block_tasks_size));
+    chkerr(cudaFree(h_dd.block_cliques_count));
+    chkerr(cudaFree(h_dd.block_cliques_size));
 }
 
 void serialize_tasks(CPU_Data& hd, DS_Sizes& dss, string output)
@@ -932,7 +950,7 @@ void serialize_tasks(CPU_Data& hd, DS_Sizes& dss, string output)
     buffer_file.close();
 }
 
-// --- SECONDARY EXPNASION FUNCTIONS ---
+// --- SECONDARY EXPANSION FUNCTIONS ---
 // returns 1 if lookahead was a success, else 0
 int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, int tot_vert, int num_mem, int num_cand, uint64_t start, int* minimum_degrees)
 {
