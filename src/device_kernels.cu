@@ -188,15 +188,13 @@ __global__ void d_expand_level(GPU_Data* dd)
         }
 
         // lanes write to global scan arrays
-        if(LANE_IDX < WARPS_PER_BLOCK){
-            dd->scan_tasks_count[target_warp] = tasks_count;
-            dd->scan_tasks_size[target_warp] = tasks_size;
-            dd->scan_cliques_count[target_warp] = cliques_count;
-            dd->scan_cliques_size[target_warp] = cliques_size;
-        }
+        dd->scan_tasks_count[target_warp] = tasks_count;
+        dd->scan_tasks_size[target_warp] = tasks_size;
+        dd->scan_cliques_count[target_warp] = cliques_count;
+        dd->scan_cliques_size[target_warp] = cliques_size;
 
         // last lane write block sum information
-        if(LANE_IDX == WARPS_PER_BLOCK - 1){
+        if(LANE_IDX == WARP_SIZE - 1){
             dd->block_tasks_count[BLOCK_IDX] = tasks_count;
             dd->block_tasks_size[BLOCK_IDX] = tasks_size;
             dd->block_cliques_count[BLOCK_IDX] = cliques_count;
@@ -225,38 +223,44 @@ __global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* 
     __shared__ uint64_t cliques_write[WARPS_PER_BLOCK];
     __shared__ uint64_t cliques_offset_write[WARPS_PER_BLOCK];
     __shared__ int tasks_end;
-    __shared__ uint64_t block_tasks_count[NUM_OF_BLOCKS];               // shared memory buffers to perform scan data on
+
+    __shared__ int twarp;                                               // temporary information used in calculating important data
+    __shared__ int toffsetwrite;
+    __shared__ int twrite;
+
+    uint64_t tw;
+    uint64_t tow;
+    uint64_t cw;
+    uint64_t cow;
+
+    __shared__ uint64_t block_tasks_count[NUM_OF_BLOCKS];
     __shared__ uint64_t block_tasks_size[NUM_OF_BLOCKS];
     __shared__ uint64_t block_cliques_count[NUM_OF_BLOCKS];
     __shared__ uint64_t block_cliques_size[NUM_OF_BLOCKS];
-    __shared__ int block_end;                                           // helper shared variables
-    __shared__ int expand_diff;
-    uint64_t helper1;                                                   // helper local variables
-    uint64_t helper2;
-    uint64_t helper3;
-    uint64_t helper4;
-    uint64_t helper5;
-    uint64_t helper6;
-    uint64_t helper7;
-    uint64_t helper8;
-
     int partner;
     uint64_t prev;
     uint64_t curr;
+    __shared__ int block_end;
+    __shared__ int expand_diff;
     bool larger;
     uint32_t mask;
     int warp_end;
     int inter_end;
 
-    // WRITE LOCATION CALCULATIONS
+    uint64_t btw;
+    uint64_t btow;
+    uint64_t bcw;
+    uint64_t bcow;
+
+    // NEW WRITE CALCULATIONS
 
     // updated transfer buffers scan to get each warps write locations and tasks end
     // threads in block transfer scan information from global to shared memory
-    if(THREAD_IDX < NUM_OF_BLOCKS){
-        block_tasks_count[THREAD_IDX] = dd->block_tasks_count[THREAD_IDX];
-        block_tasks_size[THREAD_IDX] = dd->block_tasks_size[THREAD_IDX];
-        block_cliques_count[THREAD_IDX] = dd->block_cliques_count[THREAD_IDX];
-        block_cliques_size[THREAD_IDX] = dd->block_cliques_size[THREAD_IDX];
+    for(int i = THREAD_IDX; i < NUM_OF_BLOCKS; i += BLOCK_SIZE){
+        block_tasks_count[i] = dd->block_tasks_count[i];
+        block_tasks_size[i] = dd->block_tasks_size[i];
+        block_cliques_count[i] = dd->block_cliques_count[i];
+        block_cliques_size[i] = dd->block_cliques_size[i];
     }
     __syncthreads();
 
@@ -265,36 +269,25 @@ __global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* 
         partner = THREAD_IDX - i;
 
         // if partner value is in valid range
-        if (THREAD_IDX >= i && THREAD_IDX < NUM_OF_BLOCKS) {
-            helper1 = block_tasks_count[partner];
-            helper2 = block_tasks_size[partner];
-            helper3 = block_cliques_count[partner];
-            helper4 = block_cliques_size[partner];
-        }
-        __syncthreads();
-
-        // if partner value is in valid range
-        if (THREAD_IDX >= i && THREAD_IDX < NUM_OF_BLOCKS) {
-            block_tasks_count[THREAD_IDX] += helper1;
-            block_tasks_size[THREAD_IDX] += helper2;
-            block_cliques_count[THREAD_IDX] += helper3;
-            block_cliques_size[THREAD_IDX] += helper4;
+        if(partner >= i && THREAD_IDX < NUM_OF_BLOCKS){
+            block_tasks_count[THREAD_IDX] += block_tasks_count[partner];
+            block_tasks_size[THREAD_IDX] += block_tasks_size[partner];
+            block_cliques_count[THREAD_IDX] += block_cliques_count[partner];
+            block_cliques_size[THREAD_IDX] += block_cliques_size[partner];
         }
         __syncthreads();
     }
 
     // use scan data to get tasks end
     // handle case where all data fits into tasks list
-    if (block_tasks_count[NUM_OF_BLOCKS - 1] <= *dd->expand_threshold) {
-        if (THREAD_IDX == 0) {
-            tasks_end = block_tasks_size[NUM_OF_BLOCKS - 1];
-        }
+    if(block_tasks_count[NUM_OF_BLOCKS] <= *dd->expand_threshold){
+        tasks_end = block_tasks_size[NUM_OF_BLOCKS];
     }
     else{
         // each thread detects whether it represents the block which surpases the expand threshold
         prev = 0;
         curr = 0;
-        if(THREAD_IDX > 0 && THREAD_IDX < NUM_OF_BLOCKS){
+        if(THREAD_IDX > 0){
             prev = block_tasks_count[THREAD_IDX - 1];
         }
         if(THREAD_IDX < NUM_OF_BLOCKS){
@@ -307,9 +300,9 @@ __global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* 
         }
         __syncthreads();
 
-        // we know now which block surpasses the expand threshold, from here we find the exact warp / task
+        // we know now which block surpases the expand thrshold, from here we find the exact warp / task
         // since there are 32 warps per block we have narrowed the option to 32, thus we can fit the data in one warp and operate from there
-        if(WIB_IDX == 0){
+        if(WARP_IDX == 0){
             // find first thread to have value larger than or equal to expand diff
             larger = false;
             if(dd->scan_tasks_count[(WARPS_PER_BLOCK * block_end) + LANE_IDX] >= expand_diff){
@@ -329,45 +322,101 @@ __global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* 
                     prev = block_tasks_size[block_end - 1];
                 }
 
-                tasks_end = prev + dd->wtasks_offset[(*dd->wtasks_offset_size * ((WARPS_PER_BLOCK * block_end) + warp_end)) + inter_end];
+                tasks_end = prev + dd->wtasks_offset[(*dd->wtasks_offset_size * ((WARPS_PER_BLOCK * block_end) + warp_end - 1)) + inter_end];
             }
         }
     }
 
-    // tasks end found now find write locations for every warp
+    // tasks end found now find write locaitons for every warp
     if(LANE_IDX == 0){
-        helper1 = 0;
-        helper2 = 0;
-        helper3 = 0;
-        helper4 = 0;
+        btw = 0;
+        btow = 0;
+        bcw = 0;
+        bcow = 0;
         // get each warps block offset
         if(BLOCK_IDX > 0){
-            helper1 = block_tasks_count[BLOCK_IDX - 1];
-            helper2 = block_tasks_size[BLOCK_IDX - 1];
-            helper3 = block_cliques_count[BLOCK_IDX - 1];
-            helper4 = block_cliques_size[BLOCK_IDX - 1];
+            btow = block_tasks_count[BLOCK_IDX - 1];
+            btw = block_tasks_size[BLOCK_IDX - 1];
+            bcow = block_cliques_count[BLOCK_IDX - 1];
+            bcw = block_cliques_size[BLOCK_IDX - 1];
         }
 
-        helper5 = 0;
-        helper6 = 0;
-        helper7 = 0;
-        helper8 = 0;
+        tw = 0;
+        tow = 0;
+        cw = 0;
+        cow = 0;
         // get each warps offset
-        if(WIB_IDX > 0){
-            helper5 = dd->scan_tasks_count[WARP_IDX - 1];
-            helper6 = dd->scan_tasks_size[WARP_IDX - 1];
-            helper7 = dd->scan_cliques_count[WARP_IDX - 1];
-            helper8 = dd->scan_cliques_size[WARP_IDX - 1];
+        if(WARP_IDX % WARPS_PER_BLOCK > 0){
+            tow = dd->scan_tasks_count[WARP_IDX - 1];
+            tw = dd->scan_tasks_size[WARP_IDX - 1];
+            cow = dd->scan_cliques_count[WARP_IDX - 1];
+            cw = dd->scan_cliques_size[WARP_IDX - 1];
         }
 
-        tasks_offset_write[WIB_IDX] = 1 + helper1 + helper5;
-        tasks_write[WIB_IDX] = helper2 + helper6;
-        cliques_offset_write[WIB_IDX] = 1 + helper3 + helper7;
-        cliques_write[WIB_IDX] = helper4 + helper8;
+        tasks_write[WIB_IDX] = btw + tw;
+        tasks_offset_write[WIB_IDX] = 1 + btow + tow;
+        cliques_write[WIB_IDX] = bcw + cw;
+        cliques_offset_write[WIB_IDX] = 1 + bcow + cow;
     }
     __syncwarp();
 
-    // TRANSFER BUFFER DATA
+    // OLD WRITE CALCULATIONS
+
+    // point of this is to find how many vertices will be transfered to tasks, it is easy to know how many tasks as it will just
+    // be the expansion threshold, but to find how many vertices we must now the total size of all the tasks that will be copied.
+    // each block does this but really could be done by one thread outside the GPU
+    if (THREAD_IDX == 0) {
+        twarp = -1;
+        toffsetwrite = 0;
+        twrite = 0;
+
+        for (int i = 0; i < NUMBER_OF_WARPS; i++) {
+            // if next warps count is more than expand threshold mark as such and break
+            if (toffsetwrite + dd->wtasks_count[i] >= *dd->expand_threshold) {
+                twarp = i;
+                break;
+            }
+            // else adds its size and count
+            twrite += dd->wtasks_offset[(*dd->wtasks_offset_size * i) + dd->wtasks_count[i]];
+            toffsetwrite += dd->wtasks_count[i];
+        }
+        // final size is the size of all tasks up until last warp and the remaining tasks in the last warp until expand threshold is satisfied
+        tasks_end = twrite;
+        if(twarp != -1){
+            tasks_end += dd->wtasks_offset[(*dd->wtasks_offset_size * twarp) + (*dd->expand_threshold - toffsetwrite)];
+        }
+    }
+    __syncthreads();
+
+    // get each warps offsets for tasks and cliques by having eahc lane get partial and then summing
+    tw = 0;
+    tow = 0;
+    cw = 0;
+    cow = 0;
+    for (int i = LANE_IDX; i < WARP_IDX; i += WARP_SIZE) {
+        tow += dd->wtasks_count[i];
+        tw += dd->wtasks_offset[(*dd->wtasks_offset_size * i) + dd->wtasks_count[i]];
+
+        cow += dd->wcliques_count[i];
+        cw += dd->wcliques_offset[(*dd->wcliques_offset_size * i) + dd->wcliques_count[i]];
+    }
+
+    // get sum
+    for (int i = 1; i < WARP_SIZE; i *= 2) {
+        tw += __shfl_xor_sync(0xFFFFFFFF, tw, i);
+        tow += __shfl_xor_sync(0xFFFFFFFF, tow, i);
+        cw += __shfl_xor_sync(0xFFFFFFFF, cw, i);
+        cow += __shfl_xor_sync(0xFFFFFFFF, cow, i);
+    }
+
+    // warp level
+    if (LANE_IDX == 0) {
+        tasks_write[WIB_IDX] = tw;
+        tasks_offset_write[WIB_IDX] = 1 + tow;
+        cliques_write[WIB_IDX] = cw;
+        cliques_offset_write[WIB_IDX] = 1 + cow;
+    }
+    __syncwarp();
     
     // move to tasks and buffer
     for (int i = LANE_IDX + 1; i <= dd->wtasks_count[WARP_IDX]; i += WARP_SIZE) {
