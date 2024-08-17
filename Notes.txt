@@ -1,7 +1,7 @@
 TODO
 
 CURSOR
-- complete new scan in transfer buffers kernel
+- get transfer buffers scan working by suign less shared memory
 
 BUGS
 - ablation study lookahead pruning only gets wrong results sometimes
