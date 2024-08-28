@@ -1,4 +1,4 @@
-#include "../inc/common.h"
+#include "../inc/common.hpp"
 #include "../inc/cuTS_MPI.h"
 
 /*

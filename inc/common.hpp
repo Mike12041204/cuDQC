@@ -46,7 +46,7 @@ using namespace std;
 #define CPU_LEVELS 1
 #define CPU_EXPAND_THRESHOLD 1
 // mpi settings
-#define NUMBER_OF_PROCESSESS 2
+#define NUMBER_OF_PROCESSESS 4
 #define MAX_MESSAGE 1000000000
 // TODO - test to see what is the best number for these
 // must be atleast be 1

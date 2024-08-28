@@ -1,7 +1,7 @@
 #ifndef DCUQC_CUTS_MPI_H
 #define DCUQC_CUTS_MPI_H
 
-#include "./common.h"
+#include "./common.hpp"
 
 void mpi_irecv_all(int rank);
 void decode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuffer);

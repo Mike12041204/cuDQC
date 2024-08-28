@@ -1,4 +1,4 @@
-#include "../inc/common.h"
+#include "../inc/common.hpp"
 
 // DEBUG - MAX TRACKER VARIABLES
 uint64_t mts, mbs, mbo, mcs, mco, wts, wto, wcs, wco, mvs;

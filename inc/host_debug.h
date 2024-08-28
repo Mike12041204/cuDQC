@@ -1,7 +1,7 @@
 #ifndef DCUQC_HOST_DEBUG_H
 #define DCUQC_HOST_DEBUG_H
 
-#include "./common.h"
+#include "./common.hpp"
 
 void print_CPU_Data(CPU_Data& hd);
 void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss);

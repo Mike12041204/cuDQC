@@ -1,7 +1,7 @@
 #ifndef DCUQC_DEVICE_KERNELS_H
 #define DCUQC_DEVICE_KERNELS_H
 
-#include "./common.h"
+#include "./common.hpp"
 
 // --- PRIMARY KERNELS ---
 __global__ void d_expand_level(GPU_Data* dd);

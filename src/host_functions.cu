@@ -1,7 +1,7 @@
-#include "../inc/common.h"
-#include "../inc/host_functions.h"
+#include "../inc/common.hpp"
+#include "../inc/host_functions.hpp"
 #include "../inc/host_debug.h"
-#include "../inc/device_kernels.h"
+#include "../inc/device_kernels.hpp"
 #include "../inc/cuTS_MPI.h"
 
 // --- PRIMARY FUNCTIONS ---

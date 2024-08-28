@@ -1,4 +1,4 @@
-#include "../inc/common.h"
+#include "../inc/common.hpp"
 #include "../inc/host_debug.h"
 
 void print_CPU_Graph(CPU_Graph& hg) {

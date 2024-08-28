@@ -1,5 +1,5 @@
-#include "../inc/common.h"
-#include "../inc/device_kernels.h"
+#include "../inc/common.hpp"
+#include "../inc/device_kernels.hpp"
 
 // --- PRIMARY KERNELS ---
 __global__ void d_expand_level(GPU_Data* dd)

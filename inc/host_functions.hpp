@@ -1,7 +1,7 @@
 #ifndef DCUQC_HOST_FUNCTIONS_H
 #define DCUQC_HOST_FUNCTIONS_H
 
-#include "./common.h"
+#include "./common.hpp"
 
 // --- PRIMARY FUNCITONS ---
 void calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double minimum_degree_ratio);

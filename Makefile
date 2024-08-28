@@ -33,31 +33,31 @@ $(TARGET2): $(OBJECTS2)
 $(TARGET3): $(OBJECTS3)
 	$(NVCC) $^ -o $@ $(LDFLAGS)
 
-program1.o: program1.cu inc/common.h inc/host_functions.h inc/host_debug.h inc/Quick_rmnonmax.h
+program1.o: program1.cu inc/common.hpp inc/host_functions.hpp inc/host_debug.h inc/Quick_rmnonmax.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
-program2.o: program2.cu inc/common.h inc/host_functions.h inc/host_debug.h inc/Quick_rmnonmax.h
+program2.o: program2.cu inc/common.hpp inc/host_functions.hpp inc/host_debug.h inc/Quick_rmnonmax.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
-program3.o: program3.cu inc/common.h inc/host_functions.h inc/host_debug.h inc/Quick_rmnonmax.h
+program3.o: program3.cpp inc/common.hpp inc/host_functions.hpp inc/host_debug.h inc/Quick_rmnonmax.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
-src/common.o: src/common.cpp inc/common.h
+src/common.o: src/common.cpp inc/common.hpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-src/host_functions.o: src/host_functions.cu inc/common.h inc/host_functions.h inc/host_debug.h inc/device_kernels.h inc/cuTS_MPI.h
+src/host_functions.o: src/host_functions.cu inc/common.hpp inc/host_functions.hpp inc/host_debug.h inc/device_kernels.hpp inc/cuTS_MPI.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
-src/host_debug.o: src/host_debug.cpp inc/common.h inc/host_debug.h
+src/host_debug.o: src/host_debug.cpp inc/common.hpp inc/host_debug.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-src/device_kernels.o: src/device_kernels.cu inc/common.h inc/device_kernels.h
+src/device_kernels.o: src/device_kernels.cu inc/common.hpp inc/device_kernels.hpp
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
-src/Quick_rmnonmax.o: src/Quick_rmnonmax.cpp inc/common.h inc/Quick_rmnonmax.h
+src/Quick_rmnonmax.o: src/Quick_rmnonmax.cpp inc/common.hpp inc/Quick_rmnonmax.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.h inc/cuTS_MPI.h
+src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.hpp inc/cuTS_MPI.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 .PHONY: c
