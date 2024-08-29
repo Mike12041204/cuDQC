@@ -9,6 +9,9 @@ CXXFLAGS = -std=c++11
 LDFLAGS := -lmpi
 INCLUDES = -Iinc
 
+OBJECTS0 = program0.o
+TARGET0 = program0
+
 OBJECTS1 = src/common.o src/host_debug.o src/cuTS_MPI.o src/device_kernels.o src/host_functions.o program1.o
 TARGET1 = program1
 
@@ -18,11 +21,14 @@ TARGET2 = program2
 OBJECTS3 = src/common.o src/Quick_rmnonmax.o program3.o
 TARGET3 = program3
 
-all: d2u $(TARGET1) $(TARGET2) $(TARGET3)
+all: d2u $(TARGET0) $(TARGET1) $(TARGET2) $(TARGET3)
 
 .PHONY: d2u
 d2u:
 	dos2unix *.sh
+
+$(TARGET0): $(OBJECTS0)
+	$(CXX) $^ -o $@ $(LDFLAGS)
 
 $(TARGET1): $(OBJECTS1)
 	$(NVCC) $^ -o $@ $(LDFLAGS)
@@ -31,7 +37,10 @@ $(TARGET2): $(OBJECTS2)
 	$(NVCC) $^ -o $@ $(LDFLAGS)
 
 $(TARGET3): $(OBJECTS3)
-	$(NVCC) $^ -o $@ $(LDFLAGS)
+	$(CXX) $^ -o $@ $(LDFLAGS)
+
+program0.o: program0.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 program1.o: program1.cu inc/common.hpp inc/host_functions.hpp inc/host_debug.h inc/Quick_rmnonmax.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
@@ -40,7 +49,7 @@ program2.o: program2.cu inc/common.hpp inc/host_functions.hpp inc/host_debug.h i
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
 program3.o: program3.cpp inc/common.hpp inc/host_functions.hpp inc/host_debug.h inc/Quick_rmnonmax.h
-	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 src/common.o: src/common.cpp inc/common.hpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
@@ -65,7 +74,7 @@ c: ct co cp
 
 .PHONY: ct
 ct:
-	rm -f $(OBJECTS1) $(OBJECTS2) $(OBJECTS3) e_* t_* r_* s_*
+	rm -f $(OBJECTS0) $(OBJECTS1) $(OBJECTS2) $(OBJECTS3) e_* t_* r_* s_*
 
 .PHONY: co
 co:
@@ -73,4 +82,4 @@ co:
 
 .PHONY: cp
 cp:
-	rm -f $(TARGET1) $(TARGET2) $(TARGET3)
+	rm -f $(TARGET0) $(TARGET1) $(TARGET2) $(TARGET3)

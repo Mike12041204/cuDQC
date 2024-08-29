@@ -1,4 +1,4 @@
-#include "./inc/common.h"
+#include "./inc/common.hpp"
 #include "./inc/Quick_rmnonmax.h"
 
 // MAIN

@@ -1,5 +1,5 @@
-#include "./inc/common.h"
-#include "./inc/host_functions.h"
+#include "./inc/common.hpp"
+#include "./inc/host_functions.hpp"
 #include "./inc/host_debug.h"
 
 // MAIN
