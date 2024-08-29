@@ -33,6 +33,7 @@ class CPU_Graph
     CPU_Graph(ifstream& graph_stream);
     ~CPU_Graph();
     void write_serialized(char* output_file);
+    void GenLevel2NBs();
 };
 
 int h_sort_asce(const void* a, const void* b);
@@ -83,6 +84,7 @@ int h_sort_asce(const void* a, const void* b)
     }
 }
 
+// TODO - finish method
 void print_CPU_Graph(CPU_Graph& hg) {
     cout << endl << " --- (CPU_Graph)host_graph details --- " << endl;
     cout << endl << "|V|: " << hg.number_of_vertices << " |E|: " << hg.number_of_edges << endl;
@@ -180,119 +182,395 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
         }
     }
 
-    // graph_stream.seekg(0, graph_stream.end);
-    // string graph_text(graph_stream.tellg(), 0);
-    // graph_stream.seekg(0);
-    // graph_stream.read(const_cast<char*>(graph_text.data()), graph_text.size());
-
-    // out_offsets = new uint64_t[OFFSETS_SIZE];
-    // out_neighbors = new int[LVL1ADJ_SIZE];
-    // in_offsets = new uint64_t[OFFSETS_SIZE];
-    // in_neighbors = new int[LVL1ADJ_SIZE];
-    // twohop_neighbors = new int[LVL2ADJ_SIZE];
-
-    // out_offsets[0] = 0;
-    // in_offsets[0] = 0;
-    // number_of_lvl2adj = 0;
-
-    // int vertex_count = 0;
-    // int number_count = 0;
-    // int current_number = 0;
-    // bool empty = true;
-
-
-
-    // // TODO - way to detect and handle these cases without changing code?
-    // // TWO FORMATS SO FAR
-    // // 1 -  VSCode \r\n between lines, no ending character
-    // // 2 - Visual Studio \n between lines, numerous \0 ending characters
-
-    // // parse graph file assume adj are seperated by spaces ' ' and vertices are seperated by newlines "\r\n"
-    // for (int i = 0; i < graph_text.size(); i++) {
-    //     char character = graph_text[i];
-
-    //     // line depends on whether newline is "\r\n" or '\n'
-    //     if (character == '\n') {
-    //         if (!empty) {
-    //             onehop_neighbors[number_count++] = current_number;
-    //         }
-    //         onehop_offsets[++vertex_count] = number_count;
-    //         current_number = 0;
-    //         // line depends on whether newline is "\r\n" or '\n'
-    //         //i++;
-    //         empty = true;
-    //     }
-    //     else if (character == ' ') {
-    //         onehop_neighbors[number_count++] = current_number;
-    //         current_number = 0;
-    //     }
-    //     else if (character == '\0') {
-    //         // line depends on whether newline is "\r\n" or '\n'
-    //         break;
-    //     }
-    //     else {
-    //         current_number = current_number * 10 + (graph_text[i] - '0');
-    //         empty = false;
-    //     }
-    // }
-
-    // // line depends on whether newline is "\r\n" or '\n'
-    // // handle last element
-    // if (!empty) {
-    //     onehop_neighbors[number_count++] = current_number;
-    // }
-    // onehop_offsets[++vertex_count] = number_count;
-
-    // // set variables and initialize twohop arrays
-    // number_of_vertices = vertex_count;
-    // number_of_edges = number_count;
-
-
-
-    // twohop_offsets = new uint64_t[number_of_vertices + 1];
-
-    // twohop_offsets[0] = 0;
-
-    // bool* twohop_flag_DIA;
-    // twohop_flag_DIA = new bool[number_of_vertices];
-    // memset(twohop_flag_DIA, true, number_of_vertices * sizeof(bool));
-
-    // // handle lvl2 adj
-    // for (int i = 0; i < vertex_count; i++) {
-    //     for (int j = onehop_offsets[i]; j < onehop_offsets[i + 1]; j++) {
-    //         int lvl1adj = onehop_neighbors[j];
-    //         if (twohop_flag_DIA[lvl1adj]) {
-    //             twohop_neighbors[number_of_lvl2adj++] = lvl1adj;
-    //             twohop_flag_DIA[lvl1adj] = false;
-    //         }
-
-    //         for (int k = onehop_offsets[lvl1adj]; k < onehop_offsets[lvl1adj + 1]; k++) {
-    //             int lvl2adj = onehop_neighbors[k];
-    //             if (twohop_flag_DIA[lvl2adj] && lvl2adj != i) {
-    //                 twohop_neighbors[number_of_lvl2adj++] = lvl2adj;
-    //                 twohop_flag_DIA[lvl2adj] = false;
-    //             }
-    //         }
-    //     }
-
-    //     twohop_offsets[i + 1] = number_of_lvl2adj;
-
-    //     for (int j = twohop_offsets[i]; j < twohop_offsets[i + 1]; j++) {
-    //         twohop_flag_DIA[twohop_neighbors[j]] = true;
-    //     }
-
-    //     // sort adjacencies
-    //     if (onehop_offsets[i + 1] != onehop_offsets[i]) {
-    //         qsort(onehop_neighbors + onehop_offsets[i], onehop_offsets[i + 1] - onehop_offsets[i], sizeof(int), h_sort_asce);
-    //     }
-    //     if (twohop_offsets[i + 1] != twohop_offsets[i]) {
-    //         qsort(twohop_neighbors + twohop_offsets[i], twohop_offsets[i + 1] - twohop_offsets[i], sizeof(int), h_sort_asce);
-    //     }
-    // }
-
-    // delete twohop_flag_DIA;
+    GenLevel2NBs();
 }
 
+// CURSOR - adapt Guos method to our graph
+void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
+{
+	// each thread has arrays to work with
+	int** set_out_single, **set_in_single, **temp_array, **temp_array2, **pnb_list;
+	bool** pbflags;
+	set_out_single = new int*[num_compers];
+	set_in_single = new int*[num_compers];
+	temp_array = new int*[num_compers];
+	temp_array2 = new int*[num_compers];
+	pnb_list = new int*[num_compers];
+	pbflags = new bool*[num_compers];
+
+	//-------
+	// initialize each threads arrays
+#pragma omp parallel for schedule(dynamic, 1) num_threads(num_compers)
+	for(int i=0; i<num_compers; i++)
+	{
+		// these are all used as DIA arrays based on vertexids
+		set_out_single[i] = new int[mnum_of_vertices];
+		set_in_single[i] = new int[mnum_of_vertices];
+		temp_array[i] = new int[mnum_of_vertices];
+		temp_array2[i] = new int[mnum_of_vertices];
+		pnb_list[i] = new int[mnum_of_vertices];
+		pbflags[i] = new bool[mnum_of_vertices];
+
+		memset(set_out_single[i], 0, sizeof(int)*mnum_of_vertices);
+		memset(set_in_single[i], 0, sizeof(int)*mnum_of_vertices);
+		memset(temp_array[i], 0, sizeof(int)*mnum_of_vertices); //out
+		memset(temp_array2[i], 0, sizeof(int)*mnum_of_vertices); //in
+		memset(pbflags[i], 0, sizeof(bool)*mnum_of_vertices);
+	}
+
+	//-------
+//	int* set_out_single = new int[mnum_of_vertices];
+//	int* set_in_single = new int[mnum_of_vertices];
+//	memset(set_out_single, 0, sizeof(int)*mnum_of_vertices);
+//	memset(set_in_single, 0, sizeof(int)*mnum_of_vertices);
+
+	// initialize 2hop adj write location
+	mpplvl2_nbs = new int*[mnum_of_vertices]; // mpplvl2_nbs[i] = node i's level-2 neighbors, first element keeps the 2-hop-list length
+
+	// initialize vectors for temp work
+	vector<int> bi_nbs[num_compers];
+	vector<int> vec_out[num_compers];
+	vector<int> vec_in[num_compers];
+	vector<int> temp_vec_out[num_compers];
+	vector<int> temp_vec_in[num_compers];
+	vector<int> temp_vec[num_compers];
+
+	auto start = steady_clock::now();
+
+	// for each vertex
+#pragma omp parallel for schedule(dynamic, 1) num_threads(num_compers)
+	for(int i=0; i<mnum_of_vertices; i++)
+	{
+		// temp array is out adj, temp array 2 is in adj
+
+		int tid = omp_get_thread_num();
+
+		// vertices number of out adj
+		int out_size = mppadj_lists_o[i][0];
+		// vertices number of in adj
+		int in_size = mppadj_lists_i[i][0];
+
+		// if the vertex has both in and out adj
+		if(out_size > 0 && in_size > 0)
+		{
+			// set DIA so all vertices which are out adj to vertex i have value 1
+			for(int j=1; j<=out_size; j++)
+				temp_array[tid][mppadj_lists_o[i][j]] = 1;
+
+			// same for in adj
+			for(int j=1; j<=in_size; j++)
+				temp_array2[tid][mppadj_lists_i[i][j]] = 1;
+
+
+			//get bidirectional connected neighbors, O and I
+			// for all out adj
+			for(int j=1; j<=out_size; j++)
+			{
+				// get the out adj vertexid
+				int v = mppadj_lists_o[i][j];
+
+				// if the out adj is also in adj
+				if(temp_array2[tid][v] == 1)
+
+					// add the vertex to bidirectional adj vector
+					bi_nbs[tid].push_back(v);
+
+				// else the adj is only out
+				else
+				{
+					// add to DIA and vector for out adj
+					// MIKE - do we really need set_out_single and set_in_single? I feel we should just continue to reference temp arrays since the are already DIA
+					set_out_single[tid][v] = 1;
+					vec_out[tid].push_back(v);
+				}
+			}
+
+			// for all in adj
+			for(int j=1; j<=in_size; j++)
+			{
+				// get in adj vertex id
+				int v = mppadj_lists_i[i][j];
+
+				// if in adj is NOT also out adj
+				if(temp_array[tid][v] == 0)
+				{
+					// add to DIA and vector for in adj
+					set_in_single[tid][v] = 1;
+					vec_in[tid].push_back(v);
+				}
+			}
+
+			// MIKE - at this point:
+			// temp_array: DIA for each vertex on out adj
+			// temp_array2: DIA for each vertex on in adj
+			// bi_nbs: vector of bidirectional adj
+			// vec_out: vector of out only adj
+			// vec_in: vector of in only adj
+			// set_out_single: DIA for each vertex on out only adj
+			// set_in_single: DIA for each vertex on in only adj
+
+			// repeat pruning
+			int round = 1;
+			int nb;
+			int out_single_size, in_single_size;
+			do {
+				//update So and Si
+				// size of only out and in vertices
+				out_single_size = vec_out[tid].size();
+				in_single_size = vec_in[tid].size();
+
+				// for all bi adj
+				for(int j=0; j<bi_nbs[tid].size();j++)
+				{
+					// add back in bi adj to out and in adj
+					vec_out[tid].push_back(bi_nbs[tid][j]);
+					vec_in[tid].push_back(bi_nbs[tid][j]);
+				}
+
+				//check the 1-hop neighbors which only connected in one direction
+				// for all out adj
+				for(int j=0; j<vec_out[tid].size();j++)
+				{
+					// get out adj vertexid
+					int vn = vec_out[tid][j];
+
+					// for all out adj of out vertex
+					for(int k=1; k<=mppadj_lists_o[vn][0]; k++)
+					{
+						// get vertexid of new out adj
+						nb = mppadj_lists_o[vn][k];
+
+						// if it is a current valid in adj 
+						if(set_in_single[tid][nb] == round)
+						{
+							// continue it as a valid in adj
+							set_in_single[tid][nb]++;
+
+							// add it to the next level in adj vector
+							temp_vec_in[tid].push_back(nb);
+						}
+					}
+				}
+
+				// for all in adj, same as last for
+				for(int j=0; j<vec_in[tid].size();j++)
+				{
+					// get vertexid
+					int vn = vec_in[tid][j];
+
+					// for all in adj of in adj
+					for(int k=1; k<=mppadj_lists_i[vn][0]; k++)
+					{
+						// get vertexid
+						nb = mppadj_lists_i[vn][k];
+
+						// if vertex is out adj
+						if(set_out_single[tid][nb] == round)
+						{
+							// continue as out adj
+							set_out_single[tid][nb]++;
+
+							// add out adj to next level vector
+							temp_vec_out[tid].push_back(nb);
+						}
+					}
+				}
+
+				// set out and in vectors as temp next level ones
+				vec_out[tid].swap(temp_vec_out[tid]);
+				vec_in[tid].swap(temp_vec_in[tid]);
+
+				// clear temp vectors
+				temp_vec_out[tid].clear();
+				temp_vec_in[tid].clear();
+
+				// increment round counter
+				round++;
+
+				// continue while some in or out adj has been removed in the last level
+			} while(vec_out[tid].size()<out_single_size || vec_in[tid].size()<in_single_size);
+
+			//reset single set
+			for(int j=1; j<=out_size; j++)
+				set_out_single[tid][mppadj_lists_o[i][j]] = 0;
+
+			for(int j=1; j<=in_size; j++)
+				set_in_single[tid][mppadj_lists_i[i][j]] = 0;
+			//reset gptemp_array
+			for(int j=1; j<=out_size; j++)
+				temp_array[tid][mppadj_lists_o[i][j]] = 0;
+
+			for(int j=1; j<=in_size; j++)
+				temp_array2[tid][mppadj_lists_i[i][j]] = 0;
+
+			//add bidirectional neighbors into 2hop nbs
+			int nlist_len = 0;
+			for (int j=0; j<bi_nbs[tid].size(); j++)
+			{
+				pnb_list[tid][nlist_len++] = bi_nbs[tid][j];
+				pbflags[tid][bi_nbs[tid][j]] = true;
+			}
+
+			//add single out & in 1hop neighbors
+			for (int j=0; j<vec_out[tid].size(); j++)
+			{
+				pnb_list[tid][nlist_len++] = vec_out[tid][j];
+				pbflags[tid][vec_out[tid][j]] = true;
+			}
+			for (int j=0; j<vec_in[tid].size(); j++)
+			{
+				pnb_list[tid][nlist_len++] = vec_in[tid][j];
+				pbflags[tid][vec_in[tid][j]] = true;
+			}
+
+			// MIKE - at this point
+			// pnb_list: has the twohop adj from onehop adj, O, and I (needs B)
+			// pbflags: is DIA for each vertex on whether it is a twohop adj or not
+
+			// add back bi out and in adj to out and in adj vectors
+			for(int j=0; j<bi_nbs[tid].size();j++)
+			{
+				vec_out[tid].push_back(bi_nbs[tid][j]);
+				vec_in[tid].push_back(bi_nbs[tid][j]);
+			}
+
+			// MIKE - the next steps are performign the four unions of intersections described in the paper to find case B twohop adj
+
+			// for all out adj
+			for (int j=0; j<vec_out[tid].size(); j++)
+			{
+				// get vertexid
+				int u = vec_out[tid][j];
+
+				// for all out adj of out adj
+				for(int k=1; k<=mppadj_lists_o[u][0]; k++)
+				{
+					// get vertexid
+					int v = mppadj_lists_o[u][k];
+
+					// if vertex is not self and is not already 2hop adj and is not already considered in this step
+					if(v != i && pbflags[tid][v] == false && temp_array[tid][v] != 1)
+					{
+						// add to temp vector and mark as considered
+						// MIKE - do we need temp_vec here? Don't seem to use it
+						temp_vec[tid].push_back(v);
+						temp_array[tid][v]=1;
+					}
+				}
+			}
+
+			// for all out adj
+			for (int j=0; j<vec_out[tid].size(); j++)
+			{
+				// get vertexid
+				int u = vec_out[tid][j];
+
+				// for all in adj of out adj
+				for(int k=1; k<=mppadj_lists_i[u][0]; k++)
+				{
+					// get vertexid
+					int v = mppadj_lists_i[u][k];
+
+					// if made it through last step
+					if(temp_array[tid][v] == 1)
+
+						// mark as passing this step
+						temp_array[tid][v]=2;
+				}
+			}
+
+			// for all in adj
+			for (int j=0; j<vec_in[tid].size(); j++)
+			{
+				// get vertexid
+				int u = vec_in[tid][j];
+
+				// for all out out adj of in adj
+				for(int k=1; k<=mppadj_lists_o[u][0]; k++)
+				{
+					// get vertexid
+					int v = mppadj_lists_o[u][k];
+
+					// if vertex passes last step
+					if(temp_array[tid][v] == 2)
+
+						// mark as passing this step
+						temp_array[tid][v]=3;
+				}
+			}
+
+			// for all in adj
+			for (int j=0; j<vec_in[tid].size(); j++)
+			{
+				// get vertexid
+				int u = vec_in[tid][j];
+
+				// for all in adj of in adj
+				for(int k=1; k<=mppadj_lists_i[u][0]; k++)
+				{
+					// get vertexid
+					int v = mppadj_lists_i[u][k];
+
+					// if vertex passed last step and is not alreayd in twohop adj
+					if(temp_array[tid][v] == 3 && pbflags[tid][v] == false)
+					{
+						// add to twohop adj
+						pbflags[tid][v] = true;
+						pnb_list[tid][nlist_len++] = v;
+					}
+				}
+			}
+			//reset gptemp_array
+			int temp_vec_size = temp_vec[tid].size();
+			for(int j=0; j<temp_vec_size; j++)
+				temp_array[tid][temp_vec[tid][j]] = 0;
+
+			// sort twohop adj
+			if(nlist_len>1)
+				qsort(pnb_list[tid], nlist_len, sizeof(int), comp_int);
+			
+			// allocate and copy final twohop adj location
+			mpplvl2_nbs[i] = new int[nlist_len+1];
+			mpplvl2_nbs[i][0] = nlist_len; //first element keeps the 2-hop-list length
+			if(nlist_len>0)
+				memcpy(&mpplvl2_nbs[i][1], pnb_list[tid], sizeof(int)*nlist_len);
+
+			// reset flags
+			for(int j=0;j<nlist_len;j++)
+				pbflags[tid][pnb_list[tid][j]] = false;
+
+			// clear memory
+			bi_nbs[tid].clear();
+			vec_out[tid].clear();
+			vec_in[tid].clear();
+			temp_vec[tid].clear();
+		} else {
+			mpplvl2_nbs[i] = new int[1];
+			mpplvl2_nbs[i][0] = 0;
+		}
+	}
+	auto end = steady_clock::now();
+	float duration = (float)duration_cast<microseconds>(end - start).count() / 1000000;
+    std::cout << "**** 2hop execution Time ****:" << duration << std::endl;
+
+	for(int i=0; i<num_compers; i++)
+	{
+		delete []pbflags[i];
+		delete []pnb_list[i];
+		delete []set_out_single[i];
+		delete []set_in_single[i];
+		delete []temp_array[i];
+		delete []temp_array2[i];
+	}
+	delete []pbflags;
+	delete []pnb_list;
+	delete []set_out_single;
+	delete []set_in_single;
+	delete []temp_array;
+	delete []temp_array2;
+}
+
+// TODO - finish method
 void CPU_Graph::write_serialized(char* output_file)
 {
     // ofstream out(output_file);
@@ -336,6 +614,7 @@ void CPU_Graph::write_serialized(char* output_file)
     // out.close();
 }
 
+// TODO - finish method
 CPU_Graph::~CPU_Graph()
 {
     // delete onehop_neighbors;

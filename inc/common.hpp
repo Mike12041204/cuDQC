@@ -26,18 +26,18 @@ using namespace std;
 
 // GPU KERNEL LAUNCH
 #define BLOCK_SIZE 1024
-#define NUM_OF_BLOCKS 216
+#define NUMBER_OF_BLOCKS 216
 #define WARP_SIZE 32
 
 // GPU INFORMATION
 #define IDX ((blockIdx.x * blockDim.x) + threadIdx.x)
 #define WARP_IDX (IDX / WARP_SIZE)
 #define LANE_IDX (IDX % WARP_SIZE)
-#define BLOCK_IDX threadIdx.x
-#define WIB_IDX (threadIdx.x / WARP_SIZE)
+#define TIB_IDX threadIdx.x
+#define WIB_IDX (TIB_IDX / WARP_SIZE)
 #define WARPS_PER_BLOCK (BLOCK_SIZE / WARP_SIZE)
-#define NUMBER_OF_WARPS (NUM_OF_BLOCKS * WARPS_PER_BLOCK)
-#define NUMBER_OF_THREADS (NUM_OF_BLOCKS * BLOCK_SIZE)
+#define NUMBER_OF_WARPS (NUMBER_OF_BLOCKS * WARPS_PER_BLOCK)
+#define NUMBER_OF_DTHREADS (NUMBER_OF_BLOCKS * BLOCK_SIZE)
 
 // PROGRAM RUN SETTINGS
 // shared memory vertices
@@ -48,7 +48,8 @@ using namespace std;
 // mpi settings
 #define NUMBER_OF_PROCESSESS 4
 #define MAX_MESSAGE 1000000000
-// TODO - test to see what is the best number for these
+// omp settings
+#define NUMBER_OF_HTHREADS 132
 // must be atleast be 1
 #define HELP_MULTIPLIER 1
 #define HELP_PERCENT 50

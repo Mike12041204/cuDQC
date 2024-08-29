@@ -176,7 +176,7 @@ __global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* 
     // point of this is to find how many vertices will be transfered to tasks, it is easy to know how many tasks as it will just
     // be the expansion threshold, but to find how many vertices we must now the total size of all the tasks that will be copied.
     // each block does this but really could be done by one thread outside the GPU
-    if (BLOCK_IDX == 0) {
+    if (TIB_IDX == 0) {
         toffsetwrite = 0;
         twrite = 0;
 
@@ -279,12 +279,12 @@ __global__ void fill_from_buffer(GPU_Data* dd, uint64_t* buffer_count)
     uint64_t start_write = dd->tasks_offset[*dd->tasks_count];
 
     // handle offsets
-    for (int i = IDX + 1; i <= write_amount; i += NUMBER_OF_THREADS) {
+    for (int i = IDX + 1; i <= write_amount; i += NUMBER_OF_DTHREADS) {
         dd->tasks_offset[*dd->tasks_count + i] = start_write + dd->buffer_offset[*dd->buffer_count - write_amount + i] - start_buffer;
     }
 
     // handle data
-    for (int i = IDX; i < size_buffer; i += NUMBER_OF_THREADS) {
+    for (int i = IDX; i < size_buffer; i += NUMBER_OF_DTHREADS) {
         dd->tasks_vertices[start_write + i] = dd->buffer_vertices[start_buffer + i];
     }
 
