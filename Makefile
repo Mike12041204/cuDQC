@@ -75,11 +75,11 @@ c: ct co cp
 
 .PHONY: ct
 ct:
-	rm -f $(OBJECTS0) $(OBJECTS1) $(OBJECTS2) $(OBJECTS3) e_* t_* r_* s_*
+	rm -f $(OBJECTS0) $(OBJECTS1) $(OBJECTS2) $(OBJECTS3) DQCE* DQCT* DQCR* DQCS*
 
 .PHONY: co
 co:
-	rm -f o_*
+	rm -f DQCO*
 
 .PHONY: cp
 cp:

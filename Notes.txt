@@ -1,6 +1,5 @@
 TODO
-- do we need dumping cliques on the gpu?
-- add serialization of debug maxes
+- increase threads for P0
 
 CURSOR
 - do TODOs

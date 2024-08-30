@@ -16,7 +16,7 @@
 using namespace std;
 
 // omp settings
-#define NUMBER_OF_HTHREADS 1
+#define NUMBER_OF_HTHREADS 2
 
 // CPU GRAPH / CONSTRUCTOR
 class CPU_Graph
@@ -36,7 +36,7 @@ class CPU_Graph
 
     CPU_Graph(ifstream& graph_stream);
     ~CPU_Graph();
-    void write_serialized(char* output_file);
+    void write_serialized(string output);
     void GenLevel2NBs();
 };
 
@@ -48,23 +48,35 @@ int comp_int(const void *e1, const void *e2);
 int main(int argc, char* argv[])
 {
     // ENSURE PROPER USAGE
-    if (argc != 5) {
-        printf("Usage: ./main <graph_file> <out_gamma> <in_gamma> <min_size>\n");
+    if (argc != 6) {
+        printf("Usage: ./main <file_path> <graph_file> <out_gamma> <in_gamma> <min_size>\n");
         return 1;
     }
-    ifstream graph_stream(argv[1], ios::in);
-    if (!graph_stream.is_open()) {
-        printf("invalid graph file\n");
-        return 1;
+
+	string adj_path = string(argv[1]) + argv[2];
+	string ser_path = "./DQC-S0_" + string(argv[2]) + "-" + argv[3] + "-" + argv[4] + "-" + argv[5];
+
+    ifstream graph_stream(ser_path, ios::in);
+    if (graph_stream.is_open()) {
+        cout << ">:SERIALIZED GRAPH FOUND" << endl;
+		return 0;
     }
+
+	cout << ">:SERIALIZED GRAPH NOT FOUND" << endl;
+
+	graph_stream.open(adj_path, ios::in);
+	if(!graph_stream.is_open()){
+		cout << ">:INVALID ADJACENCY LIST GRAPH FILE" << endl;
+		return 1;
+	}
+	cout << ">:CREATING SERIALIZED GRAPH" << endl;
 
     // GRAPH
     CPU_Graph hg(graph_stream);
-    //hg.write_serialized(argv[2]);
+	cout << ser_path << endl;
+    hg.write_serialized(ser_path);
+	cout << "!" << endl;
     graph_stream.close();
-
-    // DEBUG- rm
-    print_CPU_Graph(hg);
     
     return 0;
 }
@@ -200,12 +212,11 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
         }
     }
 
-	cout << "1" << endl;
-
     GenLevel2NBs();
 }
 
-void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
+// create 2-hop neighbors
+void CPU_Graph::GenLevel2NBs()
 {
 	// each thread has arrays to work with
 	int** set_out_single, **set_in_single, **temp_array, **temp_array2, **pnb_list;
@@ -254,8 +265,6 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 	vector<int> temp_vec_in[NUMBER_OF_HTHREADS];
 	vector<int> temp_vec[NUMBER_OF_HTHREADS];
 
-	cout << "2" << endl;
-
 	// for each vertex
 #pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
 	for(int i=0; i<number_of_vertices; i++)
@@ -303,8 +312,6 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 					vec_out[tid].push_back(v);
 				}
 			}
-
-			cout << "3" << endl;
 
 			// for all in adj
 			for(int j=1; j<=in_size; j++)
@@ -372,8 +379,6 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 						}
 					}
 				}
-
-				cout << "4" << endl;
 
 				// for all in adj, same as last for
 				for(int j=0; j<vec_in[tid].size();j++)
@@ -445,8 +450,6 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 				pnb_list[tid][nlist_len++] = vec_in[tid][j];
 				pbflags[tid][vec_in[tid][j]] = true;
 			}
-
-			cout << "5" << endl;
 
 			// MIKE - at this point
 			// pnb_list: has the twohop adj from onehop adj, O, and I (needs B)
@@ -524,8 +527,6 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 				}
 			}
 
-			cout << "6" << endl;
-
 			// for all in adj
 			for (int j=0; j<vec_in[tid].size(); j++)
 			{
@@ -548,7 +549,6 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 				}
 			}
 
-			cout << "61" << endl;
 			//reset gptemp_array
 			int temp_vec_size = temp_vec[tid].size();
 			for(int j=0; j<temp_vec_size; j++)
@@ -579,38 +579,23 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 		}
 	}
 
-	cout << "62" << endl;
-	cout << "!!!" << number_of_vertices << endl;
-
 	// transfer twohop offsets
 	// TODO - make parallel
 	twohop_offsets[0] = 0;
 	for(int i = 0; i < number_of_vertices; i++){
-		cout << "622" << endl;
-		cout << number_of_vertices << " " << i << " " << twohop_offsets[i + 1] << endl;
 		twohop_offsets[i + 1] = twohop_offsets[i] + mpplvl2_nbs[i][0];
 	}
 
-	cout << "6221" << endl;
-
 	number_of_lvl2adj = twohop_offsets[number_of_vertices];
 
-	cout << "6222" << endl;
-
 	twohop_neighbors = new int[number_of_lvl2adj];
-
-	cout << "623" << endl;
 	
 	// transfer twohop neighbors
 	for(int i = 0; i < number_of_vertices; i++){
 		for(uint64_t k = 0; k < twohop_offsets[i + 1] - twohop_offsets[i]; k++){
 			twohop_neighbors[twohop_offsets[i] + k] = mpplvl2_nbs[i][k + 1];
-			cout << "624" << endl;
 		}
 	}
-	cout << "63" << endl;
-
-	cout << "7" << endl;
 
 	for(int i=0; i<NUMBER_OF_HTHREADS; i++)
 	{
@@ -629,55 +614,32 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 	delete []temp_array2;
 }
 
-// TODO - finish method
-void CPU_Graph::write_serialized(char* output_file)
+void CPU_Graph::write_serialized(string output)
 {
-    // ofstream out(output_file);
+	ofstream buffer_file;
 
-    // out << number_of_vertices << endl;
-    // out << number_of_edges << endl;
-    // out << number_of_lvl2adj << endl;
+    buffer_file.open(output, ios::binary);
 
-    // for (int i = 0; i < number_of_edges; i++) {
-    //     out << onehop_neighbors[i];
-    //     if (i < number_of_edges - 1) {
-    //         out << " ";
-    //     }
-    // }
-    // out << endl;
+    buffer_file.write(reinterpret_cast<const char*>(&number_of_vertices), sizeof(int));
+	buffer_file.write(reinterpret_cast<const char*>(&number_of_edges), sizeof(int));
+	buffer_file.write(reinterpret_cast<const char*>(&number_of_lvl2adj), sizeof(uint64_t));
+    buffer_file.write(reinterpret_cast<const char*>(out_offsets), (number_of_vertices + 1) * sizeof(uint64_t));
+    buffer_file.write(reinterpret_cast<const char*>(out_neighbors), number_of_edges * sizeof(int));
+	buffer_file.write(reinterpret_cast<const char*>(in_offsets), (number_of_vertices + 1) * sizeof(uint64_t));
+    buffer_file.write(reinterpret_cast<const char*>(in_neighbors), number_of_edges * sizeof(int));
+	buffer_file.write(reinterpret_cast<const char*>(twohop_offsets), (number_of_vertices + 1) * sizeof(uint64_t));
+    buffer_file.write(reinterpret_cast<const char*>(twohop_neighbors), number_of_lvl2adj * sizeof(int));
 
-    // for (int i = 0; i < number_of_vertices + 1; i++) {
-    //     out << onehop_offsets[i];
-    //     if (i < number_of_vertices) {
-    //         out << " ";
-    //     }
-    // }
-    // out << endl;
-
-    // for (int i = 0; i < number_of_lvl2adj; i++) {
-    //     out << twohop_neighbors[i];
-    //     if (i < number_of_lvl2adj - 1) {
-    //         out << " ";
-    //     }
-    // }
-    // out << endl;
-
-    // for (int i = 0; i < number_of_vertices + 1; i++) {
-    //     out << twohop_offsets[i];
-    //     if (i < number_of_vertices) {
-    //         out << " ";
-    //     }
-    // }
-    // out << endl;
-
-    // out.close();
+    buffer_file.close();
 }
 
-// TODO - finish method
+// TODO - finish this method
 CPU_Graph::~CPU_Graph()
 {
-    // delete onehop_neighbors;
-    // delete onehop_offsets;
-    // delete twohop_neighbors;
-    // delete twohop_offsets;
+    // delete[] out_offsets;
+	// delete[] out_neighbors;
+	// delete[] in_neighbors;
+	// delete[] in_neighbors;
+	// delete[] twohop_offsets;
+	// delete[] twohop_neighbors;
 }
