@@ -73,9 +73,7 @@ int main(int argc, char* argv[])
 
     // GRAPH
     CPU_Graph hg(graph_stream);
-	cout << ser_path << endl;
     hg.write_serialized(ser_path);
-	cout << "!" << endl;
     graph_stream.close();
     
     return 0;
@@ -272,6 +270,9 @@ void CPU_Graph::GenLevel2NBs()
 		// temp array is out adj, temp array 2 is in adj
 
 		int tid = omp_get_thread_num();
+
+		// DEBUG - rm
+		cout << tid << endl;
 
 		// vertices number of out adj
 		int out_size = out_offsets[i + 1] - out_offsets[i];

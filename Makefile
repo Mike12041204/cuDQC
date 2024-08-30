@@ -71,15 +71,22 @@ src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.hpp inc/cuTS_MPI.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 .PHONY: c
-c: ct co cp
+c: ct co
+
+.PHONY: cc
+c: c cs cp
 
 .PHONY: ct
 ct:
-	rm -f $(OBJECTS0) $(OBJECTS1) $(OBJECTS2) $(OBJECTS3) DQCE* DQCT* DQCR* DQCS*
+	rm -f $(OBJECTS0) $(OBJECTS1) $(OBJECTS2) $(OBJECTS3) DQC-E* DQC-T* DQC-R* DQC-S1*
+
+.PHONY: cs
+cs:
+	rm -f DQC-S0*
 
 .PHONY: co
 co:
-	rm -f DQCO*
+	rm -f DQC-O*
 
 .PHONY: cp
 cp:

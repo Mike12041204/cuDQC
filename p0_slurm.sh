@@ -14,8 +14,8 @@ print_job_script() {
 #SBATCH --job-name=DQC-P0_${output}             # set job name
 #SBATCH --partition=amd-hdr100                  # set job partition
 #SBATCH --time=12:00:00                         # set job max time
-#SBATCH --output=DQC-O0_${output}.txt	        # set output path for nodes
-#SBATCH --error=DQC-E0_${output}.txt      	    # set error path for nodes
+#SBATCH --output=DQC-O0_${output}   	        # set output path for nodes
+#SBATCH --error=DQC-E0_${output}        	    # set error path for nodes
 #SBATCH --nodes=1                               # 1 nodes
 #SBATCH --ntasks-per-node=1                     # 1 process per node
 #SBATCH --cpus-per-task=2                       # 2 thread per process
