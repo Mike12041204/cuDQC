@@ -272,9 +272,9 @@ void CPU_Graph::GenLevel2NBs()
 		int tid = omp_get_thread_num();
 
 		// vertices number of out adj
-		int out_size = out_offsets[i + 1] - out_offsets[i];
+		uint64_t out_size = out_offsets[i + 1] - out_offsets[i];
 		// vertices number of in adj
-		int in_size = in_offsets[i + 1] - in_offsets[i];
+		uint64_t in_size = in_offsets[i + 1] - in_offsets[i];
 
 		// if the vertex has both in and out adj
 		if(out_size > 0 && in_size > 0)
@@ -361,7 +361,7 @@ void CPU_Graph::GenLevel2NBs()
 					int vn = vec_out[tid][j];
 
 					// for all out adj of out vertex
-					for(int k=1; k<=out_offsets[vn + 1] - out_offsets[vn]; k++)
+					for(uint64_t k=1; k<=out_offsets[vn + 1] - out_offsets[vn]; k++)
 					{
 						// get vertexid of new out adj
 						nb = out_neighbors[out_offsets[vn] + k - 1];
@@ -385,7 +385,7 @@ void CPU_Graph::GenLevel2NBs()
 					int vn = vec_in[tid][j];
 
 					// for all in adj of in adj
-					for(int k=1; k<=in_offsets[vn + 1] - in_offsets[vn]; k++)
+					for(uint64_t k=1; k<=in_offsets[vn + 1] - in_offsets[vn]; k++)
 					{
 						// get vertexid
 						nb = in_neighbors[in_offsets[vn] + k - 1];
@@ -417,20 +417,20 @@ void CPU_Graph::GenLevel2NBs()
 			} while(vec_out[tid].size()<out_single_size || vec_in[tid].size()<in_single_size);
 
 			//reset single set
-			for(int j=1; j<=out_size; j++)
+			for(uint64_t j=1; j<=out_size; j++)
 				set_out_single[tid][out_neighbors[out_offsets[i] + j - 1]] = 0;
 
-			for(int j=1; j<=in_size; j++)
+			for(uint64_t j=1; j<=in_size; j++)
 				set_in_single[tid][in_neighbors[in_offsets[i] + j - 1]] = 0;
 			//reset gptemp_array
-			for(int j=1; j<=out_size; j++)
+			for(uint64_t j=1; j<=out_size; j++)
 				temp_array[tid][out_neighbors[out_offsets[i] + j - 1]] = 0;
 
-			for(int j=1; j<=in_size; j++)
+			for(uint64_t j=1; j<=in_size; j++)
 				temp_array2[tid][in_neighbors[in_offsets[i] + j - 1]] = 0;
 
 			//add bidirectional neighbors into 2hop nbs
-			int nlist_len = 0;
+			uint64_t nlist_len = 0;
 			for (int j=0; j<bi_nbs[tid].size(); j++)
 			{
 				pnb_list[tid][nlist_len++] = bi_nbs[tid][j];
@@ -469,7 +469,7 @@ void CPU_Graph::GenLevel2NBs()
 				int u = vec_out[tid][j];
 
 				// for all out adj of out adj
-				for(int k=1; k<=out_offsets[u + 1] - out_offsets[u]; k++)
+				for(uint64_t k=1; k<=out_offsets[u + 1] - out_offsets[u]; k++)
 				{
 					// get vertexid
 					int v = out_neighbors[out_offsets[u] + k - 1];
@@ -492,7 +492,7 @@ void CPU_Graph::GenLevel2NBs()
 				int u = vec_out[tid][j];
 
 				// for all in adj of out adj
-				for(int k=1; k<=in_offsets[u + 1] - in_offsets[u]; k++)
+				for(uint64_t k=1; k<=in_offsets[u + 1] - in_offsets[u]; k++)
 				{
 					// get vertexid
 					int v = in_neighbors[in_offsets[u] + k - 1];
@@ -512,7 +512,7 @@ void CPU_Graph::GenLevel2NBs()
 				int u = vec_in[tid][j];
 
 				// for all out out adj of in adj
-				for(int k=1; k<=out_offsets[u + 1] - out_offsets[u]; k++)
+				for(uint64_t k=1; k<=out_offsets[u + 1] - out_offsets[u]; k++)
 				{
 					// get vertexid
 					int v = out_neighbors[out_offsets[u] + k - 1];
@@ -532,7 +532,7 @@ void CPU_Graph::GenLevel2NBs()
 				int u = vec_in[tid][j];
 
 				// for all in adj of in adj
-				for(int k=1; k<=in_offsets[u + 1] - in_offsets[u]; k++)
+				for(uint64_t k=1; k<=in_offsets[u + 1] - in_offsets[u]; k++)
 				{
 					// get vertexid
 					int v = in_neighbors[in_offsets[u] + k - 1];
