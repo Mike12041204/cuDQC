@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
         printf("minimum size must be greater than 1\n");
         return 1;
     }
-    if (CPU_EXPAND_THRESHOLD > dss.expand_threshold) {
+    if (CPU_EXPAND_THRESHOLD > dss.EXPAND_THRESHOLD) {
         cout << "CPU_EXPAND_THRESHOLD must be less than the EXPAND_THRESHOLD" << endl;
         return 1;
     }

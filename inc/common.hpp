@@ -164,15 +164,15 @@ struct GPU_Data
     int* wcliques_vertex;
     int* total_cliques;
     // DATA STRUCTURE SIZE
-    uint64_t* tasks_size;
-    uint64_t* tasks_per_warp;
-    uint64_t* buffer_size;
-    uint64_t* buffer_offset_size;
-    uint64_t* cliques_size;
-    uint64_t* cliques_offset_size;
-    uint64_t* cliques_percent;
-    uint64_t* wcliques_size;
-    uint64_t* wcliques_offset_size;
+    uint64_t* TASKS_SIZE;
+    uint64_t* TASKS_PER_WARP;
+    uint64_t* BUFFER_SIZE;
+    uint64_t* BUFFER_OFFSET_SIZE;
+    uint64_t* CLIQUES_SIZE;
+    uint64_t* CLIQUES_OFFSET_SIZE;
+    uint64_t* CLIQUES_PERCENT;
+    uint64_t* WCLIQUES_SIZE;
+    uint64_t* WCLIQUES_OFFSET_SIZE;
     uint64_t* WTASKS_SIZE; //
     uint64_t* WTASKS_OFFSET_SIZE;
     uint64_t* WVERTICES_SIZE;

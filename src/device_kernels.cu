@@ -207,7 +207,7 @@ __global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* 
             tasks_write[WIB_IDX] += dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * i) + dd->wtasks_count[i]];
 
             cliques_offset_write[WIB_IDX] += dd->wcliques_count[i];
-            cliques_write[WIB_IDX] += dd->wcliques_offset[(*dd->wcliques_offset_size * i) + dd->wcliques_count[i]];
+            cliques_write[WIB_IDX] += dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * i) + dd->wcliques_count[i]];
         }
     }
     __syncwarp();
@@ -240,11 +240,11 @@ __global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* 
 
     //move to cliques
     for (int i = LANE_IDX + 1; i <= dd->wcliques_count[WARP_IDX]; i += WARP_SIZE) {
-        dd->cliques_offset[*dd->cliques_offset_start + cliques_offset_write[WIB_IDX] + i - 2] = dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + i] + *dd->cliques_start + 
+        dd->cliques_offset[*dd->cliques_offset_start + cliques_offset_write[WIB_IDX] + i - 2] = dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + i] + *dd->cliques_start + 
             cliques_write[WIB_IDX];
     }
-    for (int i = LANE_IDX; i < dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + dd->wcliques_count[WARP_IDX]]; i += WARP_SIZE) {
-        dd->cliques_vertex[*dd->cliques_start + cliques_write[WIB_IDX] + i] = dd->wcliques_vertex[(*dd->wcliques_size * WARP_IDX) + i];
+    for (int i = LANE_IDX; i < dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + dd->wcliques_count[WARP_IDX]]; i += WARP_SIZE) {
+        dd->cliques_vertex[*dd->cliques_start + cliques_write[WIB_IDX] + i] = dd->wcliques_vertex[(*dd->WCLIQUES_SIZE * WARP_IDX) + i];
     }
 
     if (IDX == 0) {
@@ -353,13 +353,13 @@ __device__ int d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     if (wd.success[WIB_IDX]) {
         // write to cliques
-        start_write = (*dd->wcliques_size * WARP_IDX) + dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + dd->wcliques_count[WARP_IDX]];
+        start_write = (*dd->WCLIQUES_SIZE * WARP_IDX) + dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + dd->wcliques_count[WARP_IDX]];
         for (int j = LANE_IDX; j < wd.tot_vert[WIB_IDX]; j += WARP_SIZE) {
             dd->wcliques_vertex[start_write + j] = dd->tasks_vertices[wd.start[WIB_IDX] + j].vertexid;
         }
         if (LANE_IDX == 0) {
             (dd->wcliques_count[WARP_IDX])++;
-            dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + dd->wcliques_count[WARP_IDX]] = start_write - (*dd->wcliques_size * WARP_IDX) + wd.tot_vert[WIB_IDX];
+            dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + dd->wcliques_count[WARP_IDX]] = start_write - (*dd->WCLIQUES_SIZE * WARP_IDX) + wd.tot_vert[WIB_IDX];
         }
         return 1;
     }
@@ -1151,13 +1151,13 @@ __device__ void d_check_for_clique(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     // if clique write to warp buffer for cliques
     if (clique) {
-        uint64_t start_write = (*dd->wcliques_size * WARP_IDX) + dd->wcliques_offset[(*dd->wcliques_offset_size * WARP_IDX) + dd->wcliques_count[WARP_IDX]];
+        uint64_t start_write = (*dd->WCLIQUES_SIZE * WARP_IDX) + dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + dd->wcliques_count[WARP_IDX]];
         for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX]; k += WARP_SIZE) {
             dd->wcliques_vertex[start_write + k] = ld.vertices[k].vertexid;
         }
         if (LANE_IDX == 0) {
             (dd->wcliques_count[WARP_IDX])++;
-            dd->wcliques_offset[*dd->wcliques_offset_size * WARP_IDX + dd->wcliques_count[WARP_IDX]] = start_write - (*dd->wcliques_size * WARP_IDX) + wd.number_of_members[WIB_IDX];
+            dd->wcliques_offset[*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX + dd->wcliques_count[WARP_IDX]] = start_write - (*dd->WCLIQUES_SIZE * WARP_IDX) + wd.number_of_members[WIB_IDX];
         }
     }
 }
