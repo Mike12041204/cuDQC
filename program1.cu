@@ -8,7 +8,8 @@ int main(int argc, char* argv[])
     // TIME
     auto start2 = chrono::high_resolution_clock::now();
 
-    double minimum_degree_ratio;        // connection requirement for cliques
+    double out_gamma;
+    double in_gamma;
     int minimum_clique_size;            // minimum size for cliques
     int* minimum_degrees;               // stores the minimum connections per vertex for all size cliques
     string filename;                    // used in concatenation for making filenames
@@ -18,33 +19,38 @@ int main(int argc, char* argv[])
     string output;
 
     // ENSURE PROPER USAGE
-    if (argc != 6) {
-        printf("Usage: ./program1 <graph_file> <gamma> <min_size> <ds_sizes_file> <output_file>\n");
+    if (argc != 7) {
+        printf("Usage: ./program1 <graph_file> <out_gamma> <in_gamma> <min_size> <ds_sizes_file> <output_file>\n");
         return 1;
     }
-    read_file.open(argv[4], ios::in);
+    read_file.open(argv[5], ios::in);
     if(!read_file.is_open()){
         cout << "invalid data structure sizes file\n" << endl;
     }
     read_file.close();
     // reads the sizes of the data structures
-    DS_Sizes dss(argv[4]);
+    DS_Sizes dss(argv[5]);
     read_file.open(argv[1], ios::in);
     if (!read_file.is_open()) {
         printf("invalid graph file\n");
         return 1;
     }
-    minimum_degree_ratio = atof(argv[2]);
-    if (minimum_degree_ratio < .5 || minimum_degree_ratio > 1) {
-        printf("minimum degree ratio must be between .5 and 1 inclusive\n");
+    out_gamma = atof(argv[2]);
+    if (out_gamma < .5 || out_gamma > 1) {
+        printf("out gamma must be between .5 and 1 inclusive\n");
         return 1;
     }
-    minimum_clique_size = atoi(argv[3]);
+    in_gamma = atof(argv[3]);
+    if (in_gamma < .5 || in_gamma > 1) {
+        printf("in gamma must be between .5 and 1 inclusive\n");
+        return 1;
+    }
+    minimum_clique_size = atoi(argv[4]);
     if (minimum_clique_size <= 1) {
         printf("minimum size must be greater than 1\n");
         return 1;
     }
-    if (CPU_EXPAND_THRESHOLD > dss.expand_threshold) {
+    if (CPU_EXPAND_THRESHOLD > dss.EXPAND_THRESHOLD) {
         cout << "CPU_EXPAND_THRESHOLD must be less than the EXPAND_THRESHOLD" << endl;
         return 1;
     }
@@ -53,7 +59,7 @@ int main(int argc, char* argv[])
     output = argv[5];
     filename = "o_" + output + "_p1_0.txt";
     output_file.open(filename);
-    if (dss.debug_toggle) {
+    if (dss.DEBUG_TOGGLE) {
         output_file << endl << ">:OUTPUT FROM P1 PROCESS 0: " << endl << endl;
         initialize_maxes();
     }
@@ -80,7 +86,7 @@ int main(int argc, char* argv[])
     write_file.close();
 
     // DEBUG
-    if (dss.debug_toggle) {
+    if (dss.DEBUG_TOGGLE) {
         print_maxes();
         output_file << endl;
     }

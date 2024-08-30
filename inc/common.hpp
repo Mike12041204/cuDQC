@@ -173,11 +173,11 @@ struct GPU_Data
     uint64_t* cliques_percent;
     uint64_t* wcliques_size;
     uint64_t* wcliques_offset_size;
-    uint64_t* wtasks_size;
-    uint64_t* wtasks_offset_size;
-    uint64_t* wvertices_size;
-    uint64_t* expand_threshold;
-    uint64_t* cliques_dump;
+    uint64_t* WTASKS_SIZE; //
+    uint64_t* WTASKS_OFFSET_SIZE;
+    uint64_t* WVERTICES_SIZE;
+    uint64_t* EXPAND_THRESHOLD;
+    uint64_t* CLIQUES_DUMP;
 };
 
 // WARP DATA
@@ -225,23 +225,23 @@ class DS_Sizes
     public:
     
     // DATA STRUCTURE SIZE
-    uint64_t tasks_size;
-    uint64_t tasks_per_warp;
-    uint64_t buffer_size;
-    uint64_t buffer_offset_size;
-    uint64_t cliques_size;
-    uint64_t cliques_offset_size;
-    uint64_t cliques_percent;
+    uint64_t TASKS_SIZE;
+    uint64_t TASKS_PER_WARP;
+    uint64_t BUFFER_SIZE;
+    uint64_t BUFFER_OFFSET_SIZE;
+    uint64_t CLIQUES_SIZE;
+    uint64_t CLIQUES_OFFSET_SIZE;
+    uint64_t CLIQUES_PERCENT;
     // per warp
-    uint64_t wcliques_size;
-    uint64_t wcliques_offset_size;
-    uint64_t wtasks_size;
-    uint64_t wtasks_offset_size;
+    uint64_t WCLIQUES_SIZE;
+    uint64_t WCLIQUES_OFFSET_SIZE;
+    uint64_t WTASKS_SIZE;
+    uint64_t WTASKS_OFFSET_SIZE;
     // global memory vertices, should be a multiple of 32 as to not waste space
-    uint64_t wvertices_size;
-    uint64_t expand_threshold;
-    uint64_t cliques_dump;
-    int debug_toggle;
+    uint64_t WVERTICES_SIZE;
+    uint64_t EXPAND_THRESHOLD;
+    uint64_t CLIQUES_DUMP;
+    int DEBUG_TOGGLE;
 
     DS_Sizes(const string& filename);
 };

@@ -631,7 +631,6 @@ void CPU_Graph::write_serialized(string output)
     buffer_file.close();
 }
 
-// TODO - finish this method
 CPU_Graph::~CPU_Graph()
 {
     delete[] out_offsets;

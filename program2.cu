@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
     output = argv[5];
     filename = "o_" + output + "_p2_" + to_string(grank) + ".txt";
     output_file.open(filename);
-    if (dss.debug_toggle) {
+    if (dss.DEBUG_TOGGLE) {
         output_file << endl << ">:OUTPUT FROM P2 PROCESS: " << grank << endl << endl;
         initialize_maxes();
     }
@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
     write_file.close();
 
     // DEBUG
-    if (dss.debug_toggle) {
+    if (dss.DEBUG_TOGGLE) {
         print_maxes();
         if(grank == NUMBER_OF_PROCESSESS - 1){
             output_file << endl;
