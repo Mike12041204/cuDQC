@@ -17,7 +17,7 @@ print_job_script() {
 #SBATCH --error=e_${output}_p1.txt      	    # set error path for nodes
 #SBATCH --nodes=1                               # 1 nodes
 #SBATCH --ntasks-per-node=1                     # 1 process per node
-#SBATCH --cpus-per-task=128                     # 128 thread per process
+#SBATCH --cpus-per-task=1                       # 1 thread per process
 #SBATCH --mem-per-cpu=80G                       # 80GB memory per thread
 #SBATCH --gres=gpu:0                            # 0 GPU per node
 

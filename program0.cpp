@@ -12,7 +12,11 @@
 #include <chrono>
 #include <cstring>
 #include <sys/timeb.h>
+#include <omp.h>
 using namespace std;
+
+// omp settings
+#define NUMBER_OF_HTHREADS 1
 
 // CPU GRAPH / CONSTRUCTOR
 class CPU_Graph
@@ -38,13 +42,14 @@ class CPU_Graph
 
 int h_sort_asce(const void* a, const void* b);
 void print_CPU_Graph(CPU_Graph& hg);
+int comp_int(const void *e1, const void *e2);
 
 // MAIN
 int main(int argc, char* argv[])
 {
     // ENSURE PROPER USAGE
-    if (argc != 3) {
-        printf("Usage: ./main <graph_file> <output_file>\n");
+    if (argc != 5) {
+        printf("Usage: ./main <graph_file> <out_gamma> <in_gamma> <min_size>\n");
         return 1;
     }
     ifstream graph_stream(argv[1], ios::in);
@@ -55,7 +60,7 @@ int main(int argc, char* argv[])
 
     // GRAPH
     CPU_Graph hg(graph_stream);
-    hg.write_serialized(argv[2]);
+    //hg.write_serialized(argv[2]);
     graph_stream.close();
 
     // DEBUG- rm
@@ -84,35 +89,48 @@ int h_sort_asce(const void* a, const void* b)
     }
 }
 
-// TODO - finish method
+int comp_int(const void *e1, const void *e2)
+{
+	int n1, n2;
+	n1 = *(int *) e1;
+	n2 = *(int *) e2;
+
+	if (n1>n2)
+		return 1;
+	else if (n1<n2)
+		return -1;
+	else
+		return 0;
+}
+
 void print_CPU_Graph(CPU_Graph& hg) {
     cout << endl << " --- (CPU_Graph)host_graph details --- " << endl;
     cout << endl << "|V|: " << hg.number_of_vertices << " |E|: " << hg.number_of_edges << endl;
     cout << endl << "Out Offsets:" << endl;
-    for (uint64_t i = 0; i <= hg.number_of_vertices; i++) {
+    for (int i = 0; i <= hg.number_of_vertices; i++) {
         cout << hg.out_offsets[i] << " ";
     }
     cout << endl << "Out Neighbors:" << endl;
-    for (uint64_t i = 0; i < hg.number_of_edges; i++) {
+    for (int i = 0; i < hg.number_of_edges; i++) {
         cout << hg.out_neighbors[i] << " ";
     }
     cout << endl << "In Offsets:" << endl;
-    for (uint64_t i = 0; i <= hg.number_of_vertices; i++) {
+    for (int i = 0; i <= hg.number_of_vertices; i++) {
         cout << hg.in_offsets[i] << " ";
     }
     cout << endl << "In Neighbors:" << endl;
-    for (uint64_t i = 0; i < hg.number_of_edges; i++) {
+    for (int i = 0; i < hg.number_of_edges; i++) {
         cout << hg.in_neighbors[i] << " ";
     }
-    // cout << endl << "Twohop Offsets:" << endl;
-    // for (uint64_t i = 0; i <= hg.number_of_vertices; i++) {
-    //     cout << hg.twohop_offsets[i] << " ";
-    // }
-    // cout << endl << "Twohop Neighbors:" << endl;
-    // for (uint64_t i = 0; i < hg.number_of_lvl2adj; i++) {
-    //     cout << hg.twohop_neighbors[i] << " ";
-    // }
-    // cout << endl << endl;
+    cout << endl << "Twohop Offsets:" << endl;
+    for (uint64_t i = 0; i <= hg.number_of_vertices; i++) {
+        cout << hg.twohop_offsets[i] << " ";
+    }
+    cout << endl << "Twohop Neighbors:" << endl;
+    for (uint64_t i = 0; i < hg.number_of_lvl2adj; i++) {
+        cout << hg.twohop_neighbors[i] << " ";
+    }
+    cout << endl << endl;
 }
 
 CPU_Graph::CPU_Graph(ifstream& graph_stream)
@@ -138,6 +156,7 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
     lvl2_nei = new vector<int>[number_of_vertices];
     out_offsets = new uint64_t[number_of_vertices + 1];
     in_offsets = new uint64_t[number_of_vertices + 1];
+	twohop_offsets = new uint64_t[number_of_vertices + 1];
 
     // reset infile
     graph_stream.clear();
@@ -149,7 +168,6 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
     while (getline(graph_stream, line)) {
         line_stream.clear();
         line_stream.str(line);
-        cout << line << "!!!" << endl;
 
         while (line_stream >> vertex) {
             out_nei[current_line].push_back(vertex);
@@ -182,84 +200,85 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
         }
     }
 
+	cout << "1" << endl;
+
     GenLevel2NBs();
 }
 
-// CURSOR - adapt Guos method to our graph
 void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 {
 	// each thread has arrays to work with
 	int** set_out_single, **set_in_single, **temp_array, **temp_array2, **pnb_list;
 	bool** pbflags;
-	set_out_single = new int*[num_compers];
-	set_in_single = new int*[num_compers];
-	temp_array = new int*[num_compers];
-	temp_array2 = new int*[num_compers];
-	pnb_list = new int*[num_compers];
-	pbflags = new bool*[num_compers];
+	set_out_single = new int*[NUMBER_OF_HTHREADS];
+	set_in_single = new int*[NUMBER_OF_HTHREADS];
+	temp_array = new int*[NUMBER_OF_HTHREADS];
+	temp_array2 = new int*[NUMBER_OF_HTHREADS];
+	pnb_list = new int*[NUMBER_OF_HTHREADS];
+	pbflags = new bool*[NUMBER_OF_HTHREADS];
 
 	//-------
 	// initialize each threads arrays
-#pragma omp parallel for schedule(dynamic, 1) num_threads(num_compers)
-	for(int i=0; i<num_compers; i++)
+#pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
+	for(int i=0; i<NUMBER_OF_HTHREADS; i++)
 	{
 		// these are all used as DIA arrays based on vertexids
-		set_out_single[i] = new int[mnum_of_vertices];
-		set_in_single[i] = new int[mnum_of_vertices];
-		temp_array[i] = new int[mnum_of_vertices];
-		temp_array2[i] = new int[mnum_of_vertices];
-		pnb_list[i] = new int[mnum_of_vertices];
-		pbflags[i] = new bool[mnum_of_vertices];
+		set_out_single[i] = new int[number_of_vertices];
+		set_in_single[i] = new int[number_of_vertices];
+		temp_array[i] = new int[number_of_vertices];
+		temp_array2[i] = new int[number_of_vertices];
+		pnb_list[i] = new int[number_of_vertices];
+		pbflags[i] = new bool[number_of_vertices];
 
-		memset(set_out_single[i], 0, sizeof(int)*mnum_of_vertices);
-		memset(set_in_single[i], 0, sizeof(int)*mnum_of_vertices);
-		memset(temp_array[i], 0, sizeof(int)*mnum_of_vertices); //out
-		memset(temp_array2[i], 0, sizeof(int)*mnum_of_vertices); //in
-		memset(pbflags[i], 0, sizeof(bool)*mnum_of_vertices);
+		memset(set_out_single[i], 0, sizeof(int)*number_of_vertices);
+		memset(set_in_single[i], 0, sizeof(int)*number_of_vertices);
+		memset(temp_array[i], 0, sizeof(int)*number_of_vertices); //out
+		memset(temp_array2[i], 0, sizeof(int)*number_of_vertices); //in
+		memset(pbflags[i], 0, sizeof(bool)*number_of_vertices);
 	}
 
 	//-------
-//	int* set_out_single = new int[mnum_of_vertices];
-//	int* set_in_single = new int[mnum_of_vertices];
-//	memset(set_out_single, 0, sizeof(int)*mnum_of_vertices);
-//	memset(set_in_single, 0, sizeof(int)*mnum_of_vertices);
+//	int* set_out_single = new int[number_of_vertices];
+//	int* set_in_single = new int[number_of_vertices];
+//	memset(set_out_single, 0, sizeof(int)*number_of_vertices);
+//	memset(set_in_single, 0, sizeof(int)*number_of_vertices);
 
 	// initialize 2hop adj write location
-	mpplvl2_nbs = new int*[mnum_of_vertices]; // mpplvl2_nbs[i] = node i's level-2 neighbors, first element keeps the 2-hop-list length
+	int** mpplvl2_nbs = new int*[number_of_vertices]; // mpplvl2_nbs[i] = node i's level-2 neighbors, first element keeps the 2-hop-list length
 
 	// initialize vectors for temp work
-	vector<int> bi_nbs[num_compers];
-	vector<int> vec_out[num_compers];
-	vector<int> vec_in[num_compers];
-	vector<int> temp_vec_out[num_compers];
-	vector<int> temp_vec_in[num_compers];
-	vector<int> temp_vec[num_compers];
+	vector<int> bi_nbs[NUMBER_OF_HTHREADS];
+	vector<int> vec_out[NUMBER_OF_HTHREADS];
+	vector<int> vec_in[NUMBER_OF_HTHREADS];
+	vector<int> temp_vec_out[NUMBER_OF_HTHREADS];
+	vector<int> temp_vec_in[NUMBER_OF_HTHREADS];
+	vector<int> temp_vec[NUMBER_OF_HTHREADS];
 
-	auto start = steady_clock::now();
+	cout << "2" << endl;
 
 	// for each vertex
-#pragma omp parallel for schedule(dynamic, 1) num_threads(num_compers)
-	for(int i=0; i<mnum_of_vertices; i++)
+#pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
+	for(int i=0; i<number_of_vertices; i++)
 	{
 		// temp array is out adj, temp array 2 is in adj
 
 		int tid = omp_get_thread_num();
 
 		// vertices number of out adj
-		int out_size = mppadj_lists_o[i][0];
+		int out_size = out_offsets[i + 1] - out_offsets[i];
 		// vertices number of in adj
-		int in_size = mppadj_lists_i[i][0];
+		int in_size = in_offsets[i + 1] - in_offsets[i];
 
 		// if the vertex has both in and out adj
 		if(out_size > 0 && in_size > 0)
 		{
 			// set DIA so all vertices which are out adj to vertex i have value 1
 			for(int j=1; j<=out_size; j++)
-				temp_array[tid][mppadj_lists_o[i][j]] = 1;
+				temp_array[tid][out_neighbors[out_offsets[i] + j - 1]] = 1;
 
 			// same for in adj
 			for(int j=1; j<=in_size; j++)
-				temp_array2[tid][mppadj_lists_i[i][j]] = 1;
+				temp_array2[tid][in_neighbors[in_offsets[i] + j - 1]] = 1;
 
 
 			//get bidirectional connected neighbors, O and I
@@ -267,7 +286,7 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 			for(int j=1; j<=out_size; j++)
 			{
 				// get the out adj vertexid
-				int v = mppadj_lists_o[i][j];
+				int v = out_neighbors[out_offsets[i] + j - 1];
 
 				// if the out adj is also in adj
 				if(temp_array2[tid][v] == 1)
@@ -285,11 +304,13 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 				}
 			}
 
+			cout << "3" << endl;
+
 			// for all in adj
 			for(int j=1; j<=in_size; j++)
 			{
 				// get in adj vertex id
-				int v = mppadj_lists_i[i][j];
+				int v = in_neighbors[in_offsets[i] + j - 1];
 
 				// if in adj is NOT also out adj
 				if(temp_array[tid][v] == 0)
@@ -335,10 +356,10 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 					int vn = vec_out[tid][j];
 
 					// for all out adj of out vertex
-					for(int k=1; k<=mppadj_lists_o[vn][0]; k++)
+					for(int k=1; k<=out_offsets[vn + 1] - out_offsets[vn]; k++)
 					{
 						// get vertexid of new out adj
-						nb = mppadj_lists_o[vn][k];
+						nb = out_neighbors[out_offsets[vn] + k - 1];
 
 						// if it is a current valid in adj 
 						if(set_in_single[tid][nb] == round)
@@ -352,6 +373,8 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 					}
 				}
 
+				cout << "4" << endl;
+
 				// for all in adj, same as last for
 				for(int j=0; j<vec_in[tid].size();j++)
 				{
@@ -359,10 +382,10 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 					int vn = vec_in[tid][j];
 
 					// for all in adj of in adj
-					for(int k=1; k<=mppadj_lists_i[vn][0]; k++)
+					for(int k=1; k<=in_offsets[vn + 1] - in_offsets[vn]; k++)
 					{
 						// get vertexid
-						nb = mppadj_lists_i[vn][k];
+						nb = in_neighbors[in_offsets[vn] + k - 1];
 
 						// if vertex is out adj
 						if(set_out_single[tid][nb] == round)
@@ -392,16 +415,16 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 
 			//reset single set
 			for(int j=1; j<=out_size; j++)
-				set_out_single[tid][mppadj_lists_o[i][j]] = 0;
+				set_out_single[tid][out_neighbors[out_offsets[i] + j - 1]] = 0;
 
 			for(int j=1; j<=in_size; j++)
-				set_in_single[tid][mppadj_lists_i[i][j]] = 0;
+				set_in_single[tid][in_neighbors[in_offsets[i] + j - 1]] = 0;
 			//reset gptemp_array
 			for(int j=1; j<=out_size; j++)
-				temp_array[tid][mppadj_lists_o[i][j]] = 0;
+				temp_array[tid][out_neighbors[out_offsets[i] + j - 1]] = 0;
 
 			for(int j=1; j<=in_size; j++)
-				temp_array2[tid][mppadj_lists_i[i][j]] = 0;
+				temp_array2[tid][in_neighbors[in_offsets[i] + j - 1]] = 0;
 
 			//add bidirectional neighbors into 2hop nbs
 			int nlist_len = 0;
@@ -423,6 +446,8 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 				pbflags[tid][vec_in[tid][j]] = true;
 			}
 
+			cout << "5" << endl;
+
 			// MIKE - at this point
 			// pnb_list: has the twohop adj from onehop adj, O, and I (needs B)
 			// pbflags: is DIA for each vertex on whether it is a twohop adj or not
@@ -443,10 +468,10 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 				int u = vec_out[tid][j];
 
 				// for all out adj of out adj
-				for(int k=1; k<=mppadj_lists_o[u][0]; k++)
+				for(int k=1; k<=out_offsets[u + 1] - out_offsets[u]; k++)
 				{
 					// get vertexid
-					int v = mppadj_lists_o[u][k];
+					int v = out_neighbors[out_offsets[u] + k - 1];
 
 					// if vertex is not self and is not already 2hop adj and is not already considered in this step
 					if(v != i && pbflags[tid][v] == false && temp_array[tid][v] != 1)
@@ -466,10 +491,10 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 				int u = vec_out[tid][j];
 
 				// for all in adj of out adj
-				for(int k=1; k<=mppadj_lists_i[u][0]; k++)
+				for(int k=1; k<=in_offsets[u + 1] - in_offsets[u]; k++)
 				{
 					// get vertexid
-					int v = mppadj_lists_i[u][k];
+					int v = in_neighbors[in_offsets[u] + k - 1];
 
 					// if made it through last step
 					if(temp_array[tid][v] == 1)
@@ -486,10 +511,10 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 				int u = vec_in[tid][j];
 
 				// for all out out adj of in adj
-				for(int k=1; k<=mppadj_lists_o[u][0]; k++)
+				for(int k=1; k<=out_offsets[u + 1] - out_offsets[u]; k++)
 				{
 					// get vertexid
-					int v = mppadj_lists_o[u][k];
+					int v = out_neighbors[out_offsets[u] + k - 1];
 
 					// if vertex passes last step
 					if(temp_array[tid][v] == 2)
@@ -499,6 +524,8 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 				}
 			}
 
+			cout << "6" << endl;
+
 			// for all in adj
 			for (int j=0; j<vec_in[tid].size(); j++)
 			{
@@ -506,10 +533,10 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 				int u = vec_in[tid][j];
 
 				// for all in adj of in adj
-				for(int k=1; k<=mppadj_lists_i[u][0]; k++)
+				for(int k=1; k<=in_offsets[u + 1] - in_offsets[u]; k++)
 				{
 					// get vertexid
-					int v = mppadj_lists_i[u][k];
+					int v = in_neighbors[in_offsets[u] + k - 1];
 
 					// if vertex passed last step and is not alreayd in twohop adj
 					if(temp_array[tid][v] == 3 && pbflags[tid][v] == false)
@@ -520,6 +547,8 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 					}
 				}
 			}
+
+			cout << "61" << endl;
 			//reset gptemp_array
 			int temp_vec_size = temp_vec[tid].size();
 			for(int j=0; j<temp_vec_size; j++)
@@ -549,11 +578,41 @@ void CPU_Graph::GenLevel2NBs()  // create 2-hop neighbors
 			mpplvl2_nbs[i][0] = 0;
 		}
 	}
-	auto end = steady_clock::now();
-	float duration = (float)duration_cast<microseconds>(end - start).count() / 1000000;
-    std::cout << "**** 2hop execution Time ****:" << duration << std::endl;
 
-	for(int i=0; i<num_compers; i++)
+	cout << "62" << endl;
+	cout << "!!!" << number_of_vertices << endl;
+
+	// transfer twohop offsets
+	// TODO - make parallel
+	twohop_offsets[0] = 0;
+	for(int i = 0; i < number_of_vertices; i++){
+		cout << "622" << endl;
+		cout << number_of_vertices << " " << i << " " << twohop_offsets[i + 1] << endl;
+		twohop_offsets[i + 1] = twohop_offsets[i] + mpplvl2_nbs[i][0];
+	}
+
+	cout << "6221" << endl;
+
+	number_of_lvl2adj = twohop_offsets[number_of_vertices];
+
+	cout << "6222" << endl;
+
+	twohop_neighbors = new int[number_of_lvl2adj];
+
+	cout << "623" << endl;
+	
+	// transfer twohop neighbors
+	for(int i = 0; i < number_of_vertices; i++){
+		for(uint64_t k = 0; k < twohop_offsets[i + 1] - twohop_offsets[i]; k++){
+			twohop_neighbors[twohop_offsets[i] + k] = mpplvl2_nbs[i][k + 1];
+			cout << "624" << endl;
+		}
+	}
+	cout << "63" << endl;
+
+	cout << "7" << endl;
+
+	for(int i=0; i<NUMBER_OF_HTHREADS; i++)
 	{
 		delete []pbflags[i];
 		delete []pnb_list[i];

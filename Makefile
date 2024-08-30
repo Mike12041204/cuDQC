@@ -4,9 +4,10 @@ NVCC = nvcc
 
 # Compiler flags
 # NOTE - -O optimization flags cause bugs, don't use them
-NVCCFLAGS = -gencode arch=compute_80,code=sm_80 -std=c++11
-CXXFLAGS = -std=c++11
-LDFLAGS := -lmpi
+NVCCFLAGS = -gencode arch=compute_80,code=sm_80 -std=c++11 -Xcompiler "-fopenmp"
+CXXFLAGS = -std=c++11 -fopenmp
+NVCCLDFLAGS := -lmpi -Xcompiler "-fopenmp"
+CXXLDFLAGS := -lmpi -fopenmp
 INCLUDES = -Iinc
 
 OBJECTS0 = program0.o
@@ -28,16 +29,16 @@ d2u:
 	dos2unix *.sh
 
 $(TARGET0): $(OBJECTS0)
-	$(CXX) $^ -o $@ $(LDFLAGS)
+	$(CXX) $^ -o $@ $(CXXLDFLAGS)
 
 $(TARGET1): $(OBJECTS1)
-	$(NVCC) $^ -o $@ $(LDFLAGS)
+	$(NVCC) $^ -o $@ $(NVCCLDFLAGS)
 
 $(TARGET2): $(OBJECTS2)
-	$(NVCC) $^ -o $@ $(LDFLAGS)
+	$(NVCC) $^ -o $@ $(NVCCLDFLAGS)
 
 $(TARGET3): $(OBJECTS3)
-	$(CXX) $^ -o $@ $(LDFLAGS)
+	$(CXX) $^ -o $@ $(CXXLDFLAGS)
 
 program0.o: program0.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@

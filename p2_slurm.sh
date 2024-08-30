@@ -18,7 +18,7 @@ print_job_script() {
 #SBATCH --nodes=4                               # 4 nodes
 #SBATCH --ntasks-per-node=1                     # 1 process per node
 #SBATCH --cpus-per-task=1                       # 1 thread per process
-#SBATCH --mem-per-cpu=40G                       # 80GB memory per thread
+#SBATCH --mem-per-cpu=80G                       # 80GB memory per thread
 #SBATCH --gres=gpu:1                            # 1 GPU per node
 
 # Load the MPI module
