@@ -634,10 +634,10 @@ void CPU_Graph::write_serialized(string output)
 // TODO - finish this method
 CPU_Graph::~CPU_Graph()
 {
-    // delete[] out_offsets;
-	// delete[] out_neighbors;
-	// delete[] in_neighbors;
-	// delete[] in_neighbors;
-	// delete[] twohop_offsets;
-	// delete[] twohop_neighbors;
+    delete[] out_offsets;
+	delete[] out_neighbors;
+	delete[] in_offsets;
+	delete[] in_neighbors;
+	delete[] twohop_offsets;
+	delete[] twohop_neighbors;
 }
