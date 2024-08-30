@@ -271,9 +271,6 @@ void CPU_Graph::GenLevel2NBs()
 
 		int tid = omp_get_thread_num();
 
-		// DEBUG - rm
-		cout << tid << endl;
-
 		// vertices number of out adj
 		int out_size = out_offsets[i + 1] - out_offsets[i];
 		// vertices number of in adj

@@ -74,7 +74,7 @@ src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.hpp inc/cuTS_MPI.h
 c: ct co
 
 .PHONY: cc
-c: c cs cp
+cc: c cs cp
 
 .PHONY: ct
 ct:
