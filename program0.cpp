@@ -44,6 +44,7 @@ int h_sort_asce(const void* a, const void* b);
 void print_CPU_Graph(CPU_Graph& hg);
 int comp_int(const void *e1, const void *e2);
 
+// CURSOR - improve print and debug statements for this program
 // MAIN
 int main(int argc, char* argv[])
 {
@@ -54,7 +55,7 @@ int main(int argc, char* argv[])
     }
 
 	string adj_path = string(argv[1]) + argv[2];
-	string ser_path = "./DQC-S0_" + string(argv[2]) + "-" + argv[3] + "-" + argv[4] + "-" + argv[5];
+	string ser_path = "./DQC-S0Z_" + string(argv[2]) + "-" + argv[3] + "-" + argv[4] + "-" + argv[5];
 
     ifstream graph_stream(ser_path, ios::in);
     if (graph_stream.is_open()) {

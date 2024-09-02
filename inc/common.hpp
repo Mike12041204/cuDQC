@@ -49,7 +49,7 @@ using namespace std;
 #define NUMBER_OF_PROCESSESS 4
 #define MAX_MESSAGE 1000000000
 // omp settings
-#define NUMBER_OF_HTHREADS 132
+#define NUMBER_OF_HTHREADS 1
 // must be atleast be 1
 #define HELP_MULTIPLIER 1
 #define HELP_PERCENT 50
@@ -74,8 +74,10 @@ class CPU_Graph
     int number_of_edges;
     uint64_t number_of_lvl2adj;
     // one dimentional arrays of 1hop and 2hop neighbors and the offsets for each vertex
-    int* onehop_neighbors;
-    uint64_t* onehop_offsets;
+    int* out_neighbors;
+    uint64_t* out_offsets;
+    int* in_neighbors;
+    uint64_t* in_offsets;
     int* twohop_neighbors;
     uint64_t* twohop_offsets;
 
