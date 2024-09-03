@@ -60,9 +60,11 @@ struct Vertex
 {
     uint32_t vertexid;
     int8_t label;               // labels: 0 -> candidate, 1 -> member, 2 -> covered vertex, 3 -> cover vertex, 4 -> critical adjacent vertex, -1 -> pruned vertex
-    uint32_t indeg;
-    uint32_t exdeg;
-    uint32_t lvl2adj;
+    uint32_t out_mem_deg;       // outgoing edge count to vertices in member (X) set
+    uint32_t out_can_deg;       // outgoing edge count to vertices in candidate (Ext(X)) set
+    uint32_t in_mem_deg;        // incoming edge count to vertices in member (X) set
+    uint32_t in_can_deg;        // incoming edge count to vertices in candidate (Ext(X)) set
+    uint32_t lvl2adj;           // count of vertices within twohops as defined by Guo paper
 };
 
 // CPU GRAPH / CONSTRUCTOR
@@ -108,7 +110,8 @@ struct CPU_Data
     int* removed_candidates;
     int* remaining_count;
     int* removed_count;
-    int* candidate_indegs;
+    int* candidate_in_mem_degs;
+    int* candidate_out_mem_degs;
 };
 
 // CPU CLIQUES

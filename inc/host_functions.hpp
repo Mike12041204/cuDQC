@@ -3,14 +3,21 @@
 
 #include "./common.hpp"
 
-// --- PRIMARY FUNCITONS ---
+// --- PRIMARY FUNCITONS --- 
 void calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double minimum_degree_ratio);
-void p1_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size, string output);
-void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size, string output);
-void p1_allocate_memory(CPU_Data& hd, CPU_Cliques& hc, CPU_Graph& hg, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size);
-void p2_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph& hg, DS_Sizes& dss, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size);
-void initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_degrees, int minimum_clique_size);
-void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size);
+void p1_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_out_degrees, 
+               int* minimum_in_degrees, double minimum_out_degree_ratio, 
+               double minimum_in_degree_ratio, int minimum_clique_size, string output);
+void p2_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_degrees, 
+               double minimum_degree_ratio, int minimum_clique_size, string output);
+void p1_allocate_memory(CPU_Data& hd, CPU_Cliques& hc, CPU_Graph& hg, DS_Sizes& dss);
+void p2_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, 
+                        CPU_Graph& hg, DS_Sizes& dss, int* minimum_degrees, 
+                        double minimum_degree_ratio, int minimum_clique_size);
+void initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees, 
+                      int* minimum_in_degrees, int minimum_clique_size);
+void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss, 
+                    int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size);
 void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss, string output);
 void dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& temp_results, DS_Sizes& dss);
 void flush_cliques(CPU_Cliques& hc, ofstream& temp_results);
@@ -19,16 +26,38 @@ void p2_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc);
 void serialize_tasks(CPU_Data& hd, DS_Sizes& dss, string output);
 
 // --- SECONDARY EXPANSION FUNCTIONS ---
-int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, int tot_vert, int num_mem, int num_cand, uint64_t start, int* minimum_degrees);
-int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int& tot_vert, int& num_cand, int& num_vert, uint64_t start, int* minimum_degrees, int minimum_clique_size);
-int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int& number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size);
-void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvertexid, int& total_vertices, int& number_of_candidates, int number_of_members);
-bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size);
-bool h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int& min_ext_deg, Vertex* vertices, int number_of_members, int number_of_candidates, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size);
-void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members, int* minimum_degrees);
-int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int& number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg, int* minimum_degrees, double minimum_degree_ratio, int minimum_clique_size);
-void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex* write_vertices, uint64_t* write_offsets, uint64_t* write_count);
-void h_fill_from_buffer(CPU_Data& hd, Vertex* write_vertices, uint64_t* write_offsets, uint64_t* write_count, int threshold);
+int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, 
+                        int tot_vert, int num_mem, int num_cand, uint64_t start, 
+                        int* minimum_degrees);
+int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int& tot_vert, 
+                        int& num_cand, int& num_mem, uint64_t start, int* minimum_out_degrees, 
+                        int* minimum_in_degrees, int minimum_clique_size);
+int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
+                     int& number_of_candidates, int& number_of_members, int& upper_bound, 
+                     int& lower_bound, int& min_ext_deg, int* minimum_out_degrees, 
+                     int* minimum_in_degrees, double minimum_out_degree_ratio, 
+                     double minimum_in_degree_ratio, int minimum_clique_size);
+void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvertexid, 
+                        int& total_vertices, int& number_of_candidates, int number_of_members, 
+                        int min_out_deg, int min_in_deg);
+bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
+                    int& number_of_candidates, int number_of_members, int& upper_bound, 
+                    int& lower_bound, int& min_ext_deg, int* minimum_degrees, 
+                    double minimum_degree_ratio, int minimum_clique_size);
+bool h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int& min_ext_deg, 
+                           Vertex* vertices, int number_of_members, int number_of_candidates, 
+                           int* minimum_degrees, double minimum_degree_ratio, 
+                           int minimum_clique_size);
+void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members, 
+                        int* minimum_degrees);
+int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
+                              int& number_of_candidates, int& number_of_members, int& upper_bound, 
+                              int& lower_bound, int& min_ext_deg, int* minimum_degrees, 
+                              double minimum_degree_ratio, int minimum_clique_size);
+void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex* write_vertices, 
+                      uint64_t* write_offsets, uint64_t* write_count);
+void h_fill_from_buffer(CPU_Data& hd, Vertex* write_vertices, uint64_t* write_offsets, 
+                        uint64_t* write_count, int threshold);
 
 // --- TERTIARY FUNCTIONS ---
 inline int h_comp_vert_Q(const void* a, const void* b)
@@ -115,7 +144,8 @@ inline int h_get_mindeg(int clique_size, int* minimum_degrees, int minimum_cliqu
     else
         return minimum_degrees[clique_size];
 }
-inline bool h_cand_isvalid(Vertex vertex, int clique_size, int upper_bound, int lower_bound, int min_ext_deg, int* minimum_degrees, int minimum_clique_size) 
+inline bool h_cand_isvalid(Vertex vertex, int clique_size, int upper_bound, int lower_bound, 
+                           int min_ext_deg, int* minimum_degrees, int minimum_clique_size) 
 {
     if (vertex.indeg + vertex.exdeg < minimum_degrees[minimum_clique_size])
         return false;
@@ -130,7 +160,8 @@ inline bool h_cand_isvalid(Vertex vertex, int clique_size, int upper_bound, int 
     else
         return true;
 }
-inline bool h_vert_isextendable(Vertex vertex, int clique_size, int upper_bound, int lower_bound, int min_ext_deg, int* minimum_degrees, int minimum_clique_size)
+inline bool h_vert_isextendable(Vertex vertex, int clique_size, int upper_bound, int lower_bound, 
+                                int min_ext_deg, int* minimum_degrees, int minimum_clique_size)
 {
     if (vertex.indeg + vertex.exdeg < minimum_degrees[minimum_clique_size])
         return false;

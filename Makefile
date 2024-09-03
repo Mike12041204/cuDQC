@@ -13,7 +13,7 @@ INCLUDES = -Iinc
 OBJECTS0 = program0.o
 TARGET0 = program0
 
-OBJECTS1 = src/common.o program1.o #src/host_debug.o src/cuTS_MPI.o src/device_kernels.o src/host_functions.o program1.o
+OBJECTS1 = src/common.o src/host_debug.o src/cuTS_MPI.o src/device_kernels.o src/host_functions.o program1.o
 TARGET1 = program1
 
 OBJECTS2 = src/common.o src/host_debug.o src/cuTS_MPI.o src/device_kernels.o src/host_functions.o program2.o
@@ -22,7 +22,7 @@ TARGET2 = program2
 OBJECTS3 = src/common.o src/Quick_rmnonmax.o program3.o
 TARGET3 = program3
 
-all: d2u $(TARGET0) $(TARGET1) #$(TARGET2) $(TARGET3)
+all: d2u $(TARGET0) $(TARGET1) $(TARGET2) $(TARGET3)
 
 .PHONY: d2u
 d2u:
@@ -43,7 +43,7 @@ $(TARGET3): $(OBJECTS3)
 program0.o: program0.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-program1.o: program1.cu inc/common.hpp #inc/host_functions.hpp inc/host_debug.h
+program1.o: program1.cu inc/common.hpp inc/host_functions.hpp inc/host_debug.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
 program2.o: program2.cu inc/common.hpp inc/host_functions.hpp inc/host_debug.h

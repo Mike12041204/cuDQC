@@ -1,36 +1,6 @@
 #include "./inc/common.hpp"
-//#include "./inc/host_functions.hpp"
-//#include "./inc/host_debug.h"
-
-void print_CPU_Graph(CPU_Graph& hg) {
-    cout << endl << " --- (CPU_Graph)host_graph details --- " << endl;
-    cout << endl << "|V|: " << hg.number_of_vertices << " |E|: " << hg.number_of_edges << endl;
-    cout << endl << "Out Offsets:" << endl;
-    for (int i = 0; i <= hg.number_of_vertices; i++) {
-        cout << hg.out_offsets[i] << " ";
-    }
-    cout << endl << "Out Neighbors:" << endl;
-    for (int i = 0; i < hg.number_of_edges; i++) {
-        cout << hg.out_neighbors[i] << " ";
-    }
-    cout << endl << "In Offsets:" << endl;
-    for (int i = 0; i <= hg.number_of_vertices; i++) {
-        cout << hg.in_offsets[i] << " ";
-    }
-    cout << endl << "In Neighbors:" << endl;
-    for (int i = 0; i < hg.number_of_edges; i++) {
-        cout << hg.in_neighbors[i] << " ";
-    }
-    cout << endl << "Twohop Offsets:" << endl;
-    for (uint64_t i = 0; i <= hg.number_of_vertices; i++) {
-        cout << hg.twohop_offsets[i] << " ";
-    }
-    cout << endl << "Twohop Neighbors:" << endl;
-    for (uint64_t i = 0; i < hg.number_of_lvl2adj; i++) {
-        cout << hg.twohop_neighbors[i] << " ";
-    }
-    cout << endl << endl;
-}
+#include "./inc/host_functions.hpp"
+#include "./inc/host_debug.h"
 
 // MAIN
 int main(int argc, char* argv[])
@@ -101,34 +71,37 @@ int main(int argc, char* argv[])
     // GRAPH / MINDEGS
     cout << ">:PROGRAM 1 START" << endl << ">:PRE-PROCESSING" << endl;
     CPU_Graph hg(read_file);
-    read_file.close();
-    // CURSOR - program works up to this point
+    minimum_out_degrees = new int[hg.number_of_vertices + 1];
+    minimum_in_degrees = new int[hg.number_of_vertices + 1];
+    calculate_minimum_degrees(hg, minimum_out_degrees, minimum_out_degree_ratio);
+    calculate_minimum_degrees(hg, minimum_in_degrees, minimum_in_degree_ratio);
+    filename = "DQC-TZ0_" + output;
+    write_file.open(filename);
 
-    // calculate_minimum_degrees(hg, minimum_out_degrees, minimum_in_degrees, minimum_out_degree_ratio, minimum_in_degree_ratio);
-    // filename = "DQC-TZ0_" + output;
-    // write_file.open(filename);
+    // TIME
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+    cout << ">:LOADING TIME: " << duration.count() << " ms" << endl;
 
-    // // TIME
-    // auto stop = chrono::high_resolution_clock::now();
-    // auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
-    // cout << ">:LOADING TIME: " << duration.count() << " ms" << endl;
+    // SEARCH
+    p1_search(hg, write_file, dss, minimum_out_degrees, minimum_in_degrees, minimum_out_degree_ratio, minimum_in_degree_ratio, minimum_clique_size, output);
 
-    // // SEARCH
-    // p1_search(hg, write_file, dss, minimum_degrees, minimum_degree_ratio, minimum_clique_size, output);
+    write_file.close();
 
-    // write_file.close();
+    // DEBUG
+    if (dss.DEBUG_TOGGLE) {
+        print_maxes();
+        output_file << endl;
+    }
+    output_file.close();
 
-    // // DEBUG
-    // if (dss.DEBUG_TOGGLE) {
-    //     print_maxes();
-    //     output_file << endl;
-    // }
-    // output_file.close();
+    delete[] minimum_out_degrees;
+    delete[] minimum_in_degrees;
 
-    // auto stop2 = chrono::high_resolution_clock::now();
-    // auto duration2 = chrono::duration_cast<chrono::milliseconds>(stop2 - start2);
-    // cout << ">:TOTAL TIME: " << duration2.count() << " ms" << endl;
-    // cout << ">:PROGRAM 1 END" << endl;
+    auto stop2 = chrono::high_resolution_clock::now();
+    auto duration2 = chrono::duration_cast<chrono::milliseconds>(stop2 - start2);
+    cout << ">:TOTAL TIME: " << duration2.count() << " ms" << endl;
+    cout << ">:PROGRAM 1 END" << endl;
 
     return 0;
 }
