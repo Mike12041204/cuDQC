@@ -1,6 +1,36 @@
 #include "./inc/common.hpp"
 #include "./inc/host_functions.hpp"
-#include "./inc/host_debug.h"
+//#include "./inc/host_debug.h"
+
+void print_CPU_Graph(CPU_Graph& hg) {
+    cout << endl << " --- (CPU_Graph)host_graph details --- " << endl;
+    cout << endl << "|V|: " << hg.number_of_vertices << " |E|: " << hg.number_of_edges << endl;
+    cout << endl << "Out Offsets:" << endl;
+    for (int i = 0; i <= hg.number_of_vertices; i++) {
+        cout << hg.out_offsets[i] << " ";
+    }
+    cout << endl << "Out Neighbors:" << endl;
+    for (int i = 0; i < hg.number_of_edges; i++) {
+        cout << hg.out_neighbors[i] << " ";
+    }
+    cout << endl << "In Offsets:" << endl;
+    for (int i = 0; i <= hg.number_of_vertices; i++) {
+        cout << hg.in_offsets[i] << " ";
+    }
+    cout << endl << "In Neighbors:" << endl;
+    for (int i = 0; i < hg.number_of_edges; i++) {
+        cout << hg.in_neighbors[i] << " ";
+    }
+    cout << endl << "Twohop Offsets:" << endl;
+    for (uint64_t i = 0; i <= hg.number_of_vertices; i++) {
+        cout << hg.twohop_offsets[i] << " ";
+    }
+    cout << endl << "Twohop Neighbors:" << endl;
+    for (uint64_t i = 0; i < hg.number_of_lvl2adj; i++) {
+        cout << hg.twohop_neighbors[i] << " ";
+    }
+    cout << endl << endl;
+}
 
 // MAIN
 int main(int argc, char* argv[])
@@ -71,6 +101,10 @@ int main(int argc, char* argv[])
     // GRAPH / MINDEGS
     cout << ">:PROGRAM 1 START" << endl << ">:PRE-PROCESSING" << endl;
     CPU_Graph hg(read_file);
+
+    // DEBUG - rm
+    print_CPU_Graph(hg);
+
     minimum_out_degrees = new int[hg.number_of_vertices + 1];
     minimum_in_degrees = new int[hg.number_of_vertices + 1];
     calculate_minimum_degrees(hg, minimum_out_degrees, minimum_out_degree_ratio);
@@ -90,7 +124,7 @@ int main(int argc, char* argv[])
 
     // DEBUG
     if (dss.DEBUG_TOGGLE) {
-        print_maxes();
+        //print_maxes();
         output_file << endl;
     }
     output_file.close();

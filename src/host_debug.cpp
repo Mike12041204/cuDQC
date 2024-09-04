@@ -4,13 +4,21 @@
 void print_CPU_Graph(CPU_Graph& hg) {
     cout << endl << " --- (CPU_Graph)host_graph details --- " << endl;
     cout << endl << "|V|: " << hg.number_of_vertices << " |E|: " << hg.number_of_edges << endl;
-    cout << endl << "Onehop Offsets:" << endl;
-    for (uint64_t i = 0; i <= hg.number_of_vertices; i++) {
-        cout << hg.onehop_offsets[i] << " ";
+    cout << endl << "Out Offsets:" << endl;
+    for (int i = 0; i <= hg.number_of_vertices; i++) {
+        cout << hg.out_offsets[i] << " ";
     }
-    cout << endl << "Onehop Neighbors:" << endl;
-    for (uint64_t i = 0; i < hg.number_of_edges * 2; i++) {
-        cout << hg.onehop_neighbors[i] << " ";
+    cout << endl << "Out Neighbors:" << endl;
+    for (int i = 0; i < hg.number_of_edges; i++) {
+        cout << hg.out_neighbors[i] << " ";
+    }
+    cout << endl << "In Offsets:" << endl;
+    for (int i = 0; i <= hg.number_of_vertices; i++) {
+        cout << hg.in_offsets[i] << " ";
+    }
+    cout << endl << "In Neighbors:" << endl;
+    for (int i = 0; i < hg.number_of_edges; i++) {
+        cout << hg.in_neighbors[i] << " ";
     }
     cout << endl << "Twohop Offsets:" << endl;
     for (uint64_t i = 0; i <= hg.number_of_vertices; i++) {
