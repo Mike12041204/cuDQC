@@ -44,7 +44,6 @@ int h_sort_asce(const void* a, const void* b);
 void print_CPU_Graph(CPU_Graph& hg);
 int comp_int(const void *e1, const void *e2);
 
-// CURSOR - improve print and debug statements for this program
 // MAIN
 int main(int argc, char* argv[])
 {

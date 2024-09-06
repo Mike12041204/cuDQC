@@ -70,6 +70,7 @@ src/Quick_rmnonmax.o: src/Quick_rmnonmax.cpp inc/common.hpp inc/Quick_rmnonmax.h
 src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.hpp inc/cuTS_MPI.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
+# various clean and print shortcuts
 .PHONY: c
 c: ct co
 
@@ -91,3 +92,8 @@ co:
 .PHONY: cp
 cp:
 	rm -f $(TARGET0) $(TARGET1) $(TARGET2) $(TARGET3)
+
+.PHONY: p
+p:
+	cat DQC-O1Z*
+	cat DQC-O10*

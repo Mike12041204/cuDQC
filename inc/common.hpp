@@ -21,6 +21,7 @@
 #include <sm_30_intrinsics.h>
 #include <device_atomic_functions.h>
 #include <mpi.h>
+#include <omp.h>
 //#include <pthread.h>
 using namespace std;
 
@@ -85,6 +86,7 @@ class CPU_Graph
 
     CPU_Graph(ifstream& graph_stream);
     ~CPU_Graph();
+    void GenLevel2NBs();
 };
 
 // CPU DATA
@@ -270,6 +272,20 @@ inline void chkerr(cudaError_t code)
         cout << cudaGetErrorString(code) << endl;
         exit(-1);
     }
+}
+
+inline int comp_int(const void *e1, const void *e2)
+{
+	int n1, n2;
+	n1 = *(int *) e1;
+	n2 = *(int *) e2;
+
+	if (n1>n2)
+		return 1;
+	else if (n1<n2)
+		return -1;
+	else
+		return 0;
 }
 
 #endif // DCUQC_COMMON_H
