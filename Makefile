@@ -10,10 +10,7 @@ NVCCLDFLAGS := -lmpi -Xcompiler "-fopenmp"
 CXXLDFLAGS := -lmpi -fopenmp
 INCLUDES = -Iinc
 
-OBJECTS0 = program0.o
-TARGET0 = program0
-
-OBJECTS1 = src/common.o src/host_functions.o program1.o #src/host_debug.o src/cuTS_MPI.o src/device_kernels.o src/host_functions.o program1.o
+OBJECTS1 = program1.o src/common.o src/host_functions.o #src/device_kernels.o src/cuTS_MPI.o src/host_debug.o
 TARGET1 = program1
 
 OBJECTS2 = src/common.o src/host_debug.o src/cuTS_MPI.o src/device_kernels.o src/host_functions.o program2.o
@@ -28,9 +25,6 @@ all: d2u $(TARGET0) $(TARGET1) #$(TARGET2) $(TARGET3)
 d2u:
 	dos2unix *.sh
 
-$(TARGET0): $(OBJECTS0)
-	$(CXX) $^ -o $@ $(CXXLDFLAGS)
-
 $(TARGET1): $(OBJECTS1)
 	$(NVCC) $^ -o $@ $(NVCCLDFLAGS)
 
@@ -39,9 +33,6 @@ $(TARGET2): $(OBJECTS2)
 
 $(TARGET3): $(OBJECTS3)
 	$(CXX) $^ -o $@ $(CXXLDFLAGS)
-
-program0.o: program0.cpp
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 program1.o: program1.cu inc/common.hpp inc/host_functions.hpp #inc/host_debug.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
