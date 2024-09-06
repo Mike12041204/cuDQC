@@ -13,7 +13,7 @@ MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
 bool global_free_list[NUMBER_OF_PROCESSESS];
 
 CPU_Graph::CPU_Graph(ifstream& graph_stream)
-{ 
+{
     string line;
     istringstream line_stream;
     int vertex;
@@ -36,6 +36,9 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
     out_offsets = new uint64_t[number_of_vertices + 1];
     in_offsets = new uint64_t[number_of_vertices + 1];
 	twohop_offsets = new uint64_t[number_of_vertices + 1];
+
+	out_offsets[0] = 0;
+	in_offsets[0] = 0;
 
     // reset infile
     graph_stream.clear();
@@ -80,6 +83,10 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
     }
 
     GenLevel2NBs();
+
+	delete[] out_nei;
+	delete[] in_nei;
+	delete[] lvl2_nei;
 }
 
 // create 2-hop neighbors

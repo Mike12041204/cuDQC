@@ -22,6 +22,7 @@
 #include <device_atomic_functions.h>
 #include <mpi.h>
 #include <omp.h>
+#include <cassert>
 //#include <pthread.h>
 using namespace std;
 
@@ -50,7 +51,7 @@ using namespace std;
 #define NUMBER_OF_PROCESSESS 4
 #define MAX_MESSAGE 1000000000
 // omp settings
-#define NUMBER_OF_HTHREADS 1
+#define NUMBER_OF_HTHREADS 16
 // must be atleast be 1
 #define HELP_MULTIPLIER 1
 #define HELP_PERCENT 50

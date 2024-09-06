@@ -1,20 +1,6 @@
 #include "../inc/common.hpp"
 #include "../inc/Quick_rmnonmax.h"
 
-int comp_int(const void* e1, const void* e2)
-{
-    int n1, n2;
-    n1 = *(int*)e1;
-    n2 = *(int*)e2;
-
-    if (n1 > n2)
-        return 1;
-    else if (n1 < n2)
-        return -1;
-    else
-        return 0;
-}
-
 extern int gntotal_max_cliques;
 
 struct TREE_NODE
@@ -369,10 +355,8 @@ void OutputMaxSet(TREE_NODE* proot, int nmax_len, const char* szoutput_filename)
     fclose(fp);
 }
 
-void RemoveNonMax(const char* szset_filename, const char* szoutput_filename)
+int RemoveNonMax(const char* szset_filename, const char* szoutput_filename)
 {
-    cout << ">:REMOVING NON-MAXIMAL CLIQUES" << endl;
-
     TREE_NODE* proot;
     int nmax_len;
     struct timeb start, end;
@@ -390,5 +374,5 @@ void RemoveNonMax(const char* szset_filename, const char* szoutput_filename)
     ftime(&end);
 
 
-    printf("--->:NUMBER OF MAXIMAL CLIQUES: %d\n", gntotal_max_cliques);
+    return gntotal_max_cliques;
 }

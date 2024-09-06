@@ -10,43 +10,25 @@ NVCCLDFLAGS := -lmpi -Xcompiler "-fopenmp"
 CXXLDFLAGS := -lmpi -fopenmp
 INCLUDES = -Iinc
 
-OBJECTS1 = program1.o src/common.o src/host_functions.o #src/device_kernels.o src/cuTS_MPI.o src/host_debug.o
-TARGET1 = program1
+OBJECTS = program.o src/common.o src/host_functions.o src/Quick_rmnonmax.o src/host_debug.o #src/device_kernels.o src/cuTS_MPI.o
+TARGET = cuDQC
 
-OBJECTS2 = src/common.o src/host_debug.o src/cuTS_MPI.o src/device_kernels.o src/host_functions.o program2.o
-TARGET2 = program2
-
-OBJECTS3 = src/common.o src/Quick_rmnonmax.o program3.o
-TARGET3 = program3
-
-all: d2u $(TARGET0) $(TARGET1) #$(TARGET2) $(TARGET3)
+all: d2u $(TARGET)
 
 .PHONY: d2u
 d2u:
 	dos2unix *.sh
 
-$(TARGET1): $(OBJECTS1)
+$(TARGET): $(OBJECTS)
 	$(NVCC) $^ -o $@ $(NVCCLDFLAGS)
 
-$(TARGET2): $(OBJECTS2)
-	$(NVCC) $^ -o $@ $(NVCCLDFLAGS)
-
-$(TARGET3): $(OBJECTS3)
-	$(CXX) $^ -o $@ $(CXXLDFLAGS)
-
-program1.o: program1.cu inc/common.hpp inc/host_functions.hpp #inc/host_debug.h
+program.o: program.cu inc/common.hpp inc/host_functions.hpp inc/Quick_rmnonmax.h inc/host_debug.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
-
-program2.o: program2.cu inc/common.hpp inc/host_functions.hpp inc/host_debug.h
-	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
-
-program3.o: program3.cpp inc/common.hpp inc/Quick_rmnonmax.h
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 src/common.o: src/common.cpp inc/common.hpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-src/host_functions.o: src/host_functions.cu inc/common.hpp inc/host_functions.hpp #inc/host_debug.h inc/device_kernels.hpp inc/cuTS_MPI.h
+src/host_functions.o: src/host_functions.cu inc/common.hpp inc/host_functions.hpp inc/host_debug.h #inc/device_kernels.hpp inc/cuTS_MPI.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
 src/host_debug.o: src/host_debug.cpp inc/common.hpp inc/host_debug.h
@@ -66,15 +48,11 @@ src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.hpp inc/cuTS_MPI.h
 c: ct co
 
 .PHONY: cc
-cc: c cs cp
+cc: c cp
 
 .PHONY: ct
 ct:
-	rm -f $(OBJECTS0) $(OBJECTS1) $(OBJECTS2) $(OBJECTS3) DQC-E* DQC-T* DQC-R* DQC-S1*
-
-.PHONY: cs
-cs:
-	rm -f DQC-S0*
+	rm -f $(OBJECTS) DQC-E* DQC-T* DQC-R*
 
 .PHONY: co
 co:
@@ -82,9 +60,12 @@ co:
 
 .PHONY: cp
 cp:
-	rm -f $(TARGET0) $(TARGET1) $(TARGET2) $(TARGET3)
+	rm -f $(TARGET)
 
 .PHONY: p
 p:
-	cat DQC-O1Z*
-	cat DQC-O10*
+	cat DQC-O_*
+
+.PHONY: pp
+pp:
+	cat DQC-O*

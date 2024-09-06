@@ -3,6 +3,6 @@
 
 #include "./common.hpp"
 
-void RemoveNonMax(const char* szset_filename, const char* szoutput_filename);
+int RemoveNonMax(const char* szset_filename, const char* szoutput_filename);
 
 #endif // DCUQC_QUICK_RMNONMAX_H
