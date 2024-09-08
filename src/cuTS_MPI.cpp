@@ -87,16 +87,18 @@ bool take_work(int from, int rank, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBuf
         mpi_isend_all(rank, "t");
 
         // define the Vertex structure
-        int blocklengths[5] = {1, 1, 1, 1, 1};
-        MPI_Aint offsets[5];
+        int blocklengths[7] = {1, 1, 1, 1, 1, 1, 1};
+        MPI_Aint offsets[7];
         offsets[0] = offsetof(Vertex, vertexid);
         offsets[1] = offsetof(Vertex, label);
-        offsets[2] = offsetof(Vertex, indeg);
-        offsets[3] = offsetof(Vertex, exdeg);
+        offsets[2] = offsetof(Vertex, out_mem_deg);
+        offsets[2] = offsetof(Vertex, out_can_deg);
+        offsets[2] = offsetof(Vertex, in_mem_deg);
+        offsets[2] = offsetof(Vertex, in_can_deg);
         offsets[4] = offsetof(Vertex, lvl2adj);
-        MPI_Datatype types[5] = {MPI_UINT32_T, MPI_INT8_T, MPI_UINT32_T, MPI_UINT32_T, MPI_UINT32_T};
+        MPI_Datatype types[7] = {MPI_UINT32_T, MPI_INT8_T, MPI_UINT32_T, MPI_UINT32_T, MPI_UINT32_T, MPI_UINT32_T, MPI_UINT32_T};
         MPI_Datatype dt_vertex;
-        MPI_Type_create_struct(5, blocklengths, offsets, types, &dt_vertex);
+        MPI_Type_create_struct(7, blocklengths, offsets, types, &dt_vertex);
         MPI_Type_commit(&dt_vertex);
 
         // recieve sizes
@@ -212,17 +214,19 @@ void give_work(int rank, int taker, uint64_t* mpiSizeBuffer, Vertex* mpiVertexBu
     // prepare extra work to be sent
     encode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer, buffer_count, dss);
 
-    // Define the Vertex structure
-    int blocklengths[5] = {1, 1, 1, 1, 1};
-    MPI_Aint offsets[5];
+    // define the Vertex structure
+    int blocklengths[7] = {1, 1, 1, 1, 1, 1, 1};
+    MPI_Aint offsets[7];
     offsets[0] = offsetof(Vertex, vertexid);
     offsets[1] = offsetof(Vertex, label);
-    offsets[2] = offsetof(Vertex, indeg);
-    offsets[3] = offsetof(Vertex, exdeg);
+    offsets[2] = offsetof(Vertex, out_mem_deg);
+    offsets[2] = offsetof(Vertex, out_can_deg);
+    offsets[2] = offsetof(Vertex, in_mem_deg);
+    offsets[2] = offsetof(Vertex, in_can_deg);
     offsets[4] = offsetof(Vertex, lvl2adj);
-    MPI_Datatype types[5] = {MPI_UINT32_T, MPI_INT8_T, MPI_UINT32_T, MPI_UINT32_T, MPI_UINT32_T};
+    MPI_Datatype types[7] = {MPI_UINT32_T, MPI_INT8_T, MPI_UINT32_T, MPI_UINT32_T, MPI_UINT32_T, MPI_UINT32_T, MPI_UINT32_T};
     MPI_Datatype dt_vertex;
-    MPI_Type_create_struct(5, blocklengths, offsets, types, &dt_vertex);
+    MPI_Type_create_struct(7, blocklengths, offsets, types, &dt_vertex);
     MPI_Type_commit(&dt_vertex);
 
     // send sizes
@@ -351,7 +355,7 @@ void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVerte
     mpiSizeBuffer[0] = count;
 
     // DEBUG
-    if(dss.debug_toggle){
+    if(dss.DEBUG_TOGGLE){
         if(count + 2 > MAX_MESSAGE){
             cout << "MESSAGE SIZE ERROR" << endl;
         }
@@ -367,7 +371,7 @@ void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVerte
     }
 
     // DEBUG
-    if(dss.debug_toggle){
+    if(dss.DEBUG_TOGGLE){
         if(mpiSizeBuffer[count + 1] > MAX_MESSAGE){
             cout << "MESSAGE SIZE ERROR" << endl;
         }

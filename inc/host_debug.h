@@ -4,6 +4,7 @@
 #include "./common.hpp"
 
 bool print_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss);
+bool print_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss);
 void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc);
 void initialize_maxes();
 void print_maxes();
@@ -17,7 +18,6 @@ void print_maxes();
 // void print_CPU_Cliques(CPU_Cliques& hc);
 // void print_vertices(Vertex* vertices, int size);
 // bool print_Data_Sizes_Every(GPU_Data& h_dd, int every, DS_Sizes& dss);
-// bool print_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss);
 // void print_All_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss);
 // bool print_Warp_Data_Sizes_Every(GPU_Data& h_dd, int every, DS_Sizes& dss);
 // void print_All_Warp_Data_Sizes_Every(GPU_Data& h_dd, int every, DS_Sizes& dss);

@@ -19,7 +19,6 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
     int vertex;
     vector<int>* out_nei;
     vector<int>* in_nei;
-    vector<int>* lvl2_nei;
     int current_line;
     int out_size;
     int in_size;
@@ -32,7 +31,6 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
     
     out_nei = new vector<int>[number_of_vertices];
     in_nei = new vector<int>[number_of_vertices];
-    lvl2_nei = new vector<int>[number_of_vertices];
     out_offsets = new uint64_t[number_of_vertices + 1];
     in_offsets = new uint64_t[number_of_vertices + 1];
 	twohop_offsets = new uint64_t[number_of_vertices + 1];
@@ -60,6 +58,13 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
         current_line++;
     }
 
+	// sort vectors in ascending manner
+	for(int i = 0; i < number_of_vertices; i++){
+		sort(out_nei[i].begin(), out_nei[i].end());
+		sort(in_nei[i].begin(), in_nei[i].end());
+	}
+
+	// write to CSR arrays
     out_neighbors = new int[number_of_edges];
     in_neighbors = new int[number_of_edges];
 
@@ -86,10 +91,10 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
 
 	delete[] out_nei;
 	delete[] in_nei;
-	delete[] lvl2_nei;
 }
 
 // create 2-hop neighbors
+// TODO - we do not need both nb list and lvl2adj, unsure
 void CPU_Graph::GenLevel2NBs()
 {
 	// each thread has arrays to work with
@@ -479,6 +484,7 @@ void CPU_Graph::GenLevel2NBs()
 		delete []set_in_single[i];
 		delete []temp_array[i];
 		delete []temp_array2[i];
+		delete[] mpplvl2_nbs[i];
 	}
 	delete []pbflags;
 	delete []pnb_list;
@@ -486,6 +492,7 @@ void CPU_Graph::GenLevel2NBs()
 	delete []set_in_single;
 	delete []temp_array;
 	delete []temp_array2;
+	delete[] mpplvl2_nbs;
 }
 
 CPU_Graph::~CPU_Graph() 

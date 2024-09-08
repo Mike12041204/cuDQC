@@ -54,6 +54,78 @@ bool print_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
     return false;
 }
 
+// returns true if warp buffer was too small causing error
+bool print_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
+{
+    uint64_t* tasks_counts = new uint64_t[NUMBER_OF_WARPS];
+    uint64_t* TASKS_SIZEs = new uint64_t[NUMBER_OF_WARPS];
+    int tasks_tcount = 0;
+    int tasks_tsize = 0;
+    int tasks_mcount = 0;
+    int tasks_msize = 0;
+    uint64_t* cliques_counts = new uint64_t[NUMBER_OF_WARPS];
+    uint64_t* CLIQUES_SIZEs = new uint64_t[NUMBER_OF_WARPS];
+    int cliques_tcount = 0;
+    int cliques_tsize = 0;
+    int cliques_mcount = 0;
+    int cliques_msize = 0;
+
+    chkerr(cudaMemcpy(tasks_counts, h_dd.wtasks_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(cliques_counts, h_dd.wcliques_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
+    for (int i = 0; i < NUMBER_OF_WARPS; i++) {
+        chkerr(cudaMemcpy(TASKS_SIZEs + i, h_dd.wtasks_offset + (i * dss.WTASKS_OFFSET_SIZE) + tasks_counts[i], sizeof(uint64_t), cudaMemcpyDeviceToHost));
+        chkerr(cudaMemcpy(CLIQUES_SIZEs + i, h_dd.wcliques_offset + (i * dss.WCLIQUES_OFFSET_SIZE) + cliques_counts[i], sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    }
+
+    for (int i = 0; i < NUMBER_OF_WARPS; i++) {
+        tasks_tcount += tasks_counts[i];
+        if (tasks_counts[i] > tasks_mcount) {
+            tasks_mcount = tasks_counts[i];
+        }
+        tasks_tsize += TASKS_SIZEs[i];
+        if (TASKS_SIZEs[i] > tasks_msize) {
+            tasks_msize = TASKS_SIZEs[i];
+        }
+        cliques_tcount += cliques_counts[i];
+        if (cliques_counts[i] > cliques_mcount) {
+            cliques_mcount = cliques_counts[i];
+        }
+        cliques_tsize += CLIQUES_SIZEs[i];
+        if (CLIQUES_SIZEs[i] > cliques_msize) {
+            cliques_msize = CLIQUES_SIZEs[i];
+        }
+    }
+
+    // DEBUG - if you need total sizes back you can uncomment this line, but they dont decide ds sizes so they arent needed in most cases
+    //output_file << "WTasks( TC: " << tasks_tcount << " TS: " << tasks_tsize << " MC: " << tasks_mcount << " MS: " << tasks_msize << ") WCliques ( TC: " << cliques_tcount << " TS: " << cliques_tsize << " MC: " << cliques_mcount << " MS: " << cliques_msize << ")" << endl;
+    output_file << "T: " << tasks_tcount << "(" << tasks_mcount << ") " << tasks_tsize << "(" << tasks_msize << ") C: " << cliques_tcount << "(" << cliques_mcount << ") " << cliques_tsize << "("<< cliques_msize << ")" << endl;
+
+    if (tasks_mcount > wto) {
+        wto = tasks_mcount;
+    }
+    if (tasks_msize > wts) {
+        wts = tasks_msize;
+    }
+    if (cliques_mcount > wco) {
+        wco = cliques_mcount;
+    }
+    if (cliques_msize > wcs) {
+        wcs = cliques_msize;
+    }
+
+    if (tasks_mcount > dss.WTASKS_OFFSET_SIZE || tasks_msize > dss.WTASKS_SIZE || cliques_mcount > dss.WCLIQUES_OFFSET_SIZE || cliques_msize > dss.WCLIQUES_SIZE) {
+        output_file << "!!! WARP STRUCTURE SIZE ERROR !!!" << endl;
+        return true;
+    }
+
+    delete tasks_counts;
+    delete TASKS_SIZEs;
+    delete cliques_counts;
+    delete CLIQUES_SIZEs;
+
+    return false;
+}
+
 void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc)
 {
     output_file << "L: " << (*hd.current_level) << " T1: " << (*hd.tasks1_count) << " " << (*(hd.tasks1_offset + (*hd.tasks1_count))) << " T2: " << (*hd.tasks2_count) << " " << 
@@ -355,78 +427,6 @@ void print_maxes()
 //     delete buffer_count;
 //     delete buffer_offset;
 //     delete buffer_vertices;
-// }
-
-// // returns true if warp buffer was too small causing error
-// bool print_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
-// {
-//     uint64_t* tasks_counts = new uint64_t[NUMBER_OF_WARPS];
-//     uint64_t* TASKS_SIZEs = new uint64_t[NUMBER_OF_WARPS];
-//     int tasks_tcount = 0;
-//     int tasks_tsize = 0;
-//     int tasks_mcount = 0;
-//     int tasks_msize = 0;
-//     uint64_t* cliques_counts = new uint64_t[NUMBER_OF_WARPS];
-//     uint64_t* CLIQUES_SIZEs = new uint64_t[NUMBER_OF_WARPS];
-//     int cliques_tcount = 0;
-//     int cliques_tsize = 0;
-//     int cliques_mcount = 0;
-//     int cliques_msize = 0;
-
-//     chkerr(cudaMemcpy(tasks_counts, h_dd.wtasks_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
-//     chkerr(cudaMemcpy(cliques_counts, h_dd.wcliques_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
-//     for (int i = 0; i < NUMBER_OF_WARPS; i++) {
-//         chkerr(cudaMemcpy(TASKS_SIZEs + i, h_dd.wtasks_offset + (i * dss.WTASKS_OFFSET_SIZE) + tasks_counts[i], sizeof(uint64_t), cudaMemcpyDeviceToHost));
-//         chkerr(cudaMemcpy(CLIQUES_SIZEs + i, h_dd.wcliques_offset + (i * dss.WCLIQUES_OFFSET_SIZE) + cliques_counts[i], sizeof(uint64_t), cudaMemcpyDeviceToHost));
-//     }
-
-//     for (int i = 0; i < NUMBER_OF_WARPS; i++) {
-//         tasks_tcount += tasks_counts[i];
-//         if (tasks_counts[i] > tasks_mcount) {
-//             tasks_mcount = tasks_counts[i];
-//         }
-//         tasks_tsize += TASKS_SIZEs[i];
-//         if (TASKS_SIZEs[i] > tasks_msize) {
-//             tasks_msize = TASKS_SIZEs[i];
-//         }
-//         cliques_tcount += cliques_counts[i];
-//         if (cliques_counts[i] > cliques_mcount) {
-//             cliques_mcount = cliques_counts[i];
-//         }
-//         cliques_tsize += CLIQUES_SIZEs[i];
-//         if (CLIQUES_SIZEs[i] > cliques_msize) {
-//             cliques_msize = CLIQUES_SIZEs[i];
-//         }
-//     }
-
-//     // DEBUG - if you need total sizes back you can uncomment this line, but they dont decide ds sizes so they arent needed in most cases
-//     //output_file << "WTasks( TC: " << tasks_tcount << " TS: " << tasks_tsize << " MC: " << tasks_mcount << " MS: " << tasks_msize << ") WCliques ( TC: " << cliques_tcount << " TS: " << cliques_tsize << " MC: " << cliques_mcount << " MS: " << cliques_msize << ")" << endl;
-//     output_file << "T: " << tasks_tcount << "(" << tasks_mcount << ") " << tasks_tsize << "(" << tasks_msize << ") C: " << cliques_tcount << "(" << cliques_mcount << ") " << cliques_tsize << "("<< cliques_msize << ")" << endl;
-
-//     if (tasks_mcount > wto) {
-//         wto = tasks_mcount;
-//     }
-//     if (tasks_msize > wts) {
-//         wts = tasks_msize;
-//     }
-//     if (cliques_mcount > wco) {
-//         wco = cliques_mcount;
-//     }
-//     if (cliques_msize > wcs) {
-//         wcs = cliques_msize;
-//     }
-
-//     if (tasks_mcount > dss.WTASKS_OFFSET_SIZE || tasks_msize > dss.WTASKS_SIZE || cliques_mcount > dss.WCLIQUES_OFFSET_SIZE || cliques_msize > dss.WCLIQUES_SIZE) {
-//         output_file << "!!! WARP STRUCTURE SIZE ERROR !!!" << endl;
-//         return true;
-//     }
-
-//     delete tasks_counts;
-//     delete TASKS_SIZEs;
-//     delete cliques_counts;
-//     delete CLIQUES_SIZEs;
-
-//     return false;
 // }
 
 // void print_All_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
