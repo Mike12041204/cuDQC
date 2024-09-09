@@ -9,14 +9,14 @@ __global__ void d_expand_level(GPU_Data* dd)
     int num_mem;                    // helper variables, not passed through to any methods
     int index;
 
-    // --- CURRENT LEVEL ---
-
     // reset warp tasks and cliques counts
     if (LANE_IDX == 0) {
         dd->wtasks_count[WARP_IDX] = 0;
         dd->wcliques_count[WARP_IDX] = 0;
     }
     __syncwarp();
+
+    // --- CURRENT LEVEL ---
 
     // initialize i for each warp
     int i = WARP_IDX;
@@ -58,7 +58,7 @@ __global__ void d_expand_level(GPU_Data* dd)
         }
         __syncwarp();
 
-        // sets success to false if lookahead works
+        // sets success to false if lookahead fails
         d_lookahead_pruning(dd, wd, ld);
         
         if (wd.success[WIB_IDX]) {
@@ -71,6 +71,7 @@ __global__ void d_expand_level(GPU_Data* dd)
         }
 
         // --- NEXT LEVEL ---
+
         for (int j = 0; j < wd.expansions[WIB_IDX]; j++)
         {
 
@@ -81,7 +82,7 @@ __global__ void d_expand_level(GPU_Data* dd)
                 }
                 __syncwarp();
 
-                // set success to false is failed vertex found 
+                // sets success to false is failed vertex found 
                 d_remove_one_vertex(dd, wd, ld);
 
                 if (!wd.success[WIB_IDX]) {
@@ -130,6 +131,7 @@ __global__ void d_expand_level(GPU_Data* dd)
             // if failed found check for clique and continue on to the next iteration
             if (!wd.success[WIB_IDX]) {
                 d_check_for_clique(dd, wd, ld);
+                
                 continue;
             }
 
@@ -324,17 +326,19 @@ __global__ void d_fill_from_buffer(GPU_Data* dd, uint64_t* buffer_count)
 // --- SECONDARY EXPANSION KERNELS ---
 // DQC - implement, also set success to false is lookahead works else true
 // TODO - make a write clique method
+// sets success to false if lookahead fails
 __device__ void d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
+    // DQC - when method is implemented to return properly this can be removed
+    if (LANE_IDX == 0) {
+        wd.success[WIB_IDX] = false;
+    }
+
     // int pvertexid;
     // int phelper1;
     // int phelper2;
     // uint64_t start_write;
 
-    // DQC - when method is implemented to return properly this can be removed
-    if (LANE_IDX == 0) {
-        wd.success[WIB_IDX] = false;
-    }
     __syncwarp();
 
     // // check if members meet degree requirement, dont need to check 2hop adj as diameter pruning guarentees all members will be within 2hops of eveything
@@ -543,7 +547,7 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
 // sets success as 2 if critical fail, 1 if failed found or invalid bound, 0 otherwise
 // DQC - implement
-__device__ int d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
+__device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
     // int phelper1;                   // intersection
     // int number_of_crit_adj;         // pruning
@@ -1508,27 +1512,27 @@ __device__ void d_oe_sort_int(int* target, int size, int (*func)(int, int))
 }
 
 // --- DEBUG KERNELS ---
-// __device__ void d_print_vertices(Vertex* vertices, int size)
-// {
-//     printf("\nOffsets:\n0 %i\nVertex:\n", size);
-//     for (int i = 0; i < size; i++) {
-//         printf("%i ", vertices[i].vertexid);
-//     }
-//     printf("\nLabel:\n");
-//     for (int i = 0; i < size; i++) {
-//         printf("%i ", vertices[i].label);
-//     }
-//     printf("\nIndeg:\n");
-//     for (int i = 0; i < size; i++) {
-//         printf("%i ", vertices[i].indeg);
-//     }
-//     printf("\nExdeg:\n");
-//     for (int i = 0; i < size; i++) {
-//         printf("%i ", vertices[i].exdeg);
-//     }
-//     printf("\nLvl2adj:\n");
-//     for (int i = 0; i < size; i++) {
-//         printf("%i ", vertices[i].lvl2adj);
-//     }
-//     printf("\n");
-// }
+__device__ void d_print_vertices(Vertex* vertices, int size)
+{
+    // printf("\nOffsets:\n0 %i\nVertex:\n", size);
+    // for (int i = 0; i < size; i++) {
+    //     printf("%i ", vertices[i].vertexid);
+    // }
+    // printf("\nLabel:\n");
+    // for (int i = 0; i < size; i++) {
+    //     printf("%i ", vertices[i].label);
+    // }
+    // printf("\nIndeg:\n");
+    // for (int i = 0; i < size; i++) {
+    //     printf("%i ", vertices[i].indeg);
+    // }
+    // printf("\nExdeg:\n");
+    // for (int i = 0; i < size; i++) {
+    //     printf("%i ", vertices[i].exdeg);
+    // }
+    // printf("\nLvl2adj:\n");
+    // for (int i = 0; i < size; i++) {
+    //     printf("%i ", vertices[i].lvl2adj);
+    // }
+    // printf("\n");
+}

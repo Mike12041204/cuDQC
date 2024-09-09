@@ -24,35 +24,37 @@ void h_flush_cliques(CPU_Cliques& hc, ofstream& temp_results);
 void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc);
 
 // --- SECONDARY EXPANSION FUNCTIONS ---
-int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, 
+void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, 
                         int tot_vert, int num_mem, int num_cand, uint64_t start, 
-                        int* minimum_degrees);
-int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int& tot_vert, 
+                        int* minimum_out_degrees, int* minimum_in_degrees, int& success);
+void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int& tot_vert, 
                         int& num_cand, int& num_mem, uint64_t start, int* minimum_out_degrees, 
-                        int* minimum_in_degrees, int minimum_clique_size);
-int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
+                        int* minimum_in_degrees, int minimum_clique_size, int& success);
+void h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
                      int& number_of_candidates, int& number_of_members, int& upper_bound, 
                      int& lower_bound, int& min_ext_deg, int* minimum_out_degrees, 
                      int* minimum_in_degrees, double minimum_out_degree_ratio, 
-                     double minimum_in_degree_ratio, int minimum_clique_size);
+                     double minimum_in_degree_ratio, int minimum_clique_size, int& success);
 void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvertexid, 
                         int& total_vertices, int& number_of_candidates, int number_of_members, 
                         int min_out_deg, int min_in_deg);
-bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
+void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
                     int& number_of_candidates, int number_of_members, int& upper_bound, 
                     int& lower_bound, int& min_ext_deg, int* minimum_out_degrees, 
                     int* minimum_in_degrees, double minimum_out_degree_ratio, 
-                    double minimum_in_degree_ratio, int minimum_clique_size);
-bool h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int& min_ext_deg, 
+                    double minimum_in_degree_ratio, int minimum_clique_size, int& success);
+void h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int& min_ext_deg, 
                            Vertex* vertices, int number_of_members, int number_of_candidates, 
                            int* minimum_degrees, double minimum_degree_ratio, 
-                           int minimum_clique_size);
+                           int minimum_clique_size, int& success);
 void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members, 
-                        int* minimum_out_degrees, int* minimum_in_degrees);
-int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
+                        int* minimum_out_degrees, int* minimum_in_degrees, int minimum_clique_size);
+void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
                               int& number_of_candidates, int& number_of_members, int& upper_bound, 
-                              int& lower_bound, int& min_ext_deg, int* minimum_degrees, 
-                              double minimum_degree_ratio, int minimum_clique_size);
+                              int& lower_bound, int& min_ext_deg, int* minimum_out_degrees, 
+                              int* minimum_in_degrees, double minimum_out_degree_ratio, 
+                              double minimum_in_degree_ratio, int minimum_clique_size, 
+                              int& success);
 void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex* write_vertices, 
                       uint64_t* write_offsets, uint64_t* write_count);
 void h_fill_from_buffer(CPU_Data& hd, int threshold);
