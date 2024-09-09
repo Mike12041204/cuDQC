@@ -3,9 +3,9 @@
 
 #include "./common.hpp"
 
-bool print_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss);
-bool print_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss);
-void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc);
+bool print_D_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss);
+bool print_D_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss);
+void print_H_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc);
 void initialize_maxes();
 void print_maxes();
 // void print_CPU_Data(CPU_Data& hd);

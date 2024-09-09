@@ -1,7 +1,7 @@
 #include "../inc/common.hpp"
 #include "../inc/host_debug.h"
 
-bool print_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
+bool print_D_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
 {
     uint64_t* current_level = new uint64_t;
     uint64_t* tasks1_count = new uint64_t;
@@ -55,7 +55,7 @@ bool print_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
 }
 
 // returns true if warp buffer was too small causing error
-bool print_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
+bool print_D_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
 {
     uint64_t* tasks_counts = new uint64_t[NUMBER_OF_WARPS];
     uint64_t* TASKS_SIZEs = new uint64_t[NUMBER_OF_WARPS];
@@ -126,7 +126,7 @@ bool print_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
     return false;
 }
 
-void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc)
+void print_H_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc)
 {
     output_file << "L: " << (*hd.current_level) << " T1: " << (*hd.tasks1_count) << " " << (*(hd.tasks1_offset + (*hd.tasks1_count))) << " T2: " << (*hd.tasks2_count) << " " << 
         (*(hd.tasks2_offset + (*hd.tasks2_count))) << " B: " << (*hd.buffer_count) << " " << (*(hd.buffer_offset + (*hd.buffer_count))) << " C: " << 

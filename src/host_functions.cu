@@ -69,7 +69,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
             return;
         }
         output_file << endl << "CPU START" << endl;
-        h_print_Data_Sizes(hd, hc);
+        print_H_Data_Sizes(hd, hc);
     }
 
     // CPU EXPANSION
@@ -88,7 +88,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
 
         // DEBUG
         if (dss.DEBUG_TOGGLE) {
-            h_print_Data_Sizes(hd, hc);
+            print_H_Data_Sizes(hd, hc);
         }
     }
 
@@ -129,7 +129,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
             // DEBUG
             if (dss.DEBUG_TOGGLE) {
                 output_file << "RECIEVING WORK FROM PROCESS " << from << endl;
-                print_Data_Sizes(h_dd, dss);
+                print_D_Data_Sizes(h_dd, dss);
             }
         }
 
@@ -143,7 +143,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
 
             // DEBUG
             if (dss.DEBUG_TOGGLE) {
-                print_Warp_Data_Sizes(h_dd, dss);
+                print_D_Warp_Data_Sizes(h_dd, dss);
             }
 
             // consolidate all the warp tasks/cliques buffers into the next global tasks array, buffer, and cliques
@@ -168,7 +168,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
 
             // DEBUG
             if (dss.DEBUG_TOGGLE) {
-                print_Data_Sizes(h_dd, dss);
+                print_D_Data_Sizes(h_dd, dss);
             }
 
             if(*buffer_count > HELP_THRESHOLD){
@@ -182,7 +182,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
                     // DEBUG
                     if (dss.DEBUG_TOGGLE) {
                         output_file << "SENDING WORK TO PROCESS " << taker << endl;
-                        print_Data_Sizes(h_dd, dss);
+                        print_D_Data_Sizes(h_dd, dss);
                     }
                 }
             }
@@ -833,7 +833,7 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss, string output)
     // DEBUG
     if(dss.DEBUG_TOGGLE){
         output_file << "GPU START" << endl;
-        print_Data_Sizes(h_dd, dss);
+        print_D_Data_Sizes(h_dd, dss);
     }
 }
 
