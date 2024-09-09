@@ -151,7 +151,7 @@ inline int h_get_mindeg(int clique_size, int* minimum_degrees, int minimum_cliqu
     else
         return minimum_degrees[clique_size];
 }
-// TODO - update for bounds
+// DQC - update for bounds
 inline bool h_cand_isvalid(Vertex vertex, int clique_size, int upper_bound, int lower_bound, 
                            int min_ext_deg, int* minimum_out_degrees, int* minimum_in_degrees, 
                            int minimum_clique_size) 
@@ -171,7 +171,7 @@ inline bool h_cand_isvalid(Vertex vertex, int clique_size, int upper_bound, int 
     else
         return true;
 }
-// TODO - update for bounds
+// DQC - update for bounds
 inline bool h_vert_isextendable(Vertex vertex, int clique_size, int upper_bound, int lower_bound, 
                                 int min_ext_deg, int* minimum_out_degrees, int* minimum_in_degrees, 
                                 int minimum_clique_size)

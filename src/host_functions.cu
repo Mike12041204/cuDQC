@@ -227,7 +227,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
                     *buffer_count -= (*buffer_count > dss.EXPAND_THRESHOLD) ? dss.EXPAND_THRESHOLD 
                     + ((*buffer_count - dss.EXPAND_THRESHOLD) * ((100 - HELP_PERCENT) / 100.0)) : 
                     *buffer_count;
-                    
+
                     chkerr(cudaMemcpy(h_dd.buffer_count, buffer_count, sizeof(uint64_t), 
                                       cudaMemcpyHostToDevice));
 
@@ -1002,7 +1002,7 @@ void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
 
 // --- SECONDARY EXPANSION FUNCTIONS ---
 
-// TODO - implement
+// DQC - implement
 // returns 1 if lookahead was a success, else 0
 int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, 
                         int tot_vert, int num_mem, int num_cand, uint64_t start, 
@@ -1225,7 +1225,7 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
 
 // returns 2 if too many vertices pruned or a critical vertex fail, returns 1 if failed found or 
 // invalid bounds, else 0
-// TODO - implement
+// DQC - implement
 int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
                               int& number_of_candidates, int& number_of_members, int& upper_bound, 
                               int& lower_bound, int& min_ext_deg, int* minimum_degrees, 
@@ -1437,7 +1437,7 @@ void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvert
     }
 }
 
-// TODO - update for bounds
+// DQC - update for bounds
 // returns true is invalid bounds calculated or a failed vertex was found, else false
 bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
                     int& number_of_candidates, int number_of_members, int& upper_bound, 
@@ -1623,7 +1623,7 @@ bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
     return false;
 }
 
-// TODO - implement
+// DQC - implement
 bool h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int& min_ext_deg, 
                            Vertex* vertices, int number_of_members, int number_of_candidates, 
                            int* minimum_degrees, double minimum_degree_ratio, 
