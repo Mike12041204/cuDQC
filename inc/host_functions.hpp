@@ -55,8 +55,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
                               double minimum_degree_ratio, int minimum_clique_size);
 void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex* write_vertices, 
                       uint64_t* write_offsets, uint64_t* write_count);
-void h_fill_from_buffer(CPU_Data& hd, Vertex* write_vertices, uint64_t* write_offsets, 
-                        uint64_t* write_count, int threshold);
+void h_fill_from_buffer(CPU_Data& hd, int threshold);
 
 // --- TERTIARY FUNCTIONS ---
 inline int h_comp_vert_Q(const void* a, const void* b)

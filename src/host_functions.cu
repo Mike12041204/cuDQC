@@ -31,6 +31,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     uint64_t* tasks_count;          // unified memory for tasks count
     uint64_t* buffer_count;         // unified memory for buffer count
     uint64_t* cliques_count;        // unified memory for cliques count
+    uint64_t* write_count;
 
     // TIME
     auto start = chrono::high_resolution_clock::now();
@@ -77,9 +78,40 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     // cpu expand must be called atleast one time to handle first round cover pruning as the gpu 
     // code cannot do this
     for (int i = 0; i < CPU_LEVELS + 1 && !(*hd.maximal_expansion); i++) {
+        
+        *hd.maximal_expansion = true;
+
+        // EXPAND LEVEL
         // will set maximal expansion false if no work generated
         h_expand_level(hg, hd, hc, dss, minimum_out_degrees, minimum_in_degrees, 
                        minimum_out_degree_ratio, minimum_in_degree_ratio, minimum_clique_size);
+
+        // FILL TASKS FROM BUFFER
+        // determine the write location for this level
+        if ((*hd.current_level) % 2 == 0) {
+            write_count = hd.tasks2_count;
+        }
+        else {
+            write_count = hd.tasks1_count;
+        }
+
+        // if last CPU round copy enough tasks for GPU expansion threshold
+        if ((*hd.current_level) == CPU_LEVELS && CPU_EXPAND_THRESHOLD < dss.EXPAND_THRESHOLD && 
+            (*hd.buffer_count) > 0) {
+
+            h_fill_from_buffer(hd, dss.EXPAND_THRESHOLD);
+        }
+        // if not enough generated to fully populate fill from buffer to cpu expand threshold
+        else if (*write_count < CPU_EXPAND_THRESHOLD && (*hd.buffer_count) > 0){
+            h_fill_from_buffer(hd, CPU_EXPAND_THRESHOLD);
+        }
+
+        // determine whether maximal expansion has been accomplished, variables changed in kernel
+        if (*write_count > 0) {
+            *hd.maximal_expansion = false;
+        }
+
+        (*hd.current_level)++;
     
         // if cliques is more than threshold dump
         if (hc.cliques_offset[(*hc.cliques_count)] > dss.CLIQUES_DUMP) {
@@ -135,6 +167,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
 
         // loop while not all work has been completed
         while (!(*hd.maximal_expansion)){
+            
             *hd.maximal_expansion = true;
 
             // expand all tasks in 'tasks' array, each warp will write to their respective warp tasks buffer in global memory
@@ -150,15 +183,15 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             d_transfer_buffers<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count, cliques_count);
             cudaDeviceSynchronize();
 
-            // determine whether maximal expansion has been accomplished, variables changed in kernel
-            if (*tasks_count > 0 || *buffer_count > 0) {
-                (*(hd.maximal_expansion)) = false;
-            }
-
             if (*tasks_count < dss.EXPAND_THRESHOLD && *buffer_count > 0) {
                 // if not enough tasks were generated when expanding the previous level to fill the next tasks array the program will attempt to fill the tasks array by popping tasks from the buffer
                 d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, buffer_count);
                 cudaDeviceSynchronize();
+            }
+
+            // determine whether maximal expansion has been accomplished, variables changed in kernel
+            if (*tasks_count > 0) {
+                *hd.maximal_expansion = false;
             }
 
             // determine whether cliques has exceeded defined threshold, if so dump them to a file, variables changed in kernel
@@ -622,11 +655,9 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
         write_offsets = hd.tasks1_offset;
         write_vertices = hd.tasks1_vertices;
     }
+
     *write_count = 0;
     write_offsets[0] = 0;
-
-    // set to false later if task is generated indicating non-maximal expansion
-    (*hd.maximal_expansion) = true;
 
     // CURRENT LEVEL
     for (int i = 0; i < *read_count; i++)
@@ -745,20 +776,6 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
             delete vertices;
         }
     }
-
-    // FILL TASKS FROM BUFFER
-    // if last CPU round copy enough tasks for GPU expansion
-    if ((*hd.current_level) == CPU_LEVELS && CPU_EXPAND_THRESHOLD < dss.EXPAND_THRESHOLD && 
-        (*hd.buffer_count) > 0) {
-
-        h_fill_from_buffer(hd, write_vertices, write_offsets, write_count, dss.EXPAND_THRESHOLD);
-    }
-    // if not enough generated to fully populate fill from buffer
-    if (*write_count < CPU_EXPAND_THRESHOLD && (*hd.buffer_count) > 0){
-        h_fill_from_buffer(hd, write_vertices, write_offsets, write_count, CPU_EXPAND_THRESHOLD);
-    }
-
-    (*hd.current_level)++;
 }
 
 // distributes work amongst processes in strided manner
@@ -771,15 +788,15 @@ void h_move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss, string output)
     uint64_t count;
 
     // get proper read location for level
-    if(CPU_LEVELS % 2 == 1){
-        tasks_count = hd.tasks1_count;
-        tasks_offset = hd.tasks1_offset;
-        tasks_vertices = hd.tasks1_vertices;
-    }
-    else{
+    if(CPU_LEVELS % 2 == 0){
         tasks_count = hd.tasks2_count;
         tasks_offset = hd.tasks2_offset;
         tasks_vertices = hd.tasks2_vertices;
+    }
+    else{
+        tasks_count = hd.tasks1_count;
+        tasks_offset = hd.tasks1_offset;
+        tasks_vertices = hd.tasks1_vertices;
     }
 
     // each process is assigned tasks in a strided manner, this step condenses those tasks
@@ -819,7 +836,7 @@ void h_move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss, string output)
     }
 
     // condense tasks
-    h_fill_from_buffer(hd, tasks_vertices, tasks_offset, tasks_count, dss.EXPAND_THRESHOLD);
+    h_fill_from_buffer(hd, dss.EXPAND_THRESHOLD);
 
     // move to GPU
     chkerr(cudaMemcpy(h_dd.tasks_count, tasks_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
@@ -1735,8 +1752,6 @@ void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members
 void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex* write_vertices, 
                       uint64_t* write_offsets, uint64_t* write_count)
 {
-    (*hd.maximal_expansion) = false;
-
     if ((*write_count) < CPU_EXPAND_THRESHOLD) {
         uint64_t start_write = write_offsets[*write_count];
 
@@ -1759,17 +1774,27 @@ void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex
     }
 }
 
-void h_fill_from_buffer(CPU_Data& hd, Vertex* write_vertices, uint64_t* write_offsets, 
-                        uint64_t* write_count, int threshold)
+void h_fill_from_buffer(CPU_Data& hd, int threshold)
 {
     int write_amount;
     uint64_t start_buffer;
     uint64_t end_buffer;
     uint64_t size_buffer;
     uint64_t start_write;
+    uint64_t* write_count;
+    uint64_t* write_offsets;
+    Vertex* write_vertices;
 
-    // read from end of buffer, write to end of tasks, decrement buffer
-    (*hd.maximal_expansion) = false;
+    if ((*hd.current_level) % 2 == 0) {
+        write_count = hd.tasks2_count;
+        write_offsets = hd.tasks2_offset;
+        write_vertices = hd.tasks2_vertices;
+    }
+    else {
+        write_count = hd.tasks1_count;
+        write_offsets = hd.tasks1_offset;
+        write_vertices = hd.tasks1_vertices;
+    }
 
     // get read and write locations
     write_amount = ((*hd.buffer_count) >= (threshold - *write_count)) ? threshold - *write_count : (*hd.buffer_count);
