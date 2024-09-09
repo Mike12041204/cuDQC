@@ -165,7 +165,7 @@ __global__ void d_expand_level(GPU_Data* dd)
     }
 }
 
-__global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* buffer_count, uint64_t* cliques_count)
+__global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* buffer_count, uint64_t* cliques_count)
 {
     __shared__ uint64_t tasks_write[WARPS_PER_BLOCK];
     __shared__ int tasks_offset_write[WARPS_PER_BLOCK];
@@ -272,7 +272,7 @@ __global__ void transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* 
     }
 }
 
-__global__ void fill_from_buffer(GPU_Data* dd, uint64_t* buffer_count)
+__global__ void d_fill_from_buffer(GPU_Data* dd, uint64_t* buffer_count)
 {
     // get read and write locations
     int write_amount = (*dd->buffer_count >= *dd->EXPAND_THRESHOLD - *dd->tasks_count) ? *dd->EXPAND_THRESHOLD - *dd->tasks_count : *dd->buffer_count;

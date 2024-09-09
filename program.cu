@@ -106,8 +106,8 @@ int main(int argc, char* argv[])
     // MINDEGS
     minimum_out_degrees = new int[hg.number_of_vertices + 1];
     minimum_in_degrees = new int[hg.number_of_vertices + 1];
-    calculate_minimum_degrees(hg, minimum_out_degrees, minimum_out_degree_ratio);
-    calculate_minimum_degrees(hg, minimum_in_degrees, minimum_in_degree_ratio);
+    h_calculate_minimum_degrees(hg, minimum_out_degrees, minimum_out_degree_ratio);
+    h_calculate_minimum_degrees(hg, minimum_in_degrees, minimum_in_degree_ratio);
 
     // TIME
     stop1 = chrono::high_resolution_clock::now();
@@ -123,7 +123,7 @@ int main(int argc, char* argv[])
     write_file.open(filename);
 
     // SEARCH
-    search(hg, write_file, dss, minimum_out_degrees, minimum_in_degrees, minimum_out_degree_ratio, minimum_in_degree_ratio, minimum_clique_size, output);
+    h_search(hg, write_file, dss, minimum_out_degrees, minimum_in_degrees, minimum_out_degree_ratio, minimum_in_degree_ratio, minimum_clique_size, output);
 
     write_file.close();
 

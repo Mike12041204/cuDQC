@@ -4,24 +4,24 @@
 #include "./common.hpp"
 
 // --- PRIMARY FUNCITONS --- 
-void calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double minimum_degree_ratio);
-void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_out_degrees, 
+void h_calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double minimum_degree_ratio);
+void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_out_degrees, 
                int* minimum_in_degrees, double minimum_out_degree_ratio, 
                double minimum_in_degree_ratio, int minimum_clique_size, string output);
-void allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph& hg, 
+void h_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph& hg, 
                         DS_Sizes& dss, int* minimum_out_degrees, int* minimum_in_degrees, 
                         double minimum_out_degree_ratio, double minimum_in_degree_ratio, 
                         int minimum_clique_size);
-void initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees, 
+void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees, 
                       int* minimum_in_degrees, int minimum_clique_size);
 void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss, 
                     int* minimum_out_degrees, int* minimum_in_degrees, 
                     double minimum_out_degree_ratio, double minimum_in_degree_ratio, 
                     int minimum_clique_size);
-void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss, string output);
-void dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& temp_results, DS_Sizes& dss);
-void flush_cliques(CPU_Cliques& hc, ofstream& temp_results);
-void free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc);
+void h_move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss, string output);
+void h_dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& temp_results, DS_Sizes& dss);
+void h_flush_cliques(CPU_Cliques& hc, ofstream& temp_results);
+void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc);
 
 // --- SECONDARY EXPANSION FUNCTIONS ---
 int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, 

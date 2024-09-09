@@ -6,7 +6,7 @@
 
 // --- PRIMARY FUNCTIONS ---
 // initializes minimum degrees array 
-void calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double minimum_degree_ratio)
+void h_calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double minimum_degree_ratio)
 {
     minimum_degrees[0] = 0;
     for (int i = 1; i <= hg.number_of_vertices; i++) {
@@ -14,7 +14,7 @@ void calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double mini
     }
 }
 
-void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_out_degrees, 
+void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_out_degrees, 
                int* minimum_in_degrees, double minimum_out_degree_ratio, 
                double minimum_in_degree_ratio, int minimum_clique_size, string output) 
 {
@@ -48,7 +48,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
     }
 
     // HANDLE MEMORY
-    allocate_memory(hd, h_dd, hc, hg, dss, minimum_out_degrees, minimum_in_degrees, 
+    h_allocate_memory(hd, h_dd, hc, hg, dss, minimum_out_degrees, minimum_in_degrees, 
                        minimum_out_degree_ratio, minimum_in_degree_ratio, minimum_clique_size);
     chkerr(cudaMalloc((void**)&dd, sizeof(GPU_Data)));
     chkerr(cudaMemcpy(dd, &h_dd, sizeof(GPU_Data), cudaMemcpyHostToDevice));
@@ -57,7 +57,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
     chkerr(cudaMallocManaged((void**)&cliques_count, sizeof(uint64_t)));
 
     // INITIALIZE TASKS
-    initialize_tasks(hg, hd, minimum_out_degrees, minimum_in_degrees, minimum_clique_size);
+    h_initialize_tasks(hg, hd, minimum_out_degrees, minimum_in_degrees, minimum_clique_size);
 
     // CURSOR - finished updating code to this point
 
@@ -83,7 +83,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
     
         // if cliques is more than threshold dump
         if (hc.cliques_offset[(*hc.cliques_count)] > dss.CLIQUES_DUMP) {
-            flush_cliques(hc, temp_results);
+            h_flush_cliques(hc, temp_results);
         }
 
         // DEBUG
@@ -92,7 +92,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
         }
     }
 
-    flush_cliques(hc, temp_results);
+    h_flush_cliques(hc, temp_results);
 
     // TIME
     auto stop = chrono::high_resolution_clock::now();
@@ -103,7 +103,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
     start = chrono::high_resolution_clock::now();
 
     // TRANSFER TO GPU
-    move_to_gpu(hd, h_dd, dss, output);
+    h_move_to_gpu(hd, h_dd, dss, output);
     cudaDeviceSynchronize();
 
     // EXPAND LEVEL
@@ -122,7 +122,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
             // decode buffer
             decode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer);
             // populate tasks from buffer
-            fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, buffer_count);
+            d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, buffer_count);
             cudaDeviceSynchronize();
             *hd.maximal_expansion = false;
 
@@ -147,7 +147,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
             }
 
             // consolidate all the warp tasks/cliques buffers into the next global tasks array, buffer, and cliques
-            transfer_buffers<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count, cliques_count);
+            d_transfer_buffers<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count, cliques_count);
             cudaDeviceSynchronize();
 
             // determine whether maximal expansion has been accomplished, variables changed in kernel
@@ -157,13 +157,13 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
 
             if (*tasks_count < dss.EXPAND_THRESHOLD && *buffer_count > 0) {
                 // if not enough tasks were generated when expanding the previous level to fill the next tasks array the program will attempt to fill the tasks array by popping tasks from the buffer
-                fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, buffer_count);
+                d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, buffer_count);
                 cudaDeviceSynchronize();
             }
 
             // determine whether cliques has exceeded defined threshold, if so dump them to a file, variables changed in kernel
             if (*cliques_count > dss.CLIQUES_DUMP) {
-                dump_cliques(hc, h_dd, temp_results, dss);
+                h_dump_cliques(hc, h_dd, temp_results, dss);
             }
 
             // DEBUG
@@ -193,10 +193,10 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
 
     }while(wsize != take_work_wrap(grank, mpiSizeBuffer, mpiVertexBuffer, from));
 
-    dump_cliques(hc, h_dd, temp_results, dss);
+    h_dump_cliques(hc, h_dd, temp_results, dss);
 
     // clean up
-    free_memory(hd, h_dd, hc);
+    h_free_memory(hd, h_dd, hc);
     chkerr(cudaFree(dd));
     chkerr(cudaFree(tasks_count));
     chkerr(cudaFree(buffer_count));
@@ -211,7 +211,7 @@ void search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_o
 }
 
 //allocates memory for the data structures on the host and device   
-void allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph& hg, 
+void h_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph& hg, 
                         DS_Sizes& dss, int* minimum_out_degrees, int* minimum_in_degrees, 
                         double minimum_out_degree_ratio, double minimum_in_degree_ratio, 
                         int minimum_clique_size)
@@ -357,7 +357,7 @@ void allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph& h
 }
 
 // processes 0th level of expansion
-void initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees, 
+void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees, 
                     int* minimum_in_degrees, int minimum_clique_size)
 {
     // intersection
@@ -762,7 +762,7 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
 }
 
 // distributes work amongst processes in strided manner
-void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss, string output)
+void h_move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss, string output)
 {       
     uint64_t* tasks_count;          // read vertices information
     uint64_t* tasks_offset;
@@ -838,7 +838,7 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& h_dd, DS_Sizes& dss, string output)
 }
 
 // move cliques from device to host
-void dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& temp_results, DS_Sizes& dss)
+void h_dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& temp_results, DS_Sizes& dss)
 {
     // gpu cliques to cpu cliques
     chkerr(cudaMemcpy(hc.cliques_count, h_dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
@@ -846,13 +846,13 @@ void dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& temp_results, DS_Si
     chkerr(cudaMemcpy(hc.cliques_vertex, h_dd.cliques_vertex, sizeof(int) * hc.cliques_offset[*hc.cliques_count], cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
 
-    flush_cliques(hc, temp_results);
+    h_flush_cliques(hc, temp_results);
 
     cudaMemset(h_dd.cliques_count, 0, sizeof(uint64_t));
 }
 
 // move cliques from host to file
-void flush_cliques(CPU_Cliques& hc, ofstream& temp_results) 
+void h_flush_cliques(CPU_Cliques& hc, ofstream& temp_results) 
 {
     uint64_t start;         // start of current clique
     uint64_t end;           // end of current clique
@@ -870,7 +870,7 @@ void flush_cliques(CPU_Cliques& hc, ofstream& temp_results)
 }
 
 
-void free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
+void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
 {
     // CPU DATA
     delete hd.tasks1_count;
