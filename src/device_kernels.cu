@@ -100,7 +100,8 @@ __global__ void d_expand_level(GPU_Data* dd)
                 ld.vertices[index + 1] = dd->tasks_vertices[wd.start[WIB_IDX] + index];
             }
             if (LANE_IDX == 0) {
-                ld.vertices[wd.number_of_members[WIB_IDX]] = dd->tasks_vertices[wd.start[WIB_IDX] + wd.total_vertices[WIB_IDX] - 1];
+                ld.vertices[wd.number_of_members[WIB_IDX]] = dd->tasks_vertices[wd.start[WIB_IDX] + 
+                    wd.total_vertices[WIB_IDX] - 1];
             }
             __syncwarp();
 
@@ -418,6 +419,11 @@ __device__ int d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
             }
         }
     }
+    __syncwarp();
+
+    if (wd.success[WIB_IDX]) {
+        return 1;
+    }
 
     pneighbors_start = dd->in_offsets[pvertexid];
     pneighbors_end = dd->in_offsets[pvertexid + 1];
@@ -440,7 +446,6 @@ __device__ int d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
             }
         }
     }
-
     __syncwarp();
 
     if (wd.success[WIB_IDX]) {
@@ -512,10 +517,7 @@ __device__ int d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
             ld.vertices[i].out_can_deg--;
         }
     }
-
     __syncwarp();
-
-    // CURSOR - bug on gpu, might be synchronization as results differ per run, try adding syncs everywhere
 
     // DIAMETER PRUNING
     d_diameter_pruning(dd, wd, ld, pvertexid, min_out_deg, min_in_deg);
@@ -795,6 +797,13 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     int lane_remaining_count;       // counter for lane intersection results
     int lane_removed_count;
 
+    // TODO - adding this but unsure if necessary once working test to see if needed
+    if(LANE_IDX == 0){
+        wd.success[WIB_IDX] = false;
+    }
+    __syncwarp();
+
+    // TODO - add warp write variable here and in other pruning methods
     // vertices size * warp idx + (vertices size / warp size) * lane idx
     lane_write = (*dd->WVERTICES_SIZE * WARP_IDX) + ((*dd->WVERTICES_SIZE / WARP_SIZE) * LANE_IDX);
 
@@ -876,13 +885,9 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         dd->remaining_candidates[(*dd->WVERTICES_SIZE * WARP_IDX) + lane_remaining_count + i] = 
             ld.vertices[dd->lane_remaining_candidates[lane_write + i]];
     }
-    // TODO - this is different then Quick should we have?
-    // only need removed if going to be using removed to update degrees
-    if (!(wd.remaining_count[WIB_IDX] < wd.removed_count[WIB_IDX])) {
-        for (int i = 0; i < pvertexid; i++) {
-            dd->removed_candidates[(*dd->WVERTICES_SIZE * WARP_IDX) + lane_removed_count + i] = 
-                ld.vertices[dd->lane_removed_candidates[lane_write + i]].vertexid;
-        }
+    for (int i = 0; i < pvertexid; i++) {
+        dd->removed_candidates[(*dd->WVERTICES_SIZE * WARP_IDX) + lane_removed_count + i] = 
+            ld.vertices[dd->lane_removed_candidates[lane_write + i]].vertexid;
     }
     __syncwarp();
     
@@ -928,7 +933,7 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                                               pneighbors_size, phelper1);
 
                     if (phelper2 > -1) {
-                        ld.vertices[i].in_can_deg++;
+                        ld.vertices[i].out_can_deg++;
                     }
                 }
 
@@ -943,7 +948,7 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                                               pneighbors_size, phelper1);
 
                     if (phelper2 > -1) {
-                        ld.vertices[i].out_can_deg++;
+                        ld.vertices[i].in_can_deg++;
                     }
                 }
             }
@@ -957,16 +962,13 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                 pneighbors_size = pneighbors_end - pneighbors_start;
 
                 for (int j = 0; j < wd.remaining_count[WIB_IDX]; j++) {
-                    if (j == i) {
-                        continue;
-                    }
 
                     phelper1 = read[j].vertexid;
                     phelper2 = d_b_search_int(dd->out_neighbors + pneighbors_start, 
                                               pneighbors_size, phelper1);
 
                     if (phelper2 > -1) {
-                        read[i].in_can_deg++;
+                        read[i].out_can_deg++;
                     }
                 }
 
@@ -975,16 +977,13 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                 pneighbors_size = pneighbors_end - pneighbors_start;
 
                 for (int j = 0; j < wd.remaining_count[WIB_IDX]; j++) {
-                    if (j == i) {
-                        continue;
-                    }
 
                     phelper1 = read[j].vertexid;
                     phelper2 = d_b_search_int(dd->in_neighbors + pneighbors_start, 
                                               pneighbors_size, phelper1);
 
                     if (phelper2 > -1) {
-                        read[i].out_can_deg++;
+                        read[i].in_can_deg++;
                     }
                 }
             }
@@ -1007,7 +1006,7 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                                               pneighbors_size, phelper1);
 
                     if (phelper2 > -1) {
-                        ld.vertices[i].in_can_deg--;
+                        ld.vertices[i].out_can_deg--;
                     }
                 }
 
@@ -1022,7 +1021,7 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                                               pneighbors_size, phelper1);
 
                     if (phelper2 > -1) {
-                        ld.vertices[i].out_can_deg--;
+                        ld.vertices[i].in_can_deg--;
                     }
                 }
             }
@@ -1041,7 +1040,7 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                                               pneighbors_size, phelper1);
 
                     if (phelper2 > -1) {
-                        read[i].in_can_deg--;
+                        read[i].out_can_deg--;
                     }
                 }
 
@@ -1055,7 +1054,7 @@ __device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                                               pneighbors_size, phelper1);
 
                     if (phelper2 > -1) {
-                        read[i].out_can_deg--;
+                        read[i].in_can_deg--;
                     }
                 }
             }

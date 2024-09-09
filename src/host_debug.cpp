@@ -178,7 +178,7 @@ void print_maxes()
         << "WCLIQUES OFFSET SIZE: " << wco << endl
         << "WTASKS SIZE: " << wts << endl
         << "WTASKS OFFSET SIZE: " << wto << endl
-        << "VERTICES SIZE: " << mvs << endl;
+        << "WVERTICES SIZE: " << mvs << endl;
 }
 
 // void print_CPU_Graph(CPU_Graph& hg) {
