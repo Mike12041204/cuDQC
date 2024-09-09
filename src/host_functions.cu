@@ -74,7 +74,6 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     }
 
     // CPU EXPANSION
-    // TODO - make this formatted like gpu section
     // cpu expand must be called atleast one time to handle first round cover pruning as the gpu 
     // code cannot do this
     for (int i = 0; i < CPU_LEVELS + 1 && !(*hd.maximal_expansion); i++) {
@@ -106,6 +105,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             h_fill_from_buffer(hd, CPU_EXPAND_THRESHOLD);
         }
 
+        // FINISH LEVEL
         // determine whether maximal expansion has been accomplished, variables changed in kernel
         if (*write_count > 0) {
             *hd.maximal_expansion = false;
@@ -138,18 +138,20 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     h_move_to_gpu(hd, h_dd, dss, output);
     cudaDeviceSynchronize();
 
-    // EXPAND LEVEL
+    // DEBUG
     if(grank == 0){
         cout << "EXPANDING TASKS:     ";
     }
 
     help_others = false;
 
-    // TODO - seems like maximal expansion isnt being carried from cpu to gpu properly
-
-    // wait after all work in process has been completed, loop if work has been given from another process, break if all process complete work
+    // wait after all work in process has been completed, loop if work has been given from another 
+    // process, break if all process complete work
     do{
 
+        // HELP OTHER PROCESS
+        // only way this variable is true is if this process got finished all of its work broke out
+        // of inner loop and returned here
         if(help_others){
             // decode buffer
             decode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer);
@@ -165,12 +167,15 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             }
         }
 
+        // HANDLE LOCAL WORK
         // loop while not all work has been completed
         while (!(*hd.maximal_expansion)){
             
             *hd.maximal_expansion = true;
 
-            // expand all tasks in 'tasks' array, each warp will write to their respective warp tasks buffer in global memory
+            // EXPAND LEVEL
+            // expand all tasks in 'tasks' array, each warp will write to their respective warp 
+            // tasks buffer in global memory
             d_expand_level<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd);
             cudaDeviceSynchronize();
 
@@ -179,22 +184,30 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
                 print_D_Warp_Data_Sizes(h_dd, dss);
             }
 
-            // consolidate all the warp tasks/cliques buffers into the next global tasks array, buffer, and cliques
-            d_transfer_buffers<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count, cliques_count);
+            // consolidate all the warp tasks/cliques buffers into the next global tasks array, 
+            // buffer, and cliques
+            d_transfer_buffers<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count, 
+                                                                 cliques_count);
             cudaDeviceSynchronize();
 
+            // FILL TASKS FROM BUFFER
             if (*tasks_count < dss.EXPAND_THRESHOLD && *buffer_count > 0) {
-                // if not enough tasks were generated when expanding the previous level to fill the next tasks array the program will attempt to fill the tasks array by popping tasks from the buffer
+                // if not enough tasks were generated when expanding the previous level to fill the 
+                // next tasks array the program will attempt to fill the tasks array by popping 
+                // tasks from the buffer
                 d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, buffer_count);
                 cudaDeviceSynchronize();
             }
 
-            // determine whether maximal expansion has been accomplished, variables changed in kernel
+            // FINISH LEVEL
+            // determine whether maximal expansion has been accomplished, variables changed in 
+            // kernel
             if (*tasks_count > 0) {
                 *hd.maximal_expansion = false;
             }
 
-            // determine whether cliques has exceeded defined threshold, if so dump them to a file, variables changed in kernel
+            // determine whether cliques has exceeded defined threshold, if so dump them to a file, 
+            // variables changed in kernel
             if (*cliques_count > dss.CLIQUES_DUMP) {
                 h_dump_cliques(hc, h_dd, temp_results, dss);
             }
@@ -204,13 +217,19 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
                 print_D_Data_Sizes(h_dd, dss);
             }
 
+            // GET HELP FROM OTHER PROCESS
             if(*buffer_count > HELP_THRESHOLD){
                 // return whether work was successfully given
-                divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, h_dd, *buffer_count, dss);
+                divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, 
+                                                 h_dd, *buffer_count, dss);
                 // update buffer count if work was given
                 if(divided_work){
-                    *buffer_count -= (*buffer_count > dss.EXPAND_THRESHOLD) ? dss.EXPAND_THRESHOLD + ((*buffer_count - dss.EXPAND_THRESHOLD) * ((100 - HELP_PERCENT) / 100.0)) : *buffer_count;
-                    chkerr(cudaMemcpy(h_dd.buffer_count, buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
+                    *buffer_count -= (*buffer_count > dss.EXPAND_THRESHOLD) ? dss.EXPAND_THRESHOLD 
+                    + ((*buffer_count - dss.EXPAND_THRESHOLD) * ((100 - HELP_PERCENT) / 100.0)) : 
+                    *buffer_count;
+                    
+                    chkerr(cudaMemcpy(h_dd.buffer_count, buffer_count, sizeof(uint64_t), 
+                                      cudaMemcpyHostToDevice));
 
                     // DEBUG
                     if (dss.DEBUG_TOGGLE) {
@@ -221,9 +240,13 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             }
         }
 
-        // we have finished all our work, so if we get to the top of the loop again it is because we are helping someone else
+        // we have finished all our work, so if we get to the top of the loop again it is because 
+        // we are helping someone else
         help_others = true;
 
+    // INITIATE HELP FOR OTHER PROCESS
+    // each process will block here until they have found another process to recieve work from and
+    // then help or all processes are done and the program can complete
     }while(wsize != take_work_wrap(grank, mpiSizeBuffer, mpiVertexBuffer, from));
 
     h_dump_cliques(hc, h_dd, temp_results, dss);
