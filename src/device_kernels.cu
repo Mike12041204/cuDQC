@@ -7,7 +7,6 @@ __global__ void d_expand_level(GPU_Data* dd)
     __shared__ Warp_Data wd;        // data is stored in data structures to reduce the number of variables that need to be passed to methods
     Local_Data ld;
     int num_mem;                    // helper variables, not passed through to any methods
-    int method_return;
     int index;
 
     // --- CURRENT LEVEL ---
@@ -59,7 +58,7 @@ __global__ void d_expand_level(GPU_Data* dd)
         }
         __syncwarp();
 
-        // sets success to false if lookahead fails
+        // sets success to false if lookahead works
         d_lookahead_pruning(dd, wd, ld);
         
         if (wd.success[WIB_IDX]) {
@@ -128,30 +127,31 @@ __global__ void d_expand_level(GPU_Data* dd)
             // sets success to false if failed found
             d_add_one_vertex(dd, wd, ld);
 
-            // DQC - update to use success as method return
-            // // if failed found check for clique and continue on to the next iteration
-            // if (method_return == 1) {
-            //     if (wd.number_of_members[WIB_IDX] >= (*dd->minimum_clique_size)) {
-            //         d_check_for_clique(dd, wd, ld);
-            //     }
-            //     continue;
-            // }
-
-            // // CRITICAL VERTEX PRUNING
-            // method_return = d_critical_vertex_pruning(dd, wd, ld);
-
-            // // critical fail, cannot be clique continue onto next iteration
-            // if (method_return == 2) {
-            //     continue;
-            // }
-
-            // HANDLE CLIQUES
-            if (wd.number_of_members[WIB_IDX] >= (*dd->minimum_clique_size)) {
+            // if failed found check for clique and continue on to the next iteration
+            if (!wd.success[WIB_IDX]) {
                 d_check_for_clique(dd, wd, ld);
+                continue;
             }
 
+            // CRITICAL VERTEX PRUNING
+            if(LANE_IDX == 0){
+                wd.success[WIB_IDX] = 0;
+            }
+            __syncwarp();
+
+            // sets success to 2 if critical failure, 1 if failed found
+            d_critical_vertex_pruning(dd, wd, ld);
+
+            // critical fail, cannot be clique continue onto next iteration
+            if (wd.success[WIB_IDX] == 2) {
+                continue;
+            }
+
+            // HANDLE CLIQUES
+            d_check_for_clique(dd, wd, ld);
+
             // if vertex in x found as not extendable continue to next iteration
-            if (!wd.success[WIB_IDX]) {
+            if (wd.success[WIB_IDX] == 1) {
                 continue;
             }
 
@@ -322,7 +322,8 @@ __global__ void d_fill_from_buffer(GPU_Data* dd, uint64_t* buffer_count)
 }
 
 // --- SECONDARY EXPANSION KERNELS ---
-// DQC - implement, also set success to true is lookahead works else false
+// DQC - implement, also set success to false is lookahead works else true
+// TODO - make a write clique method
 __device__ void d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
     // int pvertexid;
@@ -477,7 +478,6 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     int pvertexid;
     int phelper1;
     int phelper2;
-    bool failed_found;
     uint64_t pneighbors_start;
     uint64_t pneighbors_end;
     uint64_t pneighbors_size;
@@ -541,7 +541,7 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     d_degree_pruning(dd, wd, ld);
 }
 
-// returns 2, if critical fail, 1 if failed found or invalid bound, 0 otherwise
+// sets success as 2 if critical fail, 1 if failed found or invalid bound, 0 otherwise
 // DQC - implement
 __device__ int d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
@@ -1194,6 +1194,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         wd.total_vertices[WIB_IDX] = wd.total_vertices[WIB_IDX] - wd.number_of_candidates[WIB_IDX] + wd.remaining_count[WIB_IDX];
         wd.number_of_candidates[WIB_IDX] = wd.remaining_count[WIB_IDX];
     }
+    __syncwarp();
 }
 
 // DQC - implement
@@ -1367,12 +1368,17 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
     // __syncwarp();
 }
 
+// TODO - make a write clique method
 __device__ void d_check_for_clique(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
     uint64_t start_write;
     bool clique;
     int min_out_deg;
     int min_in_deg;
+
+    if (wd.number_of_members[WIB_IDX] < *dd->minimum_clique_size) {
+        return;
+    }
 
     clique = true;
 

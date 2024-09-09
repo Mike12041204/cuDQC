@@ -237,7 +237,7 @@ struct Warp_Data
     int min_clq_totaldeg[WARPS_PER_BLOCK];
     int sum_clq_indeg[WARPS_PER_BLOCK];
     int sum_candidate_indeg[WARPS_PER_BLOCK];
-    bool success[WARPS_PER_BLOCK];
+    int success[WARPS_PER_BLOCK];
     int number_of_crit_adj[WARPS_PER_BLOCK];
 };
 
