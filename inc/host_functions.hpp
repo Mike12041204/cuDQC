@@ -4,7 +4,7 @@
 #include "./common.hpp"
 
 // --- PRIMARY FUNCITONS --- 
-void h_calculate_minimum_degrees(CPU_Graph& hg, int*& minimum_degrees, double minimum_degree_ratio);
+void h_calculate_minimum_degrees(CPU_Graph& hg, int* minimum_degrees, double minimum_degree_ratio);
 void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum_out_degrees, 
                int* minimum_in_degrees, double minimum_out_degree_ratio, 
                double minimum_in_degree_ratio, int minimum_clique_size, string output);
@@ -14,6 +14,7 @@ void h_allocate_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_Graph&
                         int minimum_clique_size);
 void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees, 
                       int* minimum_in_degrees, int minimum_clique_size);
+void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_of_candidates);
 void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss, 
                     int* minimum_out_degrees, int* minimum_in_degrees, 
                     double minimum_out_degree_ratio, double minimum_in_degree_ratio, 

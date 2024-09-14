@@ -169,6 +169,7 @@ void initialize_maxes()
 void print_maxes()
 {
     output_file
+        << "DATA STRUCTURE SIZES:" << endl
         << "TASKS SIZE: " << mts << endl
         << "BUFFER SIZE: " << mbs << endl
         << "BUFFER OFFSET SIZE: " << mbo << endl

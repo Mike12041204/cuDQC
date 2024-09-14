@@ -24,6 +24,7 @@
 #include <omp.h>
 #include <cassert>
 #include <algorithm> 
+#include <map>
 //#include <pthread.h>
 using namespace std;
 
