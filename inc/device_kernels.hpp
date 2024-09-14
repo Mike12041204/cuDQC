@@ -108,7 +108,7 @@ __device__ __forceinline__ int d_get_mindeg(int number_of_members, int* minimum_
     else
         return minimum_degrees[number_of_members];
 }
-// TODO - implement bounds
+// DQC - implement bounds
 __device__ __forceinline__ bool d_cand_isvalid(Vertex& vertex, GPU_Data* dd, Warp_Data& wd, 
                                                Local_Data& ld)
 {
@@ -131,7 +131,7 @@ __device__ __forceinline__ bool d_cand_isvalid(Vertex& vertex, GPU_Data* dd, War
     else
         return true;
 }
-// TODO - implement bounds
+// DQC - implement bounds
 __device__ __forceinline__ bool d_vert_isextendable(Vertex& vertex, GPU_Data* dd, Warp_Data& wd, 
                                                     Local_Data& ld)
 {
