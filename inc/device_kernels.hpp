@@ -4,6 +4,7 @@
 #include "./common.hpp"
 
 // --- PRIMARY KERNELS ---
+__global__ void d_initialize_vertex_order_map(GPU_Data* dd);
 __global__ void d_expand_level(GPU_Data* dd);
 __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* buffer_count, 
                                  uint64_t* cliques_count);

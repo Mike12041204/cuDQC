@@ -2,6 +2,18 @@
 #include "../inc/device_kernels.hpp"
 
 // --- PRIMARY KERNELS ---
+__global__ void d_initialize_vertex_order_map(GPU_Data* dd)
+{
+    uint64_t warp_write;
+
+    warp_write = *dd->WVERTICES_SIZE * WARP_IDX;
+
+    // each warp intializes their vertex order map to all -1
+    for(uint64_t i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
+        dd->vertex_order_map[warp_write + i] = -1;
+    }
+}
+
 __global__ void d_expand_level(GPU_Data* dd)
 {
     __shared__ Warp_Data wd;        // data is stored in data structures to reduce the number of variables that need to be passed to methods
@@ -49,11 +61,8 @@ __global__ void d_expand_level(GPU_Data* dd)
             wd.num_mem[WIB_IDX] = num_mem;
             wd.num_cand[WIB_IDX] = wd.tot_vert[WIB_IDX] - wd.num_mem[WIB_IDX];
             wd.expansions[WIB_IDX] = wd.num_cand[WIB_IDX];
-        }
-        __syncwarp();
 
-        // LOOKAHEAD PRUNING
-        if(LANE_IDX == 0){
+            // LOOKAHEAD PRUNING
             wd.success[WIB_IDX] = true;
         }
         __syncwarp();

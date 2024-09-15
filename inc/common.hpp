@@ -47,8 +47,8 @@ using namespace std;
 // shared memory vertices
 #define VERTICES_SIZE 50
 // cpu settings
-#define CPU_LEVELS 100
-#define CPU_EXPAND_THRESHOLD 100000
+#define CPU_LEVELS 1000
+#define CPU_EXPAND_THRESHOLD 10000
 // mpi settings
 #define NUMBER_OF_PROCESSESS 4
 #define MAX_MESSAGE 1000000000
@@ -160,6 +160,7 @@ struct GPU_Data
     int* candidate_out_mem_degs;
     int* lane_candidate_out_mem_degs;
     int* adjacencies;
+    int* vertex_order_map;
     // run parameters
     double* minimum_out_degree_ratio;
     int* minimum_out_degrees;
