@@ -162,8 +162,7 @@ inline int h_get_mindeg(int clique_size, int* minimum_degrees, int minimum_cliqu
     else
         return minimum_degrees[clique_size];
 }
-// DQC - update for bounds
-inline bool h_cand_isvalid(Vertex vertex, int clique_size, int upper_bound, int lower_bound, 
+inline bool h_cand_isvalid(Vertex& vertex, int clique_size, int upper_bound, int lower_bound, 
                            int min_ext_out_deg, int min_ext_in_deg, int* minimum_out_degrees, 
                            int* minimum_in_degrees, int minimum_clique_size) 
 {
@@ -173,12 +172,22 @@ inline bool h_cand_isvalid(Vertex vertex, int clique_size, int upper_bound, int 
     else if (vertex.in_mem_deg + vertex.in_can_deg < h_get_mindeg(clique_size + vertex.in_can_deg + 
         1, minimum_in_degrees, minimum_clique_size))
         return false;
-    // else if (vertex.indeg + vertex.exdeg < min_ext_deg)
-    //     return false;
-    // else if (vertex.indeg + upper_bound - 1 < minimum_degrees[clique_size + upper_bound])
-    //     return false;
-    // else if (vertex.indeg + vertex.exdeg < h_get_mindeg(clique_size + lower_bound, minimum_degrees, minimum_clique_size))
-    //     return false;
+    else if(vertex.out_mem_deg + vertex.out_can_deg < min_ext_out_deg)
+        return false;
+    else if(vertex.in_mem_deg + vertex.in_can_deg < min_ext_out_deg)
+        return false;
+    else if(vertex.out_mem_deg + upper_bound - 1 < minimum_out_degrees[clique_size + upper_bound])
+        return false;
+    else if(vertex.in_mem_deg + upper_bound - 1 < minimum_in_degrees[clique_size + upper_bound])
+        return false;
+    else if(vertex.out_mem_deg + vertex.out_can_deg < h_get_mindeg(clique_size + lower_bound, 
+                                                                   minimum_out_degrees, 
+                                                                   minimum_clique_size))
+        return false;
+    else if(vertex.in_mem_deg + vertex.in_can_deg < h_get_mindeg(clique_size + lower_bound, 
+                                                                   minimum_in_degrees, 
+                                                                   minimum_clique_size))
+        return false;
     else
         return true;
 }

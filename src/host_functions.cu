@@ -1312,10 +1312,6 @@ void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* r
                         int* minimum_out_degrees, int* minimum_in_degrees, int minimum_clique_size, 
                         int& success)
 {
-    int pvertexid;                      // used for intersection
-    uint64_t pneighbors_start;
-    uint64_t pneighbors_end;
-    int phelper1;
     uint64_t start_write;               // starting write position for new cliques
     int min_out_deg;
     int min_in_deg;
