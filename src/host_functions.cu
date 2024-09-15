@@ -1548,7 +1548,6 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
     bool critical_fail;                 // helper
     int number_of_crit_adj;
     int* adj_counters;
-    bool method_return;                 // return
 
     // initialize vertex order map
     for (int i = 0; i < total_vertices; i++) {
@@ -1564,11 +1563,11 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
     // iterate through all vertices in clique
     for (int k = 0; k < number_of_members; k++)
     {
+        pvertexid = vertices[k].vertexid;
+
         // if they are a critical vertex
         if (vertices[k].out_mem_deg + vertices[k].out_can_deg == 
             minimum_out_degrees[number_of_members + lower_bound] && vertices[k].out_can_deg > 0) {
-
-            pvertexid = vertices[k].vertexid;
 
             // iterate through all neighbors
             pneighbors_start = hg.out_offsets[pvertexid];
@@ -1588,8 +1587,6 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
         // if they are a critical vertex
         if (vertices[k].in_mem_deg + vertices[k].in_can_deg == 
             minimum_in_degrees[number_of_members + lower_bound] && vertices[k].in_can_deg > 0) {
-
-            pvertexid = vertices[k].vertexid;
 
             // iterate through all neighbors
             pneighbors_start = hg.in_offsets[pvertexid];
@@ -1627,121 +1624,113 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
         }
     }
 
-    // TODO - make this if break early rather than be a block
-    // if there were any neighbors of critical vertices
-    if (number_of_crit_adj > 0)
+    // if there were no neighbors of critical vertices stop here
+    if (number_of_crit_adj < 1)
     {
-        // initialize vertex order map
-        for (int i = 0; i < total_vertices; i++) {
-            hd.vertex_order_map[vertices[i].vertexid] = i;
-        }
-
-        // iterate through all neighbors
-        for (int i = number_of_members; i < number_of_members + number_of_crit_adj; i++) {
-
-            pvertexid = vertices[i].vertexid;
-
-            // update 1hop adj
-            pneighbors_start = hg.out_offsets[pvertexid];
-            pneighbors_end = hg.out_offsets[pvertexid + 1];
-
-            for (uint64_t k = pneighbors_start; k < pneighbors_end; k++) {
-
-                phelper1 = hd.vertex_order_map[hg.out_neighbors[k]];
-
-                if (phelper1 > -1) {
-                    vertices[phelper1].in_mem_deg++;
-                    vertices[phelper1].in_can_deg--;
-                }
-            }
-
-            pneighbors_start = hg.in_offsets[pvertexid];
-            pneighbors_end = hg.in_offsets[pvertexid + 1];
-
-            for (uint64_t k = pneighbors_start; k < pneighbors_end; k++) {
-
-                phelper1 = hd.vertex_order_map[hg.in_neighbors[k]];
-
-                if (phelper1 > -1) {
-                    vertices[phelper1].out_mem_deg++;
-                    vertices[phelper1].out_can_deg--;
-                }
-            }
-
-            // track 2hop adj
-            pneighbors_start = hg.twohop_offsets[pvertexid];
-            pneighbors_end = hg.twohop_offsets[pvertexid + 1];
-
-            for (uint64_t k = pneighbors_start; k < pneighbors_end; k++) {
-
-                phelper1 = hd.vertex_order_map[hg.twohop_neighbors[k]];
-
-                if (phelper1 > -1) {
-                    adj_counters[phelper1]++;
-                }
-            }
-        }
-
-        critical_fail = false;
-
-        // all vertices within the clique must be within 2hops of the newly ah_dded critical vertex adj vertices
-        for (int k = 0; k < number_of_members; k++) {
-            if (adj_counters[k] != number_of_crit_adj) {
-                critical_fail = true;
-            }
-        }
-
-        if (critical_fail) {
-            // reset vertex order map
-            for (int i = 0; i < total_vertices; i++) {
-                hd.vertex_order_map[vertices[i].vertexid] = -1;
-            }
-
-            delete adj_counters;
-            success = 2;
-            return;
-        }
-
-        // all critical adj vertices must all be within 2 hops of each other
-        for (int k = number_of_members; k < number_of_members + number_of_crit_adj; k++) {
-            if (adj_counters[k] < number_of_crit_adj - 1) {
-                critical_fail = true;
-            }
-        }
-
-        if (critical_fail) {
-            // reset vertex order map
-            for (int i = 0; i < total_vertices; i++) {
-                hd.vertex_order_map[vertices[i].vertexid] = -1;
-            }
-
-            delete adj_counters;
-            success = 2;
-            return;
-        }
-
-        // no failed vertices found so add all critical vertex adj candidates to clique
-        for (int k = number_of_members; k < number_of_members + number_of_crit_adj; k++) {
-            vertices[k].label = 1;
-        }
-        number_of_members += number_of_crit_adj;
-        number_of_candidates -= number_of_crit_adj;
+        return;
     }
+
+    // initialize vertex order map
+    for (int i = 0; i < total_vertices; i++) {
+        hd.vertex_order_map[vertices[i].vertexid] = i;
+    }
+
+    // iterate through all neighbors
+    for (int i = number_of_members; i < number_of_members + number_of_crit_adj; i++) {
+
+        pvertexid = vertices[i].vertexid;
+
+        // update 1hop adj
+        pneighbors_start = hg.out_offsets[pvertexid];
+        pneighbors_end = hg.out_offsets[pvertexid + 1];
+
+        for (uint64_t k = pneighbors_start; k < pneighbors_end; k++) {
+
+            phelper1 = hd.vertex_order_map[hg.out_neighbors[k]];
+
+            if (phelper1 > -1) {
+                vertices[phelper1].in_mem_deg++;
+                vertices[phelper1].in_can_deg--;
+            }
+        }
+
+        pneighbors_start = hg.in_offsets[pvertexid];
+        pneighbors_end = hg.in_offsets[pvertexid + 1];
+
+        for (uint64_t k = pneighbors_start; k < pneighbors_end; k++) {
+
+            phelper1 = hd.vertex_order_map[hg.in_neighbors[k]];
+
+            if (phelper1 > -1) {
+                vertices[phelper1].out_mem_deg++;
+                vertices[phelper1].out_can_deg--;
+            }
+        }
+
+        // track 2hop adj
+        pneighbors_start = hg.twohop_offsets[pvertexid];
+        pneighbors_end = hg.twohop_offsets[pvertexid + 1];
+
+        for (uint64_t k = pneighbors_start; k < pneighbors_end; k++) {
+
+            phelper1 = hd.vertex_order_map[hg.twohop_neighbors[k]];
+
+            if (phelper1 > -1) {
+                adj_counters[phelper1]++;
+            }
+        }
+    }
+
+    critical_fail = false;
+
+    // all vertices within the clique must be within 2hops of the newly ah_dded critical vertex adj vertices
+    for (int k = 0; k < number_of_members; k++) {
+        if (adj_counters[k] != number_of_crit_adj) {
+            critical_fail = true;
+            break;
+        }
+    }
+
+    if (critical_fail) {
+        // reset vertex order map
+        for (int i = 0; i < total_vertices; i++) {
+            hd.vertex_order_map[vertices[i].vertexid] = -1;
+        }
+
+        delete adj_counters;
+        success = 2;
+        return;
+    }
+
+    // all critical adj vertices must all be within 2 hops of each other
+    for (int k = number_of_members; k < number_of_members + number_of_crit_adj; k++) {
+        if (adj_counters[k] < number_of_crit_adj - 1) {
+            critical_fail = true;
+            break;
+        }
+    }
+
+    if (critical_fail) {
+        // reset vertex order map
+        for (int i = 0; i < total_vertices; i++) {
+            hd.vertex_order_map[vertices[i].vertexid] = -1;
+        }
+
+        delete adj_counters;
+        success = 2;
+        return;
+    }
+
+    // no failed vertices found so add all critical vertex adj candidates to clique
+    for (int k = number_of_members; k < number_of_members + number_of_crit_adj; k++) {
+        vertices[k].label = 1;
+    }
+    number_of_members += number_of_crit_adj;
+    number_of_candidates -= number_of_crit_adj;
 
     // DIAMTER PRUNING
-    *hd.remaining_count = 0;
-
-    // remove all cands who are not within 2hops of all newly added cands
-    for (int k = number_of_members; k < total_vertices; k++) {
-        if (adj_counters[k] == number_of_crit_adj) {
-            hd.candidate_out_mem_degs[*hd.remaining_count] = vertices[k].out_mem_deg;
-            hd.candidate_in_mem_degs[*hd.remaining_count] = vertices[k].in_mem_deg;
-            (*hd.remaining_count)++;
-        }
-        else {
-            vertices[k].label = -1;
-        }
-    }
+    h_diameter_pruning_cv(hd, vertices, total_vertices, number_of_members, adj_counters, 
+                          number_of_crit_adj);
 
     // DEGREE-BASED PRUNING
     // sets success to false if failed found else leaves as true
@@ -1798,9 +1787,22 @@ void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvert
 }
 
 // TODO - for style
-void h_diameter_pruning_cv()
+void h_diameter_pruning_cv(CPU_Data& hd, Vertex* vertices, int& total_vertices, 
+                           int number_of_members, int* adj_counters, int number_of_crit_adj)
 {
+    *hd.remaining_count = 0;
 
+    // remove all cands who are not within 2hops of all newly added cands
+    for (int k = number_of_members; k < total_vertices; k++) {
+        if (adj_counters[k] == number_of_crit_adj) {
+            hd.candidate_out_mem_degs[*hd.remaining_count] = vertices[k].out_mem_deg;
+            hd.candidate_in_mem_degs[*hd.remaining_count] = vertices[k].in_mem_deg;
+            (*hd.remaining_count)++;
+        }
+        else {
+            vertices[k].label = -1;
+        }
+    }
 }
 
 // sets success to false if failed found else leaves as true

@@ -45,7 +45,8 @@ void h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
 void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvertexid, 
                         int& total_vertices, int& number_of_candidates, int number_of_members, 
                         int min_out_deg, int min_in_deg);
-void h_diameter_pruning_cv();
+void h_diameter_pruning_cv(CPU_Data& hd, Vertex* vertices, int& total_vertices, 
+                           int number_of_members, int* adj_counters, int number_of_crit_adj);
 void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
                     int& number_of_candidates, int number_of_members, int& upper_bound, 
                     int& lower_bound, int& min_ext_out_deg, int& min_ext_in_deg, 
