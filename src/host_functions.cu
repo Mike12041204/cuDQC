@@ -1781,17 +1781,6 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         return;
     }
 
-    // check for failed vertices
-    for (int k = 0; k < number_of_members; k++) {
-        if (!h_vert_isextendable(vertices[k], number_of_members, upper_bound, lower_bound, 
-                                 min_ext_out_deg, min_ext_in_deg, minimum_out_degrees, 
-                                 minimum_in_degrees, minimum_clique_size)) {                      
-            
-            success = false;
-            return;
-        }
-    }
-
     (*hd.remaining_count) = 0;
     (*hd.removed_count) = 0;
 
@@ -1808,7 +1797,8 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         }
     }
 
-    while ((*hd.remaining_count) > 0 && (*hd.removed_count) > 0) { 
+    // while some vertices were pruned but not all vertices have been pruned
+    while (*hd.remaining_count > 0 && *hd.removed_count > 0) { 
         
         // update degrees
         if ((*hd.remaining_count) < (*hd.removed_count)) {
@@ -1820,7 +1810,7 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
             }
 
             // update degrees for all vertices
-            for (int i = 0; i < (*hd.remaining_count); i++) {
+            for (int i = 0; i < *hd.remaining_count; i++) {
 
                 pvertexid = vertices[hd.remaining_candidates[i]].vertexid;
 
@@ -1853,7 +1843,7 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         }
         else {
 
-            for (int i = 0; i < (*hd.removed_count); i++) {
+            for (int i = 0; i < *hd.removed_count; i++) {
 
                 pvertexid = vertices[hd.removed_candidates[i]].vertexid;
 
@@ -1911,17 +1901,6 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         if(lower_bound > upper_bound || upper_bound == 0){    
             success = false;
             return;
-        }
-
-        // check for failed vertices
-        for (int k = 0; k < number_of_members; k++) {
-            if (!h_vert_isextendable(vertices[k], number_of_members, upper_bound, lower_bound, 
-                                     min_ext_out_deg, min_ext_in_deg, minimum_out_degrees, minimum_in_degrees, 
-                                     minimum_clique_size)) {
-                
-                success = false;
-                return;
-            }
         }
 
         num_val_cands = 0;
