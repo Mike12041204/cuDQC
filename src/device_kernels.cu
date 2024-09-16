@@ -522,6 +522,7 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     for(int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE){
         dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = i;
     }
+    __syncwarp();
 
     // ADD ONE VERTEX
     pvertexid = ld.vertices[wd.number_of_members[WIB_IDX]].vertexid;
@@ -531,7 +532,6 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         wd.number_of_members[WIB_IDX]++;
         wd.number_of_candidates[WIB_IDX]--;
     }
-    __syncwarp();
 
     // update degrees of adjacent vertices
     pneighbors_start = dd->out_offsets[pvertexid];
@@ -710,7 +710,6 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
     int lane_remaining_count;           // vertex iteration
     uint64_t pneighbors_start;
     uint64_t pneighbors_end;
-    uint64_t pneighbors_size;
     int warp_write;
 
     warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
@@ -729,26 +728,23 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
     // mark all candidates within two hops of added vertex as valid
     pneighbors_start = dd->twohop_offsets[pvertexid];
     pneighbors_end = dd->twohop_offsets[pvertexid + 1];
-    pneighbors_size = pneighbors_end - pneighbors_start;
 
-    for (int i = wd.number_of_members[WIB_IDX] + LANE_IDX; i < wd.total_vertices[WIB_IDX]; 
-         i += WARP_SIZE) {
-        
-        phelper1 = ld.vertices[i].vertexid;
-        phelper2 = d_b_search_int(dd->twohop_neighbors + pneighbors_start, pneighbors_size, 
-                                  phelper1);
+    for (int i = pneighbors_start + LANE_IDX; i < pneighbors_end; i += WARP_SIZE) {
 
-        if (phelper2 > -1) {
-            ld.vertices[i].label = 0;
+        phelper1 = dd->vertex_order_map[warp_write + dd->twohop_neighbors[i]];
+
+        if (phelper1 >= wd.number_of_members[WIB_IDX]) {
+            ld.vertices[phelper1].label = 0;
 
             // only track mem degs of candidates which pass basic degree pruning
-            if(ld.vertices[i].out_mem_deg + ld.vertices[i].out_can_deg >= min_out_deg
-               && ld.vertices[i].in_mem_deg + ld.vertices[i].in_can_deg >= min_in_deg){
+            if(ld.vertices[phelper1].out_mem_deg + ld.vertices[phelper1].out_can_deg >= min_out_deg
+               && ld.vertices[phelper1].in_mem_deg + ld.vertices[phelper1].in_can_deg >= 
+               min_in_deg){
                 
                 dd->lane_candidate_out_mem_degs[lane_write + lane_remaining_count] = 
-                    ld.vertices[i].out_mem_deg;
+                    ld.vertices[phelper1].out_mem_deg;
                 dd->lane_candidate_in_mem_degs[lane_write + lane_remaining_count] = 
-                    ld.vertices[i].in_mem_deg;
+                    ld.vertices[phelper1].in_mem_deg;
                 lane_remaining_count++;
             }
         }
