@@ -832,6 +832,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     int pvertexid;                  // helper variables
     int phelper1;
     int phelper2;
+    int phelper3;
     uint64_t pneighbors_start;
     uint64_t pneighbors_end;
     int lane_remaining_count;       // counter for lane intersection results
@@ -891,17 +892,14 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     __syncwarp();
 
     // scan to calculate write postion in warp arrays
-    // TODO - combine if statement with use of extra helper
     phelper2 = lane_remaining_count;
     pvertexid = lane_removed_count;
     for (int i = 1; i < WARP_SIZE; i *= 2) {
         phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_remaining_count, i, WARP_SIZE);
+        phelper3 = __shfl_up_sync(0xFFFFFFFF, lane_removed_count, i, WARP_SIZE);
         if (LANE_IDX >= i) {
             lane_remaining_count += phelper1;
-        }
-        phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_removed_count, i, WARP_SIZE);
-        if (LANE_IDX >= i) {
-            lane_removed_count += phelper1;
+            lane_removed_count += phelper3;
         }
         __syncwarp();
     }
@@ -1091,12 +1089,10 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         pvertexid = lane_removed_count;
         for (int i = 1; i < WARP_SIZE; i *= 2) {
             phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_remaining_count, i, WARP_SIZE);
+            phelper3 = __shfl_up_sync(0xFFFFFFFF, lane_removed_count, i, WARP_SIZE);
             if (LANE_IDX >= i) {
                 lane_remaining_count += phelper1;
-            }
-            phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_removed_count, i, WARP_SIZE);
-            if (LANE_IDX >= i) {
-                lane_removed_count += phelper1;
+                lane_removed_count += phelper3;
             }
             __syncwarp();
         }
@@ -1134,7 +1130,6 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
             i]];
     }
     __syncwarp();
-
     for(int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE){
         ld.vertices[wd.number_of_members[WIB_IDX] + i] = dd->temp_vertex_array[warp_write + i];
     }
