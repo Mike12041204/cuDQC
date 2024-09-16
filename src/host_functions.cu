@@ -319,9 +319,6 @@ void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Si
                               double minimum_out_degree_ratio, double minimum_in_degree_ratio, 
                               int minimum_clique_size)
 {
-    // only this is here because GPU_Data* dd is made before, so all must declarations must already
-    // be done, this is unimportant just be aware if messing with memory allocation
-
     // GPU GRAPH
     chkerr(cudaMalloc((void**)&h_dd.number_of_vertices, sizeof(int)));
     chkerr(cudaMalloc((void**)&h_dd.number_of_edges, sizeof(int)));
@@ -358,7 +355,8 @@ void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Si
     chkerr(cudaMalloc((void**)&h_dd.global_vertices, (sizeof(Vertex) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.removed_candidates, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.lane_removed_candidates, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
-    chkerr(cudaMalloc((void**)&h_dd.remaining_candidates, (sizeof(Vertex) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.remaining_candidates, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.temp_vertex_array, (sizeof(Vertex) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.lane_remaining_candidates, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.candidate_out_mem_degs, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.lane_candidate_out_mem_degs, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
@@ -1260,6 +1258,7 @@ void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     chkerr(cudaFree(h_dd.global_vertices));
     chkerr(cudaFree(h_dd.remaining_candidates));
     chkerr(cudaFree(h_dd.lane_remaining_candidates));
+    chkerr(cudaFree(h_dd.temp_vertex_array));
     chkerr(cudaFree(h_dd.removed_candidates));
     chkerr(cudaFree(h_dd.lane_removed_candidates));
     chkerr(cudaFree(h_dd.candidate_out_mem_degs));
@@ -1804,11 +1803,11 @@ void h_diameter_pruning_cv(CPU_Data& hd, Vertex* vertices, int& total_vertices,
 
 // sets success to false if failed found else leaves as true
 void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
-                    int& number_of_candidates, int number_of_members, int& upper_bound, 
-                    int& lower_bound, int& min_ext_out_deg, int& min_ext_in_deg, 
-                    int* minimum_out_degrees, int* minimum_in_degrees, 
-                    double minimum_out_degree_ratio, double minimum_in_degree_ratio, 
-                    int minimum_clique_size, int& success)
+                      int& number_of_candidates, int number_of_members, int& upper_bound, 
+                      int& lower_bound, int& min_ext_out_deg, int& min_ext_in_deg, 
+                      int* minimum_out_degrees, int* minimum_in_degrees, 
+                      double minimum_out_degree_ratio, double minimum_in_degree_ratio, 
+                      int minimum_clique_size, int& success)
 {
     int pvertexid;                      // intersection
     uint64_t pneighbors_start;

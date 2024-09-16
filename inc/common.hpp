@@ -153,7 +153,8 @@ struct GPU_Data
     // TODO - see if some of these can be combined
     int* removed_candidates;
     int* lane_removed_candidates;
-    Vertex* remaining_candidates;
+    int* remaining_candidates;
+    Vertex* temp_vertex_array;
     int* lane_remaining_candidates;
     int* candidate_in_mem_degs;
     int* lane_candidate_in_mem_degs;
@@ -229,7 +230,6 @@ struct Warp_Data
     int removed_count[WARPS_PER_BLOCK];
     int remaining_count[WARPS_PER_BLOCK];
     int num_val_cands[WARPS_PER_BLOCK];
-    int rw_counter[WARPS_PER_BLOCK];
     int min_ext_deg[WARPS_PER_BLOCK];
     int lower_bound[WARPS_PER_BLOCK];
     int upper_bound[WARPS_PER_BLOCK];
