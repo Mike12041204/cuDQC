@@ -51,19 +51,19 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     // HANDLE MEMORY
     h_allocate_host_memory(hd, h_dd, hc, hg, dss, minimum_out_degrees, minimum_in_degrees, 
                        minimum_out_degree_ratio, minimum_in_degree_ratio, minimum_clique_size);
-    chkerr(cudaMalloc((void**)&dd, sizeof(GPU_Data)));
-    chkerr(cudaMemcpy(dd, &h_dd, sizeof(GPU_Data), cudaMemcpyHostToDevice));
-    chkerr(cudaMallocManaged((void**)&tasks_count, sizeof(uint64_t)));
-    chkerr(cudaMallocManaged((void**)&buffer_count, sizeof(uint64_t)));
-    chkerr(cudaMallocManaged((void**)&cliques_count, sizeof(uint64_t)));
 
     // INITIALIZE TASKS
     h_initialize_tasks(hg, hd, minimum_out_degrees, minimum_in_degrees, minimum_clique_size);
 
     // HANDLE MEMORY
-    h_allocate_device_memory(h_dd, hg, dss, minimum_out_degrees, minimum_in_degrees, 
+    h_allocate_device_memory(hd, h_dd, hg, dss, minimum_out_degrees, minimum_in_degrees, 
                              minimum_out_degree_ratio, minimum_in_degree_ratio, 
                              minimum_clique_size);
+    chkerr(cudaMalloc((void**)&dd, sizeof(GPU_Data)));
+    chkerr(cudaMemcpy(dd, &h_dd, sizeof(GPU_Data), cudaMemcpyHostToDevice));
+    chkerr(cudaMallocManaged((void**)&tasks_count, sizeof(uint64_t)));
+    chkerr(cudaMallocManaged((void**)&buffer_count, sizeof(uint64_t)));
+    chkerr(cudaMallocManaged((void**)&cliques_count, sizeof(uint64_t)));
 
     // DEBUG
     if (dss.DEBUG_TOGGLE) {
@@ -142,9 +142,6 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
 
         // TRANSFER TO GPU
         h_move_to_gpu(hd, h_dd, dss, output);
-
-        d_initialize_vertex_order_map<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd);
-        cudaDeviceSynchronize();
     }
 
     // DEBUG
@@ -315,6 +312,16 @@ void h_allocate_host_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_G
     hc.cliques_offset = new uint64_t[dss.CLIQUES_OFFSET_SIZE];
     hc.cliques_offset[0] = 0;
     (*(hc.cliques_count)) = 0;
+}
+
+void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Sizes& dss, 
+                              int* minimum_out_degrees, int* minimum_in_degrees, 
+                              double minimum_out_degree_ratio, double minimum_in_degree_ratio, 
+                              int minimum_clique_size)
+{
+    // only this is here because GPU_Data* dd is made before, so all must declarations must already
+    // be done, this is unimportant just be aware if messing with memory allocation
+
     // GPU GRAPH
     chkerr(cudaMalloc((void**)&h_dd.number_of_vertices, sizeof(int)));
     chkerr(cudaMalloc((void**)&h_dd.number_of_edges, sizeof(int)));
@@ -324,6 +331,14 @@ void h_allocate_host_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_G
     chkerr(cudaMalloc((void**)&h_dd.in_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1)));
     chkerr(cudaMalloc((void**)&h_dd.twohop_neighbors, sizeof(int) * hg.number_of_lvl2adj));
     chkerr(cudaMalloc((void**)&h_dd.twohop_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1)));
+    chkerr(cudaMemcpy(h_dd.number_of_vertices, &(hg.number_of_vertices), sizeof(int), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.number_of_edges, &(hg.number_of_edges), sizeof(int), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.out_neighbors, hg.out_neighbors, sizeof(int) * hg.number_of_edges, cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.out_offsets, hg.out_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.in_neighbors, hg.in_neighbors, sizeof(int) * hg.number_of_edges, cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.in_offsets, hg.in_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.twohop_neighbors, hg.twohop_neighbors, sizeof(int) * hg.number_of_lvl2adj, cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(h_dd.twohop_offsets, hg.twohop_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
     // GPU DATA
     chkerr(cudaMalloc((void**)&h_dd.current_level, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.tasks_count, sizeof(uint64_t)));
@@ -363,6 +378,9 @@ void h_allocate_host_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_G
     chkerr(cudaMalloc((void**)&h_dd.total_tasks, sizeof(int)));
     chkerr(cudaMemset(h_dd.total_tasks, 0, sizeof(int)));
     chkerr(cudaMalloc((void**)&h_dd.vertex_order_map, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    int* vertex_order_map = new int[dss.WVERTICES_SIZE * NUMBER_OF_WARPS];
+    memset(vertex_order_map, -1, sizeof(int) * dss.WVERTICES_SIZE * NUMBER_OF_WARPS);
+    chkerr(cudaMemcpy(h_dd.vertex_order_map, vertex_order_map, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS, cudaMemcpyHostToDevice));
     // GPU CLIQUES
     chkerr(cudaMalloc((void**)&h_dd.cliques_count, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.cliques_vertex, sizeof(int) * dss.CLIQUES_SIZE));
@@ -412,25 +430,6 @@ void h_allocate_host_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_G
     chkerr(cudaMemcpy(h_dd.WVERTICES_SIZE, &dss.WVERTICES_SIZE, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.EXPAND_THRESHOLD, &dss.EXPAND_THRESHOLD, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.CLIQUES_DUMP, &dss.CLIQUES_DUMP, sizeof(uint64_t), cudaMemcpyHostToDevice));
-}
-
-void h_allocate_device_memory(GPU_Data& h_dd, CPU_Graph& hg, DS_Sizes& dss, 
-                              int* minimum_out_degrees, int* minimum_in_degrees, 
-                              double minimum_out_degree_ratio, double minimum_in_degree_ratio, 
-                              int minimum_clique_size)
-{
-    // only this is here because GPU_Data* dd is made before, so all must declarations must already
-    // be done, this is unimportant just be aware if messing with memory allocation
-
-    // GPU GRAPH
-    chkerr(cudaMemcpy(h_dd.number_of_vertices, &(hg.number_of_vertices), sizeof(int), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.number_of_edges, &(hg.number_of_edges), sizeof(int), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.out_neighbors, hg.out_neighbors, sizeof(int) * hg.number_of_edges, cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.out_offsets, hg.out_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.in_neighbors, hg.in_neighbors, sizeof(int) * hg.number_of_edges, cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.in_offsets, hg.in_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.twohop_neighbors, hg.twohop_neighbors, sizeof(int) * hg.number_of_lvl2adj, cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.twohop_offsets, hg.twohop_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
 }
 
 // processes 0th level of expansion
@@ -1533,7 +1532,6 @@ void h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
 }
 
 // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
-// DQC - implement
 void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, 
                               int& number_of_candidates, int& number_of_members, int& upper_bound, 
                               int& lower_bound, int& min_ext_out_deg, int& min_ext_in_deg, 
@@ -1786,7 +1784,6 @@ void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvert
     }
 }
 
-// TODO - for style
 void h_diameter_pruning_cv(CPU_Data& hd, Vertex* vertices, int& total_vertices, 
                            int number_of_members, int* adj_counters, int number_of_crit_adj)
 {

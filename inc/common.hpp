@@ -47,10 +47,10 @@ using namespace std;
 // shared memory vertices
 #define VERTICES_SIZE 50
 // cpu settings
-#define CPU_LEVELS 1000
-#define CPU_EXPAND_THRESHOLD 10000
+#define CPU_LEVELS 1
+#define CPU_EXPAND_THRESHOLD 1
 // mpi settings
-#define NUMBER_OF_PROCESSESS 4
+#define NUMBER_OF_PROCESSESS 1
 #define MAX_MESSAGE 1000000000
 // omp settings
 #define NUMBER_OF_HTHREADS 16

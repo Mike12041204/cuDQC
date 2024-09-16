@@ -12,7 +12,7 @@ void h_allocate_host_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc, CPU_G
                         DS_Sizes& dss, int* minimum_out_degrees, int* minimum_in_degrees, 
                         double minimum_out_degree_ratio, double minimum_in_degree_ratio, 
                         int minimum_clique_size);
-void h_allocate_device_memory(GPU_Data& h_dd, CPU_Graph& hg, DS_Sizes& dss, 
+void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Sizes& dss, 
                               int* minimum_out_degrees, int* minimum_in_degrees, 
                               double minimum_out_degree_ratio, double minimum_in_degree_ratio, 
                               int minimum_clique_size);
