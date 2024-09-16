@@ -1009,7 +1009,7 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                                 minimum_out_degrees, minimum_in_degrees, minimum_clique_size, success);
             
             if (success) {
-                continue;
+                break;
             }
 
             // INITIALIZE NEW VERTICES
@@ -1476,17 +1476,17 @@ void h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
     min_out_deg = h_get_mindeg(number_of_members + 2, minimum_out_degrees, minimum_clique_size);
     min_in_deg = h_get_mindeg(number_of_members + 2, minimum_in_degrees, minimum_clique_size);
 
+    // initialize vertex order map
+    for (int i = 0; i < total_vertices; i++) {
+        hd.vertex_order_map[vertices[i].vertexid] = i;
+    }
+
     // ADD ONE VERTEX
     pvertexid = vertices[number_of_members].vertexid;
 
     vertices[number_of_members].label = 1;
     number_of_members++;
     number_of_candidates--;
-
-    // initialize vertex order map
-    for (int i = 0; i < total_vertices; i++) {
-        hd.vertex_order_map[vertices[i].vertexid] = i;
-    }
 
     // update adjacencies of newly added vertex
     pneighbors_start = hg.out_offsets[pvertexid];

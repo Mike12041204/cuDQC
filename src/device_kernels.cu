@@ -323,10 +323,6 @@ __global__ void d_fill_from_buffer(GPU_Data* dd, uint64_t* buffer_count)
 // sets success to false if lookahead fails
 __device__ void d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
-    int pvertexid;
-    int phelper1;
-    int phelper2;
-
     uint64_t start_write;
     int min_out_deg;
     int min_in_deg;
@@ -509,17 +505,23 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
     int pvertexid;
     int phelper1;
-    int phelper2;
     uint64_t pneighbors_start;
     uint64_t pneighbors_end;
-    uint64_t pneighbors_size;
     int min_out_deg;
     int min_in_deg;
+    int warp_write;
+
+    warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
 
     min_out_deg = d_get_mindeg(wd.number_of_members[WIB_IDX] + 2, dd->minimum_out_degrees, 
                                *dd->minimum_clique_size);
     min_in_deg = d_get_mindeg(wd.number_of_members[WIB_IDX] + 2, dd->minimum_in_degrees, 
                                *dd->minimum_clique_size);
+
+    // initialize vertex order map
+    for(int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE){
+        dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = i;
+    }
 
     // ADD ONE VERTEX
     pvertexid = ld.vertices[wd.number_of_members[WIB_IDX]].vertexid;
@@ -534,33 +536,27 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     // update degrees of adjacent vertices
     pneighbors_start = dd->out_offsets[pvertexid];
     pneighbors_end = dd->out_offsets[pvertexid + 1];
-    pneighbors_size = pneighbors_end - pneighbors_start;
 
-    for (int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE) {
-        
-        phelper1 = ld.vertices[i].vertexid;
-        phelper2 = d_b_search_int(dd->out_neighbors + pneighbors_start, pneighbors_size, 
-                                  phelper1);
+    for (int i = pneighbors_start + LANE_IDX; i < pneighbors_end; i += WARP_SIZE) {
 
-        if (phelper2 > -1) {
-            ld.vertices[i].in_mem_deg++;
-            ld.vertices[i].in_can_deg--;
+        phelper1 = dd->vertex_order_map[warp_write + dd->out_neighbors[i]];
+
+        if (phelper1 > -1) {
+            ld.vertices[phelper1].in_mem_deg++;
+            ld.vertices[phelper1].in_can_deg--;
         }
     }
 
     pneighbors_start = dd->in_offsets[pvertexid];
     pneighbors_end = dd->in_offsets[pvertexid + 1];
-    pneighbors_size = pneighbors_end - pneighbors_start;
 
-    for (int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE) {
-        
-        phelper1 = ld.vertices[i].vertexid;
-        phelper2 = d_b_search_int(dd->in_neighbors + pneighbors_start, pneighbors_size, 
-                                  phelper1);
+    for (int i = pneighbors_start + LANE_IDX; i < pneighbors_end; i += WARP_SIZE) {
 
-        if (phelper2 > -1) {
-            ld.vertices[i].out_mem_deg++;
-            ld.vertices[i].out_can_deg--;
+        phelper1 = dd->vertex_order_map[warp_write + dd->in_neighbors[i]];
+
+        if (phelper1 > -1) {
+            ld.vertices[phelper1].out_mem_deg++;
+            ld.vertices[phelper1].out_can_deg--;
         }
     }
     __syncwarp();
@@ -571,6 +567,12 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     // DEGREE BASED PRUNING
     // sets success to false if failed found else leaves as true
     d_degree_pruning(dd, wd, ld);
+
+    // reset vertex order map
+    for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
+        dd->vertex_order_map[warp_write + i] = -1;
+    }
+    __syncwarp();
 }
 
 // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
@@ -709,8 +711,11 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
     uint64_t pneighbors_start;
     uint64_t pneighbors_end;
     uint64_t pneighbors_size;
+    int warp_write;
 
-    lane_write = (*dd->WVERTICES_SIZE * WARP_IDX) + ((*dd->WVERTICES_SIZE / WARP_SIZE) * LANE_IDX);
+    warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
+    lane_write = warp_write + ((*dd->WVERTICES_SIZE / WARP_SIZE) * LANE_IDX);
+
     lane_remaining_count = 0;
 
     // set all candidates as invalid
