@@ -230,17 +230,21 @@ struct Warp_Data
     int removed_count[WARPS_PER_BLOCK];
     int remaining_count[WARPS_PER_BLOCK];
     int num_val_cands[WARPS_PER_BLOCK];
-    int min_ext_deg[WARPS_PER_BLOCK];
+    int success[WARPS_PER_BLOCK];
+    int number_of_crit_adj[WARPS_PER_BLOCK];
+    // bounds
+    int min_ext_out_deg[WARPS_PER_BLOCK];
+    int min_ext_in_deg[WARPS_PER_BLOCK];
     int lower_bound[WARPS_PER_BLOCK];
     int upper_bound[WARPS_PER_BLOCK];
+    // bound helpers
+    // TODO - think these all can be removed
     int tightened_upper_bound[WARPS_PER_BLOCK];
     int min_clq_indeg[WARPS_PER_BLOCK];
     int min_indeg_exdeg[WARPS_PER_BLOCK];
     int min_clq_totaldeg[WARPS_PER_BLOCK];
     int sum_clq_indeg[WARPS_PER_BLOCK];
     int sum_candidate_indeg[WARPS_PER_BLOCK];
-    int success[WARPS_PER_BLOCK];
-    int number_of_crit_adj[WARPS_PER_BLOCK];
 };
 
 // LOCAL DATA
