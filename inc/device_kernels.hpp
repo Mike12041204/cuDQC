@@ -7,7 +7,7 @@
 __global__ void d_expand_level(GPU_Data* dd);
 __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* buffer_count, 
                                  uint64_t* cliques_count);
-__global__ void d_fill_from_buffer(GPU_Data* dd, uint64_t* buffer_count);
+__global__ void d_fill_from_buffer(GPU_Data* dd, uint64_t* tasks_count, uint64_t* buffer_count);
 
 // --- SECONDARY EXPANSION KERNELS ---
 __device__ void d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);

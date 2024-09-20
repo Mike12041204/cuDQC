@@ -162,7 +162,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             // decode buffer
             decode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer);
             // populate tasks from buffer
-            d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, buffer_count);
+            d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count);
             cudaDeviceSynchronize();
             *hd.maximal_expansion = false;
 
@@ -201,7 +201,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
                 // if not enough tasks were generated when expanding the previous level to fill the 
                 // next tasks array the program will attempt to fill the tasks array by popping 
                 // tasks from the buffer
-                d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, buffer_count);
+                d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count);
                 cudaDeviceSynchronize();
             }
 
@@ -1557,6 +1557,7 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
     adj_counters = new int[total_vertices];
     memset(adj_counters, 0, sizeof(int) * total_vertices);
 
+    // TODO - make i
     // iterate through all vertices in clique
     for (int k = 0; k < number_of_members; k++)
     {
