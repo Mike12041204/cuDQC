@@ -108,49 +108,33 @@ __device__ __forceinline__ int d_get_mindeg(int number_of_members, int* minimum_
     else
         return minimum_degrees[number_of_members];
 }
-// DQC - implement bounds
 __device__ __forceinline__ bool d_cand_isvalid(Vertex& vertex, GPU_Data* dd, Warp_Data& wd, 
                                                Local_Data& ld)
 {
-    if (vertex.out_mem_deg + vertex.out_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + 
-                                                               vertex.out_can_deg + 1, 
-                                                               dd->minimum_out_degrees, 
-                                                               *dd->minimum_clique_size))
+    if(vertex.out_mem_deg + vertex.out_can_deg < wd.min_ext_out_deg[WIB_IDX])
+        return false;
+    else if(vertex.in_mem_deg + vertex.in_can_deg < wd.min_ext_in_deg[WIB_IDX])
+        return false;
+    else if (vertex.out_mem_deg + vertex.out_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + 
+             vertex.out_can_deg + 1, dd->minimum_out_degrees, *dd->minimum_clique_size))
         return false;
     else if (vertex.in_mem_deg + vertex.in_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + 
-                                                                  vertex.in_can_deg + 1, 
-                                                                  dd->minimum_in_degrees, 
-                                                                  *dd->minimum_clique_size))
+             vertex.in_can_deg + 1, dd->minimum_in_degrees, *dd->minimum_clique_size))
         return false;
-    // else if (vertex.indeg + vertex.exdeg < wd.min_ext_deg[WIB_IDX])
-    //     return false;
-    // else if (vertex.indeg + wd.upper_bound[WIB_IDX] - 1 < dd->minimum_degrees[wd.number_of_members[WIB_IDX] + wd.upper_bound[WIB_IDX]])
-    //     return false;
-    // else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd))
-    //     return false;
-    else
-        return true;
-}
-// DQC - implement bounds
-__device__ __forceinline__ bool d_vert_isextendable(Vertex& vertex, GPU_Data* dd, Warp_Data& wd, 
-                                                    Local_Data& ld)
-{
-    if (vertex.out_mem_deg + vertex.out_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + 
-                                                               vertex.out_can_deg, 
-                                                               dd->minimum_out_degrees, 
-                                                               *dd->minimum_clique_size))
+    else if(vertex.out_mem_deg + wd.upper_bound[WIB_IDX] - 1 < 
+            dd->minimum_out_degrees[wd.number_of_members[WIB_IDX] + wd.upper_bound[WIB_IDX]])
         return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + 
-                                                                  vertex.in_can_deg, 
-                                                                  dd->minimum_in_degrees, 
-                                                                  *dd->minimum_clique_size))
+    else if(vertex.in_mem_deg + wd.upper_bound[WIB_IDX] - 1 < 
+            dd->minimum_in_degrees[wd.number_of_members[WIB_IDX] + wd.upper_bound[WIB_IDX]])
         return false;
-    // else if (vertex.indeg + vertex.exdeg < wd.min_ext_deg[WIB_IDX])
-    //     return false;
-    // else if (vertex.indeg + wd.upper_bound[WIB_IDX] < dd->minimum_degrees[wd.number_of_members[WIB_IDX] + wd.upper_bound[WIB_IDX]])
-    //     return false;
-    // else if (vertex.indeg + vertex.exdeg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd))
-    //     return false;
+    else if(vertex.out_mem_deg + vertex.out_can_deg < 
+            d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], 
+                         dd->minimum_out_degrees, *dd->minimum_clique_size))
+        return false;
+    else if(vertex.in_mem_deg + vertex.in_can_deg < 
+            d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], 
+                         dd->minimum_in_degrees, *dd->minimum_clique_size))
+        return false;
     else
         return true;
 }

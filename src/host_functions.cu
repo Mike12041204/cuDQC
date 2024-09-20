@@ -1623,7 +1623,7 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
     }
 
     // if there were no neighbors of critical vertices stop here
-    if (number_of_crit_adj < 1)
+    if (number_of_crit_adj == 0)
     {
         return;
     }
@@ -1633,7 +1633,7 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
         hd.vertex_order_map[vertices[i].vertexid] = i;
     }
 
-    // iterate through all neighbors
+    // iterate through all critical adjacent
     for (int i = number_of_members; i < number_of_members + number_of_crit_adj; i++) {
 
         pvertexid = vertices[i].vertexid;
@@ -1791,7 +1791,9 @@ void h_diameter_pruning_cv(CPU_Data& hd, Vertex* vertices, int& total_vertices,
 
     // remove all cands who are not within 2hops of all newly added cands
     for (int k = number_of_members; k < total_vertices; k++) {
+
         if (adj_counters[k] == number_of_crit_adj) {
+
             hd.candidate_out_mem_degs[*hd.remaining_count] = vertices[k].out_mem_deg;
             hd.candidate_in_mem_degs[*hd.remaining_count] = vertices[k].in_mem_deg;
             (*hd.remaining_count)++;
