@@ -55,6 +55,10 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     // INITIALIZE TASKS
     h_initialize_tasks(hg, hd, minimum_out_degrees, minimum_in_degrees, minimum_clique_size);
 
+    // DEBUG
+    output_file << "CONDENSED GRAPH" << endl;
+    print_graph(hg);
+
     // HANDLE MEMORY
     h_allocate_device_memory(hd, h_dd, hg, dss, minimum_out_degrees, minimum_in_degrees, 
                              minimum_out_degree_ratio, minimum_in_degree_ratio, 
@@ -1524,10 +1528,6 @@ void h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
                      upper_bound, lower_bound, min_ext_out_deg, min_ext_in_deg, 
                      minimum_out_degrees, minimum_in_degrees, minimum_out_degree_ratio, 
                      minimum_in_degree_ratio, minimum_clique_size, success);
-
-    for (int i = 0; i < hg.number_of_vertices; i++) {
-        hd.vertex_order_map[i] = -1;
-    }
 }
 
 // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
@@ -1552,11 +1552,6 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
     }
 
     // CRITICAL VERTEX PRUNING
-    // adj_counter[0] = 10, means that the vertex at position 0 in new_vertices has 10 critical 
-    // vertices neighbors within 2 hops
-    adj_counters = new int[total_vertices];
-    memset(adj_counters, 0, sizeof(int) * total_vertices);
-
     // TODO - make i
     // iterate through all vertices in clique
     for (int k = 0; k < number_of_members; k++)
@@ -1628,9 +1623,14 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
         return;
     }
 
+    // adj_counter[0] = 10, means that the vertex at position 0 in new_vertices has 10 critical 
+    // vertices neighbors within 2 hops
+    adj_counters = new int[total_vertices];
+
     // initialize vertex order map
     for (int i = 0; i < total_vertices; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = i;
+        adj_counters[i] = 0;
     }
 
     // iterate through all critical adjacent
@@ -1730,20 +1730,14 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
     h_diameter_pruning_cv(hd, vertices, total_vertices, number_of_members, adj_counters, 
                           number_of_crit_adj);
 
+    delete adj_counters;
+
     // DEGREE-BASED PRUNING
     // sets success to false if failed found else leaves as true
     h_degree_pruning(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, 
                      upper_bound, lower_bound, min_ext_out_deg, min_ext_in_deg, 
                      minimum_out_degrees, minimum_in_degrees, minimum_out_degree_ratio, 
                      minimum_in_degree_ratio, minimum_clique_size, success);
-
-    // reset vertex order map
-    for (int i = 0; i < total_vertices; i++) {
-        hd.vertex_order_map[vertices[i].vertexid] = -1;
-    }
-
-    delete adj_counters;
-
 }
 
 void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvertexid, 
@@ -1831,6 +1825,9 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
     // check whether new bounds are valid
     if(lower_bound > upper_bound || upper_bound < 1){    
         success = false;
+        for (int i = 0; i < hg.number_of_vertices; i++) {
+        hd.vertex_order_map[i] = -1;
+        }
         return;
     }
 
@@ -1953,6 +1950,9 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         // check whether new bounds are valid
         if(lower_bound > upper_bound || upper_bound == 0){    
             success = false;
+            for (int i = 0; i < hg.number_of_vertices; i++) {
+                hd.vertex_order_map[i] = -1;
+            }
             return;
         }
 
@@ -1973,6 +1973,10 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         }
 
         (*hd.remaining_count) = num_val_cands;
+    }
+
+    for (int i = 0; i < hg.number_of_vertices; i++) {
+        hd.vertex_order_map[i] = -1;
     }
 
     for (int i = 0; i < (*hd.remaining_count); i++) {

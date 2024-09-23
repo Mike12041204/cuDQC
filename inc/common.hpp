@@ -28,8 +28,12 @@
 //#include <pthread.h>
 using namespace std;
 
+// CPU DISTRIBUTED / PARALLEL SETTINGS
+#define NUMBER_OF_PROCESSESS 4
+#define NUMBER_OF_HTHREADS 16
+
 // GPU KERNEL LAUNCH
-#define BLOCK_SIZE 128
+#define BLOCK_SIZE 1024
 #define NUMBER_OF_BLOCKS 216
 #define WARP_SIZE 32
 
@@ -46,14 +50,11 @@ using namespace std;
 // PROGRAM RUN SETTINGS
 // shared memory vertices
 #define VERTICES_SIZE 50
-// cpu settings
+// cpu expansion settings
 #define CPU_LEVELS 1
 #define CPU_EXPAND_THRESHOLD 1
 // mpi settings
-#define NUMBER_OF_PROCESSESS 1
 #define MAX_MESSAGE 1000000000
-// omp settings
-#define NUMBER_OF_HTHREADS 16
 // must be atleast be 1
 #define HELP_MULTIPLIER 1
 #define HELP_PERCENT 50
@@ -231,20 +232,22 @@ struct Warp_Data
     int remaining_count[WARPS_PER_BLOCK];
     int num_val_cands[WARPS_PER_BLOCK];
     int success[WARPS_PER_BLOCK];
-    int number_of_crit_adj[WARPS_PER_BLOCK];
     // bounds
     int min_ext_out_deg[WARPS_PER_BLOCK];
     int min_ext_in_deg[WARPS_PER_BLOCK];
     int lower_bound[WARPS_PER_BLOCK];
     int upper_bound[WARPS_PER_BLOCK];
     // bound helpers
-    // TODO - think these all can be removed
-    int tightened_upper_bound[WARPS_PER_BLOCK];
-    int min_clq_indeg[WARPS_PER_BLOCK];
-    int min_indeg_exdeg[WARPS_PER_BLOCK];
-    int min_clq_totaldeg[WARPS_PER_BLOCK];
-    int sum_clq_indeg[WARPS_PER_BLOCK];
-    int sum_candidate_indeg[WARPS_PER_BLOCK];
+    int nmin_clq_clqdeg_o[WARPS_PER_BLOCK];
+    int nminclqdeg_candeg_o[WARPS_PER_BLOCK];
+    int nmin_clq_totaldeg_o[WARPS_PER_BLOCK];
+    int nclq_clqdeg_sum_o[WARPS_PER_BLOCK];
+    int ncand_clqdeg_sum_o[WARPS_PER_BLOCK];
+    int nmin_clq_clqdeg_i[WARPS_PER_BLOCK];
+    int nminclqdeg_candeg_i[WARPS_PER_BLOCK];
+    int nmin_clq_totaldeg_i[WARPS_PER_BLOCK];
+    int nclq_clqdeg_sum_i[WARPS_PER_BLOCK];
+    int ncand_clqdeg_sum_i[WARPS_PER_BLOCK];
 };
 
 // LOCAL DATA

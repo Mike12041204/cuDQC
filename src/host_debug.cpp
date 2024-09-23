@@ -182,6 +182,14 @@ void print_maxes()
         << "WVERTICES SIZE: " << mvs << endl;
 }
 
+void print_graph(CPU_Graph& hg)
+{
+    output_file 
+        << "|V| = " << hg.number_of_vertices 
+        << " |E| = " << hg.number_of_edges 
+        << " |2hop| = " << hg.number_of_lvl2adj << endl << endl;
+}
+
 // void print_CPU_Graph(CPU_Graph& hg) {
 //     cout << endl << " --- (CPU_Graph)host_graph details --- " << endl;
 //     cout << endl << "|V|: " << hg.number_of_vertices << " |E|: " << hg.number_of_edges << endl;

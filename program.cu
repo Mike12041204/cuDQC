@@ -91,6 +91,9 @@ int main(int argc, char* argv[])
 
     // GRAPH
     CPU_Graph hg(read_file);
+    // DEBUG
+    output_file << "LOADED GRAPH" << endl;
+    print_graph(hg);
     read_file.close();
 
     // TIME
