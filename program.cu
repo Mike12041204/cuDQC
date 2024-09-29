@@ -92,8 +92,10 @@ int main(int argc, char* argv[])
     // GRAPH
     CPU_Graph hg(read_file);
     // DEBUG
-    output_file << "LOADED GRAPH" << endl;
-    print_graph(hg);
+    if(grank == 0){
+        output_file << "LOADED GRAPH" << endl;
+        print_graph(hg);
+    }
     read_file.close();
 
     // TIME
@@ -181,9 +183,6 @@ int main(int argc, char* argv[])
     }
     output_file.close();
 
-    delete[] minimum_out_degrees;
-    delete[] minimum_in_degrees;
-
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
     if(grank == 0){
@@ -191,5 +190,9 @@ int main(int argc, char* argv[])
         cout << "COMPUTATION TIME:    " << computation_time << "ms" << endl;
         cout << "NUMBER OF CLIQUES:   " << num_cliques << endl;
     }
+
+    delete[] minimum_out_degrees;
+    delete[] minimum_in_degrees;
+    MPI_Finalize();
     return 0;
 }

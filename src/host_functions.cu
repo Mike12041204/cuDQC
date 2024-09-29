@@ -985,6 +985,17 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
         num_cand = tot_vert - num_mem;
         expansions = num_cand;
 
+        // LOOKAHEAD PRUNING
+        success = true;
+
+        // sets success to false if lookahead fails
+        h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start, 
+                            minimum_out_degrees, minimum_in_degrees, minimum_clique_size, success);
+        
+        if (success) {
+            continue;
+        }
+
         // --- NEXT LEVEL ---
 
         for (int j = number_of_covered; j < expansions; j++) {
@@ -1001,17 +1012,6 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                 if (!success) {
                     break;
                 }
-            }
-
-            // LOOKAHEAD PRUNING
-            success = true;
-
-            // sets success to false if lookahead fails
-            h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start, 
-                                minimum_out_degrees, minimum_in_degrees, minimum_clique_size, success);
-            
-            if (success) {
-                break;
             }
 
             // INITIALIZE NEW VERTICES
@@ -1317,6 +1317,10 @@ void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* r
     uint64_t start_write;               // starting write position for new cliques
     int min_out_deg;
     int min_in_deg;
+    uint64_t pneighbors_start;          
+    uint64_t pneighbors_end;
+    int phelper1;
+    int pvertexid;
 
     min_out_deg = h_get_mindeg(tot_vert, minimum_out_degrees, minimum_clique_size);
     min_in_deg = h_get_mindeg(tot_vert, minimum_in_degrees, minimum_clique_size);
@@ -1331,6 +1335,38 @@ void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* r
             success = false;
             return;
         }
+    }
+
+    // initialize vertex order map
+    for (int i = 0; i < tot_vert; i++) {
+        hd.vertex_order_map[read_vertices[start + i].vertexid] = i;
+    }
+
+    // update lvl2adj to candidates for all vertices
+    for (int i = num_mem; i < tot_vert; i++) {
+        read_vertices[start + i].lvl2adj = 0;
+    }
+
+    for (int i = num_mem; i < tot_vert; i++) {
+
+        pvertexid = read_vertices[start + i].vertexid;
+
+        pneighbors_start = hg.twohop_offsets[pvertexid];
+        pneighbors_end = hg.twohop_offsets[pvertexid + 1];
+
+        for (int j = pneighbors_start; j < pneighbors_end; j++) {
+
+            phelper1 = hd.vertex_order_map[hg.twohop_neighbors[j]];
+
+            if (phelper1 >= num_mem) {
+                read_vertices[start + phelper1].lvl2adj++;
+            }
+        }
+    }
+
+    // reset vertex order map
+    for (int i = 0; i < tot_vert; i++) {
+        hd.vertex_order_map[read_vertices[start + i].vertexid] = -1;
     }
 
     // check for lookahead
@@ -1429,29 +1465,6 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
                 success = false;
                 break;
             }
-        }
-    }
-
-    // return if failed found
-    if(!success){
-        // reset vertex order map
-        for (int i = 0; i < tot_vert; i++) {
-            hd.vertex_order_map[read_vertices[start + i].vertexid] = -1;
-        }
-
-        return;
-    }
-
-    // update lvl2adj to candidates for all vertices
-    pneighbors_start = hg.twohop_offsets[pvertexid];
-    pneighbors_end = hg.twohop_offsets[pvertexid + 1];
-
-    for (int i = pneighbors_start; i < pneighbors_end; i++) {
-
-        phelper1 = hd.vertex_order_map[hg.twohop_neighbors[i]];
-
-        if (phelper1 > -1) {
-            read_vertices[start + phelper1].lvl2adj--;
         }
     }
 

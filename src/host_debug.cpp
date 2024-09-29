@@ -636,31 +636,39 @@ void print_graph(CPU_Graph& hg)
 //     cout << endl;
 // }
 
-// void print_vertices(Vertex* vertices, int size)
-// {
-//     cout << " --- level 0 details --- " << endl;
-//     cout << endl << "Tasks1: Level: " << 0 << " Size: " << size << endl;
-//     cout << endl << "Offsets:" << endl;
-//     cout << "0 " << size << flush;
-//     cout << endl << "Vertex:" << endl;
-//     for (int i = 0; i < size; i++) {
-//         cout << vertices[i].vertexid << " " << flush;
-//     }
-//     cout << endl << "Label:" << endl;
-//     for (int i = 0; i < size; i++) {
-//         cout << vertices[i].label << " " << flush;
-//     }
-//     cout << endl << "Indeg:" << endl;
-//     for (int i = 0; i < size; i++) {
-//         cout << vertices[i].indeg << " " << flush;
-//     }
-//     cout << endl << "Exdeg:" << endl;
-//     for (int i = 0; i < size; i++) {
-//         cout << vertices[i].exdeg << " " << flush;
-//     }
-//     cout << endl << "Lvl2adj:" << endl;
-//     for (int i = 0; i < size; i++) {
-//         cout << vertices[i].lvl2adj << " " << flush;
-//     }
-//     cout << endl;
-// }
+void print_vertices(Vertex* vertices, int size)
+{
+    cout << " --- level 0 details --- " << endl;
+    cout << endl << "Tasks1: Level: " << 0 << " Size: " << size << endl;
+    cout << endl << "Offsets:" << endl;
+    cout << "0 " << size << flush;
+    cout << endl << "Vertex:" << endl;
+    for (int i = 0; i < size; i++) {
+        cout << vertices[i].vertexid << " " << flush;
+    }
+    cout << endl << "Label:" << endl;
+    for (int i = 0; i < size; i++) {
+        cout << vertices[i].label << " " << flush;
+    }
+    cout << endl << "Out-Mem-Deg:" << endl;
+    for (int i = 0; i < size; i++) {
+        cout << vertices[i].out_mem_deg << " " << flush;
+    }
+    cout << endl << "Out-Can_deg:" << endl;
+    for (int i = 0; i < size; i++) {
+        cout << vertices[i].out_can_deg << " " << flush;
+    }
+    cout << endl << "In-Mem-Deg:" << endl;
+    for (int i = 0; i < size; i++) {
+        cout << vertices[i].in_mem_deg << " " << flush;
+    }
+    cout << endl << "In-Can-Deg:" << endl;
+    for (int i = 0; i < size; i++) {
+        cout << vertices[i].in_can_deg << " " << flush;
+    }
+    cout << endl << "Lvl2adj:" << endl;
+    for (int i = 0; i < size; i++) {
+        cout << vertices[i].lvl2adj << " " << flush;
+    }
+    cout << endl;
+}

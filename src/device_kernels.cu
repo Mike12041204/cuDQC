@@ -53,6 +53,17 @@ __global__ void d_expand_level(GPU_Data* dd)
         }
         __syncwarp();
 
+        // LOOKAHEAD PRUNING
+        wd.success[WIB_IDX] = true;
+        __syncwarp();
+
+        // sets success to false if lookahead fails
+        d_lookahead_pruning(dd, wd, ld);
+        
+        if (wd.success[WIB_IDX]) {
+            continue;
+        }
+
         // --- NEXT LEVEL ---
 
         for (int j = 0; j < wd.expansions[WIB_IDX]; j++)
@@ -71,17 +82,6 @@ __global__ void d_expand_level(GPU_Data* dd)
                 if (!wd.success[WIB_IDX]) {
                     break;
                 }
-            }
-
-            // LOOKAHEAD PRUNING
-            wd.success[WIB_IDX] = true;
-            __syncwarp();
-
-            // sets success to false if lookahead fails
-            d_lookahead_pruning(dd, wd, ld);
-            
-            if (wd.success[WIB_IDX]) {
-                break;
             }
 
             // INITIALIZE NEW VERTICES
@@ -122,26 +122,27 @@ __global__ void d_expand_level(GPU_Data* dd)
             // sets success to false if failed found
             d_add_one_vertex(dd, wd, ld);
 
-            // if failed found check for clique and continue on to the next iteration
-            if (!wd.success[WIB_IDX]) {
-                d_check_for_clique(dd, wd, ld);
+            // DEBUG - uncomment
+            // // if failed found check for clique and continue on to the next iteration
+            // if (!wd.success[WIB_IDX]) {
+            //     d_check_for_clique(dd, wd, ld);
                 
-                continue;
-            }
+            //     continue;
+            // }
 
-            // CRITICAL VERTEX PRUNING
-            if(LANE_IDX == 0){
-                wd.success[WIB_IDX] = 1;
-            }
-            __syncwarp();
+            // // CRITICAL VERTEX PRUNING
+            // if(LANE_IDX == 0){
+            //     wd.success[WIB_IDX] = 1;
+            // }
+            // __syncwarp();
 
-            // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
-            d_critical_vertex_pruning(dd, wd, ld);
+            // // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
+            // d_critical_vertex_pruning(dd, wd, ld);
 
-            // critical fail, cannot be clique continue onto next iteration
-            if (wd.success[WIB_IDX] == 2) {
-                continue;
-            }
+            // // critical fail, cannot be clique continue onto next iteration
+            // if (wd.success[WIB_IDX] == 2) {
+            //     continue;
+            // }
 
             // HANDLE CLIQUES
             d_check_for_clique(dd, wd, ld);
@@ -323,9 +324,16 @@ __global__ void d_fill_from_buffer(GPU_Data* dd, uint64_t* tasks_count, uint64_t
 // sets success to false if lookahead fails
 __device__ void d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
+    int pvertexid;
+    int phelper1;
+    uint64_t pneighbors_start;
+    uint64_t pneighbors_end;
     uint64_t start_write;
     int min_out_deg;
     int min_in_deg;
+    int warp_write;
+
+    warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
 
     min_out_deg = d_get_mindeg(wd.tot_vert[WIB_IDX], dd->minimum_out_degrees, 
                                *dd->minimum_clique_size);
@@ -349,6 +357,41 @@ __device__ void d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     if (!wd.success[WIB_IDX]) {
         return;
     }
+
+    // initialize vertex order map
+    for(int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE){
+        dd->vertex_order_map[warp_write + dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid] = i;
+    }
+
+    // update lvl2adj to candidates for all vertices
+    for (int i = wd.num_mem[WIB_IDX]; i < wd.tot_vert[WIB_IDX]; i++) {
+        dd->tasks_vertices[wd.start[WIB_IDX] + i].lvl2adj = 0;
+    }
+    __syncwarp();
+
+    for (int i = wd.num_mem[WIB_IDX]; i < wd.tot_vert[WIB_IDX]; i++) {
+
+        pvertexid = dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid;
+
+        pneighbors_start = dd->twohop_offsets[pvertexid];
+        pneighbors_end = dd->twohop_offsets[pvertexid + 1];
+
+        for (int j = pneighbors_start + LANE_IDX; j < pneighbors_end; j += WARP_SIZE) {
+
+            phelper1 = dd->vertex_order_map[warp_write + dd->twohop_neighbors[j]];
+
+            if (phelper1 >= wd.num_mem[WIB_IDX]) {
+                dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].lvl2adj++;
+            }
+        }
+        __syncwarp();
+    }
+
+    // reset vertex order map
+    for(int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE){
+        dd->vertex_order_map[warp_write + dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid] = -1;
+    }
+    __syncwarp();
 
     // compares all vertices to the lemmas from Quick
     for (int i = wd.num_mem[WIB_IDX] + LANE_IDX; i < wd.tot_vert[WIB_IDX] && wd.success[WIB_IDX]; 
@@ -470,28 +513,6 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         }
     }
     __syncwarp();
-
-    if (!wd.success[WIB_IDX]) {
-        // reset vertex order map
-        for(int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE){
-            dd->vertex_order_map[warp_write + dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid] = -1;
-        }
-
-        return;
-    }
-
-    pneighbors_start = dd->twohop_offsets[pvertexid];
-    pneighbors_end = dd->twohop_offsets[pvertexid + 1];
-
-    for (int i = pneighbors_start + LANE_IDX; i < pneighbors_end && wd.success[WIB_IDX]; i += 
-         WARP_SIZE) {
-
-        phelper1 = dd->vertex_order_map[warp_write + dd->twohop_neighbors[i]];
-
-        if (phelper1 > -1) {
-            dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].lvl2adj--;
-        }
-    }
 
     // reset vertex order map
     for(int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE){
@@ -1229,7 +1250,6 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     __syncwarp();
 }
 
-// TODO - reduce memory usage
 __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
                                       int number_of_candidates)
 {
