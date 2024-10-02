@@ -438,7 +438,7 @@ void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Si
 
 // processes 0th level of expansion
 void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees, 
-                    int* minimum_in_degrees, int minimum_clique_size)
+                        int* minimum_in_degrees, int minimum_clique_size)
 {
     // intersection
     int pvertexid;                      // vertex id for pruning
