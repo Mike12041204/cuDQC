@@ -56,8 +56,10 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     h_initialize_tasks(hg, hd, minimum_out_degrees, minimum_in_degrees, minimum_clique_size);
 
     // DEBUG
-    output_file << "CONDENSED GRAPH" << endl;
-    print_graph(hg);
+    if (dss.DEBUG_TOGGLE) {
+        output_file << "CONDENSED GRAPH" << endl;
+        print_graph(hg);
+    }
 
     // HANDLE MEMORY
     h_allocate_device_memory(hd, h_dd, hg, dss, minimum_out_degrees, minimum_in_degrees, 
@@ -1318,10 +1320,6 @@ void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* r
     uint64_t start_write;               // starting write position for new cliques
     int min_out_deg;
     int min_in_deg;
-    uint64_t pneighbors_start;          
-    uint64_t pneighbors_end;
-    int phelper1;
-    int pvertexid;
 
     if(tot_vert < minimum_clique_size){
         success = false;
@@ -1562,7 +1560,6 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
     }
 
     // CRITICAL VERTEX PRUNING
-    // TODO - make i
     // iterate through all vertices in clique
     for (int k = 0; k < number_of_members; k++)
     {
@@ -1643,37 +1640,10 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
         adj_counters[i] = 0;
     }
 
-    // iterate through all critical adjacent
+    // calculate adj_counters, adjacencies to critical vertices
     for (int i = number_of_members; i < number_of_members + number_of_crit_adj; i++) {
 
         pvertexid = vertices[i].vertexid;
-
-        // update 1hop adj
-        pneighbors_start = hg.out_offsets[pvertexid];
-        pneighbors_end = hg.out_offsets[pvertexid + 1];
-
-        for (uint64_t k = pneighbors_start; k < pneighbors_end; k++) {
-
-            phelper1 = hd.vertex_order_map[hg.out_neighbors[k]];
-
-            if (phelper1 > -1) {
-                vertices[phelper1].in_mem_deg++;
-                vertices[phelper1].in_can_deg--;
-            }
-        }
-
-        pneighbors_start = hg.in_offsets[pvertexid];
-        pneighbors_end = hg.in_offsets[pvertexid + 1];
-
-        for (uint64_t k = pneighbors_start; k < pneighbors_end; k++) {
-
-            phelper1 = hd.vertex_order_map[hg.in_neighbors[k]];
-
-            if (phelper1 > -1) {
-                vertices[phelper1].out_mem_deg++;
-                vertices[phelper1].out_can_deg--;
-            }
-        }
 
         // track 2hop adj
         pneighbors_start = hg.twohop_offsets[pvertexid];
@@ -1689,6 +1659,7 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
         }
     }
 
+    // check for critical failure
     critical_fail = false;
 
     // all vertices within the clique must be within 2hops of the newly ah_dded critical vertex adj vertices
@@ -1727,6 +1698,39 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
         delete adj_counters;
         success = 2;
         return;
+    }
+
+    // iterate through all critical adjacent
+    for (int i = number_of_members; i < number_of_members + number_of_crit_adj; i++) {
+
+        pvertexid = vertices[i].vertexid;
+
+        // update 1hop adj
+        pneighbors_start = hg.out_offsets[pvertexid];
+        pneighbors_end = hg.out_offsets[pvertexid + 1];
+
+        for (uint64_t k = pneighbors_start; k < pneighbors_end; k++) {
+
+            phelper1 = hd.vertex_order_map[hg.out_neighbors[k]];
+
+            if (phelper1 > -1) {
+                vertices[phelper1].in_mem_deg++;
+                vertices[phelper1].in_can_deg--;
+            }
+        }
+
+        pneighbors_start = hg.in_offsets[pvertexid];
+        pneighbors_end = hg.in_offsets[pvertexid + 1];
+
+        for (uint64_t k = pneighbors_start; k < pneighbors_end; k++) {
+
+            phelper1 = hd.vertex_order_map[hg.in_neighbors[k]];
+
+            if (phelper1 > -1) {
+                vertices[phelper1].out_mem_deg++;
+                vertices[phelper1].out_can_deg--;
+            }
+        }
     }
 
     // no failed vertices found so add all critical vertex adj candidates to clique
