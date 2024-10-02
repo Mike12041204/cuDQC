@@ -646,7 +646,7 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
     // sort enumeration order before writing to tasks
     qsort(vertices, total_vertices, sizeof(Vertex), h_comp_vert_Q);
 
-    h_condense_graph(hd, hg, vertices, number_of_candidates);
+    //h_condense_graph(hd, hg, vertices, number_of_candidates);
 
     total_vertices = number_of_candidates;
 
@@ -987,6 +987,18 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
         num_cand = tot_vert - num_mem;
         expansions = num_cand;
 
+        // LOOKAHEAD PRUNING
+        success = true;
+
+        // sets success to false if lookahead fails
+        h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start, 
+                            minimum_out_degrees, minimum_in_degrees, minimum_clique_size, 
+                            success);
+        
+        if (success) {
+            continue;
+        }
+
         // --- NEXT LEVEL ---
 
         for (int j = number_of_covered; j < expansions; j++) {
@@ -1003,18 +1015,10 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                 if (!success) {
                     break;
                 }
-            }
 
-            // LOOKAHEAD PRUNING
-            success = true;
-
-            // sets success to false if lookahead fails
-            h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start, 
-                                minimum_out_degrees, minimum_in_degrees, minimum_clique_size, 
-                                success);
-            
-            if (success) {
-                break;
+                if(success == 2){
+                    continue;
+                }
             }
 
             // INITIALIZE NEW VERTICES
@@ -1216,7 +1220,6 @@ void h_flush_cliques(CPU_Cliques& hc, ofstream& temp_results)
     ((*hc.cliques_count)) = 0;
 }
 
-
 void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
 {
     // CPU DATA
@@ -1311,6 +1314,10 @@ void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
 
 // --- SECONDARY EXPANSION FUNCTIONS ---
 
+int compareAscending(const void* a, const void* b) {
+    return (*(int*)a - *(int*)b);
+}
+
 // sets success to false if lookahead fails
 void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, 
                         int tot_vert, int num_mem, int num_cand, uint64_t start, 
@@ -1326,6 +1333,36 @@ void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* r
         return;
     }
 
+    // DEBUG - rm
+    //3091 7267 7310 7382 7752 7761 8687 9050 9763 11140 12052 16755 17169 19191 21060 22582
+    int* temp = new int[tot_vert];
+    bool debug = false;
+    for(int i = 0; i < tot_vert; i++){
+        temp[i] = read_vertices[start + i].vertexid;
+    }
+    qsort(temp, tot_vert, sizeof(int), compareAscending);
+    if (temp[tot_vert - 1] == 22582 &&
+        temp[tot_vert - 2] == 21060 &&
+        temp[tot_vert - 3] == 19191 &&
+        temp[tot_vert - 4] == 17169 &&
+        temp[tot_vert - 5] == 16755 &&
+        temp[tot_vert - 6] == 12052 &&
+        temp[tot_vert - 7] == 11140 &&
+        temp[tot_vert - 8] == 9763 &&
+        temp[tot_vert - 9] == 9050 &&
+        temp[tot_vert - 10] == 8687 &&
+        temp[tot_vert - 11] == 7761 &&
+        temp[tot_vert - 12] == 7752 &&
+        temp[tot_vert - 13] == 7382 &&
+        temp[tot_vert - 14] == 7310 &&
+        temp[tot_vert - 15] == 7267 &&
+        temp[tot_vert - 16] == 3091 &&
+        tot_vert == 16) 
+    {
+        debug = true;
+    }
+    delete[] temp;
+
     min_out_deg = h_get_mindeg(tot_vert, minimum_out_degrees, minimum_clique_size);
     min_in_deg = h_get_mindeg(tot_vert, minimum_in_degrees, minimum_clique_size);
 
@@ -1335,6 +1372,11 @@ void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* r
         if (read_vertices[start + i].out_mem_deg + read_vertices[start + i].out_can_deg < 
             min_out_deg || read_vertices[start + i].in_mem_deg + 
             read_vertices[start + i].in_can_deg < min_in_deg) {
+
+            // DEBUG - rm
+            if(debug){
+                cout << endl << "11111" << endl;
+            }
 
             success = false;
             return;
@@ -1348,9 +1390,19 @@ void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* r
             read_vertices[start + i].in_mem_deg + read_vertices[start + i].in_can_deg < 
             min_in_deg) {
 
+            // DEBUG - rm
+            if(debug){
+                cout << endl << "22222" << endl;
+            }
+
             success = false;
             return;
         }
+    }
+
+    // DEBUG - rm
+    if(debug){
+        cout << endl << "33333" << endl;
     }
 
     if(grank == 0){
@@ -1377,8 +1429,8 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
     int min_out_deg;                    // helper variables
     int min_in_deg;
 
-    min_out_deg = h_get_mindeg(num_mem, minimum_out_degrees, minimum_clique_size);
-    min_in_deg = h_get_mindeg(num_mem, minimum_in_degrees, minimum_clique_size);
+    min_out_deg = h_get_mindeg(num_mem + 1, minimum_out_degrees, minimum_clique_size);
+    min_in_deg = h_get_mindeg(num_mem + 1, minimum_in_degrees, minimum_clique_size);
 
     // remove one vertex
     num_cand--;
@@ -1402,11 +1454,16 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
         if (phelper1 > -1) {
             read_vertices[start + phelper1].in_can_deg--;
 
-            if (phelper1 < num_mem && read_vertices[start + phelper1].in_mem_deg + 
+            if (read_vertices[start + phelper1].in_mem_deg + 
                 read_vertices[start + phelper1].in_can_deg < min_in_deg) {
                 
-                success = false;
-                break;
+                if(phelper1 < num_mem){
+                    success = false;
+                    break;
+                }
+                else if (phelper1 == tot_vert - 1){
+                    success = 2;
+                }
             }
         }
     }
@@ -1431,11 +1488,16 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
         if (phelper1 > -1) {
             read_vertices[start + phelper1].out_can_deg--;
 
-            if (phelper1 < num_mem && read_vertices[start + phelper1].out_mem_deg + 
+            if (read_vertices[start + phelper1].out_mem_deg + 
                 read_vertices[start + phelper1].out_can_deg < min_out_deg) {
                 
-                success = false;
-                break;
+                if(phelper1 < num_mem){
+                    success = false;
+                    break;
+                }
+                else if (phelper1 == tot_vert - 1){
+                    success = 2;
+                }
             }
         }
     }
