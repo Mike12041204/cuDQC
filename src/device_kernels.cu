@@ -977,7 +977,12 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                   d_comp_int_desc);
 
     // set bounds and min ext degs
-    d_calculate_LU_bounds(dd, wd, ld, wd.remaining_count[WIB_IDX]);
+    // DEBUG - rm and uncomment
+    //d_calculate_LU_bounds(dd, wd, ld, wd.remaining_count[WIB_IDX]);
+    wd.lower_bound[WIB_IDX] = 0;
+    wd.upper_bound[WIB_IDX] = wd.number_of_candidates[WIB_IDX];
+    wd.min_ext_out_deg[WIB_IDX] = 0;
+    wd.min_ext_in_deg[WIB_IDX] = 0;
     __syncwarp();
 
     // check whether bounds are valid
@@ -1199,7 +1204,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                       d_comp_int_desc);
 
         // set bounds and min ext degs
-        d_calculate_LU_bounds(dd, wd, ld, wd.num_val_cands[WIB_IDX]);
+        //d_calculate_LU_bounds(dd, wd, ld, wd.num_val_cands[WIB_IDX]);
         __syncwarp();
 
         // check whether bounds are valid

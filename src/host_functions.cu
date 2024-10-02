@@ -198,7 +198,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             cudaDeviceSynchronize();
 
             // DEBUG - rm
-            cout << "!!!" << endl;
+            //cout << "!!!" << endl;
 
             // DEBUG
             if (dss.DEBUG_TOGGLE) {
@@ -270,10 +270,20 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     // then help or all processes are done and the program can complete
     }while(wsize != take_work_wrap(grank, mpiSizeBuffer, mpiVertexBuffer, from));
 
+    // DEBUG - rm
+    cout << "!!!" << endl;
+
     h_dump_cliques(hc, h_dd, temp_results, dss);
+
+    // DEBUG - rm
+    cout << "!!!" << endl;
 
     // clean up
     h_free_memory(hd, h_dd, hc);
+
+    // DEBUG - rm
+    cout << "!!!" << endl;
+
     chkerr(cudaFree(dd));
     chkerr(cudaFree(tasks_count));
     chkerr(cudaFree(buffer_count));
@@ -1205,7 +1215,13 @@ void h_dump_cliques(CPU_Cliques& hc, GPU_Data& h_dd, ofstream& temp_results, DS_
     chkerr(cudaMemcpy(hc.cliques_vertex, h_dd.cliques_vertex, sizeof(int) * hc.cliques_offset[*hc.cliques_count], cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
 
+    // DEBUG - rm
+    cout << "1" << endl;
+
     h_flush_cliques(hc, temp_results);
+
+    // DEBUG - rm
+    cout << 2 << endl;
 
     cudaMemset(h_dd.cliques_count, 0, sizeof(uint64_t));
 }
@@ -1217,15 +1233,24 @@ void h_flush_cliques(CPU_Cliques& hc, ofstream& temp_results)
     uint64_t end;           // end of current clique
 
     for (int i = 0; i < ((*hc.cliques_count)); i++) {
+        cout << "11" << endl;
         start = hc.cliques_offset[i];
+        cout << "2" << endl;
         end = hc.cliques_offset[i + 1];
+        temp_results << " ";
+        cout << "3" << endl;
         temp_results << end - start << " ";
+        cout << "4" << endl;
         for (uint64_t j = start; j < end; j++) {
+            cout << "5" << endl;
             temp_results << hc.cliques_vertex[j] << " ";
+            cout << "6" << endl;
         }
         temp_results << "\n";
+        cout << "7" << endl;
     }
     ((*hc.cliques_count)) = 0;
+    cout << "8" << endl;
 }
 
 void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
