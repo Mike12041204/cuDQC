@@ -138,6 +138,36 @@ __device__ __forceinline__ bool d_cand_isvalid(Vertex& vertex, GPU_Data* dd, War
     else
         return true;
 }
+__device__ __forceinline__ bool d_vert_isextendable(Vertex& vertex, GPU_Data* dd, Warp_Data& wd, 
+                                               Local_Data& ld)
+{
+    if(vertex.out_mem_deg + vertex.out_can_deg < wd.min_ext_out_deg[WIB_IDX])
+        return false;
+    else if(vertex.in_mem_deg + vertex.in_can_deg < wd.min_ext_in_deg[WIB_IDX])
+        return false;
+    else if (vertex.out_mem_deg + vertex.out_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + 
+             vertex.out_can_deg, dd->minimum_out_degrees, *dd->minimum_clique_size))
+        return false;
+    else if (vertex.in_mem_deg + vertex.in_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + 
+             vertex.in_can_deg, dd->minimum_in_degrees, *dd->minimum_clique_size))
+        return false;
+    else if(vertex.out_mem_deg + wd.upper_bound[WIB_IDX] < 
+            dd->minimum_out_degrees[wd.number_of_members[WIB_IDX] + wd.upper_bound[WIB_IDX]])
+        return false;
+    else if(vertex.in_mem_deg + wd.upper_bound[WIB_IDX] < 
+            dd->minimum_in_degrees[wd.number_of_members[WIB_IDX] + wd.upper_bound[WIB_IDX]])
+        return false;
+    else if(vertex.out_mem_deg + vertex.out_can_deg < 
+            d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], 
+                         dd->minimum_out_degrees, *dd->minimum_clique_size))
+        return false;
+    else if(vertex.in_mem_deg + vertex.in_can_deg < 
+            d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], 
+                         dd->minimum_in_degrees, *dd->minimum_clique_size))
+        return false;
+    else
+        return true;
+}
 
 // --- DEBUG KERNELS ---
 __device__ void d_print_vertices(Vertex* vertices, int size);
