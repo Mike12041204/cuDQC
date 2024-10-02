@@ -33,9 +33,6 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     uint64_t* cliques_count;        // unified memory for cliques count
     uint64_t* write_count;
 
-    // DEBUG - rm
-    int* debug;
-
     // TIME
     auto start = chrono::high_resolution_clock::now();
     if(grank == 0){
@@ -73,9 +70,6 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     chkerr(cudaMallocManaged((void**)&tasks_count, sizeof(uint64_t)));
     chkerr(cudaMallocManaged((void**)&buffer_count, sizeof(uint64_t)));
     chkerr(cudaMallocManaged((void**)&cliques_count, sizeof(uint64_t)));
-
-    // DEBUG - rm
-    chkerr(cudaMallocManaged((void**)debug, sizeof(int)));
 
     // DEBUG
     if (dss.DEBUG_TOGGLE) {
@@ -196,9 +190,6 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             // tasks buffer in global memory
             d_expand_level<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd);
             cudaDeviceSynchronize();
-
-            // DEBUG - rm
-            cout << "!!!" << endl;
 
             // DEBUG
             if (dss.DEBUG_TOGGLE) {
