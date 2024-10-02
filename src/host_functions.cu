@@ -1436,16 +1436,11 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
         if (phelper1 > -1) {
             read_vertices[start + phelper1].in_can_deg--;
 
-            if (read_vertices[start + phelper1].in_mem_deg + 
+            if (phelper1 < num_mem && read_vertices[start + phelper1].in_mem_deg + 
                 read_vertices[start + phelper1].in_can_deg < min_in_deg) {
                 
-                if(phelper1 < num_mem){
-                    success = false;
-                    break;
-                }
-                else if(phelper1 == tot_vert - 1){
-                    success = 2;
-                }
+                success = false;
+                break;
             }
         }
     }
@@ -1470,16 +1465,11 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
         if (phelper1 > -1) {
             read_vertices[start + phelper1].out_can_deg--;
 
-            if (read_vertices[start + phelper1].out_mem_deg + 
+            if (phelper1 < num_mem && read_vertices[start + phelper1].out_mem_deg + 
                 read_vertices[start + phelper1].out_can_deg < min_out_deg) {
                 
-                if(phelper1 < num_mem){
-                    success = false;
-                    break;
-                }
-                else if(phelper1 == tot_vert - 1){
-                    success = 2;
-                }
+                success = false;
+                break;
             }
         }
     }
