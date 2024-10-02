@@ -16,7 +16,7 @@ print_job_script() {
 #SBATCH --time=12:00:00                         # set job max time
 #SBATCH --output=DQC-O_${output}	            # set output path for nodes
 #SBATCH --error=DQC-E_${output}        	        # set error path for nodes
-#SBATCH --nodes=4                               # 4 nodes
+#SBATCH --nodes=3                               # 4 nodes
 #SBATCH --ntasks-per-node=1                     # 1 process per node
 #SBATCH --cpus-per-task=16                      # 16 thread per process
 #SBATCH --mem=94G                               # 94GB memory per process
