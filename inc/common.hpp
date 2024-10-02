@@ -51,8 +51,8 @@ using namespace std;
 // shared memory vertices
 #define VERTICES_SIZE 50
 // cpu expansion settings
-#define CPU_LEVELS 10000
-#define CPU_EXPAND_THRESHOLD 10000
+#define CPU_LEVELS 1
+#define CPU_EXPAND_THRESHOLD 1
 // mpi settings
 #define MAX_MESSAGE 1000000000
 // must be atleast be 1

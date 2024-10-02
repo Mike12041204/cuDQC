@@ -53,16 +53,16 @@ __global__ void d_expand_level(GPU_Data* dd)
         }
         __syncwarp();
 
-        // LOOKAHEAD PRUNING
-        wd.success[WIB_IDX] = true;
-        __syncwarp();
+        // // LOOKAHEAD PRUNING
+        // wd.success[WIB_IDX] = true;
+        // __syncwarp();
 
-        // sets success to false if lookahead fails
-        d_lookahead_pruning(dd, wd, ld);
+        // // sets success to false if lookahead fails
+        // d_lookahead_pruning(dd, wd, ld);
         
-        if (wd.success[WIB_IDX]) {
-            continue;
-        }
+        // if (wd.success[WIB_IDX]) {
+        //     continue;
+        // }
 
         // --- NEXT LEVEL ---
 
@@ -81,6 +81,9 @@ __global__ void d_expand_level(GPU_Data* dd)
 
                 if (!wd.success[WIB_IDX]) {
                     break;
+                }
+                if(wd.success[WIB_IDX] == 2){
+                    continue;
                 }
             }
 
@@ -122,7 +125,6 @@ __global__ void d_expand_level(GPU_Data* dd)
             // sets success to false if failed found
             d_add_one_vertex(dd, wd, ld);
 
-            // DEBUG - uncomment
             // // if failed found check for clique and continue on to the next iteration
             // if (!wd.success[WIB_IDX]) {
             //     d_check_for_clique(dd, wd, ld);
@@ -440,9 +442,9 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
 
-    min_out_deg = d_get_mindeg(wd.num_mem[WIB_IDX], dd->minimum_out_degrees, 
+    min_out_deg = d_get_mindeg(wd.num_mem[WIB_IDX] + 1, dd->minimum_out_degrees, 
                                *dd->minimum_clique_size);
-    min_in_deg = d_get_mindeg(wd.num_mem[WIB_IDX], dd->minimum_in_degrees, 
+    min_in_deg = d_get_mindeg(wd.num_mem[WIB_IDX] + 1, dd->minimum_in_degrees, 
                                *dd->minimum_clique_size);
 
     // remove the last candidate in vertices
@@ -472,12 +474,17 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         if (phelper1 > -1) {
             dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].in_can_deg--;
 
-            if (phelper1 < wd.num_mem[WIB_IDX] && dd->tasks_vertices[wd.start[WIB_IDX] + 
-                phelper1].in_mem_deg + dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].in_can_deg < 
+            if (dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].in_mem_deg + 
+                dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].in_can_deg < 
                 min_in_deg) {
                 
-                wd.success[WIB_IDX] = false;
-                break;
+                if(phelper1 < wd.num_mem[WIB_IDX]){
+                    wd.success[WIB_IDX] = false;
+                    break;
+                }
+                else if(phelper1 == wd.tot_vert[WIB_IDX] - 1){
+                    wd.success[WIB_IDX] = 2;
+                }
             }
         }
     }
@@ -503,12 +510,17 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         if (phelper1 > -1) {
             dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].out_can_deg--;
 
-            if (phelper1 < wd.num_mem[WIB_IDX] && dd->tasks_vertices[wd.start[WIB_IDX] + 
-                phelper1].out_mem_deg + dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].out_can_deg 
-                < min_out_deg) {
+            if (dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].out_mem_deg + 
+                dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].out_can_deg < 
+                min_out_deg) {
                 
-                wd.success[WIB_IDX] = false;
-                break;
+                if(phelper1 < wd.num_mem[WIB_IDX]){
+                    wd.success[WIB_IDX] = false;
+                    break;
+                }
+                else if(phelper1 == wd.tot_vert[WIB_IDX] - 1){
+                    wd.success[WIB_IDX] = 2;
+                }
             }
         }
     }
@@ -695,38 +707,9 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
     }
     __syncwarp();
 
-    // iterate through all critical adjacent
+    // calculate adj_counters, adjacencies to critical vertices
     for (int i = wd.number_of_members[WIB_IDX]; i < wd.number_of_members[WIB_IDX] + 
          number_of_crit_adj; i++) {
-
-        pvertexid = ld.vertices[i].vertexid;
-
-        // update 1hop adj
-        pneighbors_start = dd->out_offsets[pvertexid];
-        pneighbors_end = dd->out_offsets[pvertexid + 1];
-
-        for (uint64_t k = pneighbors_start + LANE_IDX; k < pneighbors_end; k += WARP_SIZE) {
-
-            phelper1 = dd->vertex_order_map[warp_write + dd->out_neighbors[k]];
-
-            if (phelper1 > -1) {
-                ld.vertices[phelper1].in_mem_deg++;
-                ld.vertices[phelper1].in_can_deg--;
-            }
-        }
-
-        pneighbors_start = dd->in_offsets[pvertexid];
-        pneighbors_end = dd->in_offsets[pvertexid + 1];
-
-        for (uint64_t k = pneighbors_start + LANE_IDX; k < pneighbors_end; k += WARP_SIZE) {
-
-            phelper1 = dd->vertex_order_map[warp_write + dd->in_neighbors[k]];
-
-            if (phelper1 > -1) {
-                ld.vertices[phelper1].out_mem_deg++;
-                ld.vertices[phelper1].out_can_deg--;
-            }
-        }
 
         // track 2hop adj
         pneighbors_start = dd->twohop_offsets[pvertexid];
@@ -743,6 +726,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
         __syncwarp();
     }
 
+    // check for critical fails
     // all vertices within the clique must be within 2hops of the newly added critical vertex adj 
     // vertices
     for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX] && wd.success[WIB_IDX] == 1; k += 
@@ -778,6 +762,40 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
             dd->vertex_order_map[warp_write + i] = -1;
         }
         return;
+    }
+
+    // iterate through all critical adjacent
+    for (int i = wd.number_of_members[WIB_IDX]; i < wd.number_of_members[WIB_IDX] + 
+         number_of_crit_adj; i++) {
+
+        pvertexid = ld.vertices[i].vertexid;
+
+        // update 1hop adj
+        pneighbors_start = dd->out_offsets[pvertexid];
+        pneighbors_end = dd->out_offsets[pvertexid + 1];
+
+        for (uint64_t k = pneighbors_start + LANE_IDX; k < pneighbors_end; k += WARP_SIZE) {
+
+            phelper1 = dd->vertex_order_map[warp_write + dd->out_neighbors[k]];
+
+            if (phelper1 > -1) {
+                ld.vertices[phelper1].in_mem_deg++;
+                ld.vertices[phelper1].in_can_deg--;
+            }
+        }
+
+        pneighbors_start = dd->in_offsets[pvertexid];
+        pneighbors_end = dd->in_offsets[pvertexid + 1];
+
+        for (uint64_t k = pneighbors_start + LANE_IDX; k < pneighbors_end; k += WARP_SIZE) {
+
+            phelper1 = dd->vertex_order_map[warp_write + dd->in_neighbors[k]];
+
+            if (phelper1 > -1) {
+                ld.vertices[phelper1].out_mem_deg++;
+                ld.vertices[phelper1].out_can_deg--;
+            }
+        }
     }
 
     // no failed vertices found so add all critical vertex adj candidates to clique
@@ -960,6 +978,33 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     // set bounds and min ext degs
     d_calculate_LU_bounds(dd, wd, ld, wd.remaining_count[WIB_IDX]);
+    __syncwarp();
+
+    // check whether bounds are valid
+    if(wd.success[WIB_IDX] == false){
+        // reset vertex order map
+        for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
+            dd->vertex_order_map[warp_write + i] = -1;
+        }
+        return;
+    }
+
+    // check for failed vertices
+    for(int i = 0; i < wd.number_of_members[WIB_IDX] && wd.success[WIB_IDX]; i++){
+        if(!d_vert_isextendable(ld.vertices[i], dd, wd, ld)){
+            wd.success[WIB_IDX] = false;
+            break;
+        }
+    }
+    __syncwarp();
+
+    // reset vertex order map
+    if(!wd.success[WIB_IDX]){
+        for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
+            dd->vertex_order_map[warp_write + i] = -1;
+        }
+        return;
+    }   
 
     // lane 0 checks whether bounds are valid
     if (LANE_IDX == 0) {
@@ -1155,21 +1200,33 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
         // set bounds and min ext degs
         d_calculate_LU_bounds(dd, wd, ld, wd.num_val_cands[WIB_IDX]);
-
-        // lane 0 checks whether bounds are valid
-        if (LANE_IDX == 0) {
-            if(wd.lower_bound[WIB_IDX] > wd.upper_bound[WIB_IDX] || wd.upper_bound[WIB_IDX] < 1){
-                wd.success[WIB_IDX] = false;
-            }
-        }
         __syncwarp();
-        if(!wd.success[WIB_IDX]){
+
+        // check whether bounds are valid
+        if(wd.success[WIB_IDX] == false){
             // reset vertex order map
             for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
                 dd->vertex_order_map[warp_write + i] = -1;
             }
             return;
         }
+
+        // check for failed vertices
+        for(int i = 0; i < wd.number_of_members[WIB_IDX] && wd.success[WIB_IDX]; i++){
+            if(!d_vert_isextendable(ld.vertices[i], dd, wd, ld)){
+                wd.success[WIB_IDX] = false;
+                break;
+            }
+        }
+        __syncwarp();
+
+        // reset vertex order map
+        if(!wd.success[WIB_IDX]){
+            for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
+                dd->vertex_order_map[warp_write + i] = -1;
+            }
+            return;
+        }   
 
         lane_remaining_count = 0;
         lane_removed_count = 0;
@@ -1287,6 +1344,7 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
                 if(wd.nminclqdeg_candeg_o[WIB_IDX]>ld.vertices[i].out_can_deg)
                     wd.nminclqdeg_candeg_o[WIB_IDX] = ld.vertices[i].out_can_deg;
             }
+
             if(wd.nmin_clq_totaldeg_o[WIB_IDX]>ld.vertices[i].out_mem_deg+ld.vertices[i].out_can_deg)
                 wd.nmin_clq_totaldeg_o[WIB_IDX] = ld.vertices[i].out_mem_deg+ld.vertices[i].out_can_deg;
 
@@ -1302,33 +1360,46 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
                 if(wd.nminclqdeg_candeg_i[WIB_IDX]>ld.vertices[i].in_can_deg)
                     wd.nminclqdeg_candeg_i[WIB_IDX] = ld.vertices[i].in_can_deg;
             }
+
             if(wd.nmin_clq_totaldeg_i[WIB_IDX]>ld.vertices[i].in_mem_deg+ld.vertices[i].in_can_deg)
                 wd.nmin_clq_totaldeg_i[WIB_IDX] = ld.vertices[i].in_mem_deg+ld.vertices[i].in_can_deg;
         }
+
         wd.min_ext_out_deg[WIB_IDX] = d_get_mindeg(wd.number_of_members[WIB_IDX]+1, dd->minimum_out_degrees, (*dd->minimum_clique_size));
         wd.min_ext_in_deg[WIB_IDX] = d_get_mindeg(wd.number_of_members[WIB_IDX]+1, dd->minimum_in_degrees, (*dd->minimum_clique_size));
+        
         if(wd.nmin_clq_clqdeg_o[WIB_IDX]<dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+1] || wd.nmin_clq_clqdeg_i[WIB_IDX]<dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+1])//check the requirment of bound pruning rule
         {
             // ==== calculate L_min and U_min ====
             //initialize lower bound
-            int nmin_cands = max((d_get_mindeg(wd.number_of_members[WIB_IDX]+1, dd->minimum_out_degrees, (*dd->minimum_clique_size))-wd.nmin_clq_clqdeg_o[WIB_IDX]),
-                    (d_get_mindeg(wd.number_of_members[WIB_IDX]+1, dd->minimum_in_degrees, (*dd->minimum_clique_size))-wd.nmin_clq_clqdeg_i[WIB_IDX]));
+            int nmin_cands = max((d_get_mindeg(wd.number_of_members[WIB_IDX], dd->minimum_out_degrees, (*dd->minimum_clique_size))-wd.nmin_clq_clqdeg_o[WIB_IDX]),
+                    (d_get_mindeg(wd.number_of_members[WIB_IDX], dd->minimum_in_degrees, (*dd->minimum_clique_size))-wd.nmin_clq_clqdeg_i[WIB_IDX]));
             int nmin_cands_o = nmin_cands;
+
             while(nmin_cands_o<=wd.nminclqdeg_candeg_o[WIB_IDX] && wd.nmin_clq_clqdeg_o[WIB_IDX]+nmin_cands_o<dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+nmin_cands_o])
                 nmin_cands_o++;
+
             if(wd.nmin_clq_clqdeg_o[WIB_IDX]+nmin_cands_o<dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+nmin_cands_o])
                 nmin_cands_o = number_of_candidates+1;
+                wd.success[WIB_IDX] = false;
+                return;
 
             int nmin_cands_i = nmin_cands;
+
             while(nmin_cands_i<=wd.nminclqdeg_candeg_i[WIB_IDX] && wd.nmin_clq_clqdeg_i[WIB_IDX]+nmin_cands_i<dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+nmin_cands_i])
                 nmin_cands_i++;
+
             if(wd.nmin_clq_clqdeg_i[WIB_IDX]+nmin_cands_i<dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+nmin_cands_i])
                 nmin_cands_i = number_of_candidates+1;
+                wd.success[WIB_IDX] = false;
+                return;
+
             wd.lower_bound[WIB_IDX] = max(nmin_cands_o, nmin_cands_i);
 
             //initialize upper bound
             wd.upper_bound[WIB_IDX] = min((int)(wd.nmin_clq_totaldeg_o[WIB_IDX]/(*dd->minimum_out_degree_ratio)),
                     (int)(wd.nmin_clq_totaldeg_i[WIB_IDX]/(*dd->minimum_in_degree_ratio)))+1-wd.number_of_members[WIB_IDX];
+            
             if(wd.upper_bound[WIB_IDX]>number_of_candidates)
                 wd.upper_bound[WIB_IDX] = number_of_candidates;
 
@@ -1338,11 +1409,13 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
                 //tighten lower bound
                 wd.ncand_clqdeg_sum_o[WIB_IDX] = 0;
                 wd.ncand_clqdeg_sum_i[WIB_IDX] = 0;
+
                 for(i=0;i<wd.lower_bound[WIB_IDX];i++)
                 {
                     wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->candidate_out_mem_degs[warp_write + i];
                     wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->candidate_in_mem_degs[warp_write + i];
                 }
+
                 while(i<wd.upper_bound[WIB_IDX]
                         && wd.nclq_clqdeg_sum_o[WIB_IDX]+wd.ncand_clqdeg_sum_i[WIB_IDX]<wd.number_of_members[WIB_IDX]*dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+i]
                         && wd.nclq_clqdeg_sum_i[WIB_IDX]+wd.ncand_clqdeg_sum_o[WIB_IDX]<wd.number_of_members[WIB_IDX]*dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+i])
@@ -1351,6 +1424,7 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
                     wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->candidate_in_mem_degs[warp_write + i];
                     i++;
                 }
+
                 if(wd.nclq_clqdeg_sum_o[WIB_IDX]+wd.ncand_clqdeg_sum_o[WIB_IDX]<wd.number_of_members[WIB_IDX]*dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+i]
                     && wd.nclq_clqdeg_sum_i[WIB_IDX]+wd.ncand_clqdeg_sum_i[WIB_IDX]<wd.number_of_members[WIB_IDX]*dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+i])
                     wd.lower_bound[WIB_IDX] = wd.upper_bound[WIB_IDX]+1;
@@ -1380,38 +1454,21 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
         }
         else
         {
-            wd.min_ext_out_deg[WIB_IDX] = d_get_mindeg(wd.number_of_members[WIB_IDX]+1, dd->minimum_out_degrees, (*dd->minimum_clique_size));
-            wd.min_ext_in_deg[WIB_IDX] = d_get_mindeg(wd.number_of_members[WIB_IDX]+1, dd->minimum_in_degrees, (*dd->minimum_clique_size));
             wd.upper_bound[WIB_IDX] = number_of_candidates;
-            if(wd.number_of_members[WIB_IDX]+1<(*dd->minimum_clique_size))
+
+            if(wd.number_of_members[WIB_IDX]<(*dd->minimum_clique_size))
                 wd.lower_bound[WIB_IDX] = (*dd->minimum_clique_size)-wd.number_of_members[WIB_IDX];
             else
-                wd.lower_bound[WIB_IDX] = 1;
+                wd.lower_bound[WIB_IDX] = 0;
         }
 
         if(wd.number_of_members[WIB_IDX]+wd.upper_bound[WIB_IDX]<(*dd->minimum_clique_size))
-            wd.upper_bound[WIB_IDX] = 0;
+            wd.success[WIB_IDX] = false;
+            return;
 
-        if(wd.upper_bound[WIB_IDX]>0 && wd.upper_bound[WIB_IDX]>=wd.lower_bound[WIB_IDX])
+        if(wd.upper_bound[WIB_IDX] < 0 || wd.upper_bound[WIB_IDX] < wd.lower_bound[WIB_IDX])
         {
-            for(i=0;i<wd.number_of_members[WIB_IDX];i++)
-            {
-                //Type-II Degree-, Upper- and Lower-Bound Based Pruning (P3, P4, P5 in vldb paper)
-                if(ld.vertices[i].out_mem_deg+ld.vertices[i].out_can_deg<wd.min_ext_out_deg[WIB_IDX] ||
-                    ld.vertices[i].in_mem_deg+ld.vertices[i].in_can_deg<wd.min_ext_in_deg[WIB_IDX] ||
-                    ld.vertices[i].out_mem_deg+ld.vertices[i].out_can_deg<d_get_mindeg(wd.number_of_members[WIB_IDX]+ld.vertices[i].out_can_deg, dd->minimum_out_degrees, (*dd->minimum_clique_size)) ||
-                    ld.vertices[i].in_mem_deg+ld.vertices[i].in_can_deg<d_get_mindeg(wd.number_of_members[WIB_IDX]+ld.vertices[i].in_can_deg, dd->minimum_in_degrees, (*dd->minimum_clique_size)) ||
-                    ld.vertices[i].out_can_deg==0 && ld.vertices[i].out_mem_deg<d_get_mindeg(wd.number_of_members[WIB_IDX]+1, dd->minimum_out_degrees, (*dd->minimum_clique_size)) ||
-                    ld.vertices[i].in_can_deg==0 && ld.vertices[i].in_mem_deg<d_get_mindeg(wd.number_of_members[WIB_IDX]+1, dd->minimum_in_degrees, (*dd->minimum_clique_size)) ||
-                    ld.vertices[i].out_mem_deg+wd.upper_bound[WIB_IDX]<dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+wd.upper_bound[WIB_IDX]] ||
-                    ld.vertices[i].in_mem_deg+wd.upper_bound[WIB_IDX]<dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+wd.upper_bound[WIB_IDX]] ||
-                    ld.vertices[i].out_mem_deg+ld.vertices[i].out_can_deg<d_get_mindeg(wd.number_of_members[WIB_IDX]+wd.lower_bound[WIB_IDX], dd->minimum_out_degrees, (*dd->minimum_clique_size)) ||
-                    ld.vertices[i].in_mem_deg+ld.vertices[i].in_can_deg<d_get_mindeg(wd.number_of_members[WIB_IDX]+wd.lower_bound[WIB_IDX], dd->minimum_in_degrees, (*dd->minimum_clique_size)))
-                {
-                    wd.upper_bound[WIB_IDX] = 0;
-                    break;
-                }
-            }
+            wd.success[WIB_IDX] = false;
         }
     }
 }
