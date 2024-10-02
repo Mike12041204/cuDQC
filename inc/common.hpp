@@ -29,7 +29,7 @@
 using namespace std;
 
 // CPU DISTRIBUTED / PARALLEL SETTINGS
-#define NUMBER_OF_PROCESSESS 1
+#define NUMBER_OF_PROCESSESS 4
 #define NUMBER_OF_HTHREADS 16
 
 // GPU KERNEL LAUNCH
@@ -294,6 +294,8 @@ extern char msg_buffer[NUMBER_OF_PROCESSESS][100];             // for every task
 extern MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];          // array of handles for messages with all other thread, allows for asynchronous messaging, handles say whether message is complete
 extern MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
 extern bool global_free_list[NUMBER_OF_PROCESSESS];
+
+extern int db0, db1, db2, db3;
 
 inline void chkerr(cudaError_t code)
 {

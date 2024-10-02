@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
     // GRAPH
     CPU_Graph hg(read_file);
     // DEBUG
-    if(grank == 0){
+    if (dss.DEBUG_TOGGLE) {
         output_file << "LOADED GRAPH" << endl;
         print_graph(hg);
     }

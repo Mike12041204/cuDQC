@@ -94,7 +94,6 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
 }
 
 // create 2-hop neighbors
-// TODO - we do not need both nb list and lvl2adj, unsure
 void CPU_Graph::GenLevel2NBs()
 {
 	// each thread has arrays to work with

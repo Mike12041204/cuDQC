@@ -1776,6 +1776,7 @@ void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvert
 
         phelper1 = hd.vertex_order_map[hg.twohop_neighbors[i]];
 
+        // if neighbor is a candidate
         if (phelper1 >= number_of_members) {
             vertices[phelper1].label = 0;
 
@@ -1833,16 +1834,30 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
     h_calculate_LU_bounds(hd, upper_bound, lower_bound, min_ext_out_deg, min_ext_in_deg, vertices, 
                           number_of_members, *hd.remaining_count, minimum_out_degrees, 
                           minimum_in_degrees, minimum_out_degree_ratio, minimum_in_degree_ratio, 
-                          minimum_clique_size);
+                          minimum_clique_size, success);
 
     // check whether new bounds are valid
-    if(lower_bound > upper_bound || upper_bound < 1){    
-        success = false;
+    if(success == false){
         for (int i = 0; i < hg.number_of_vertices; i++) {
-        hd.vertex_order_map[i] = -1;
+            hd.vertex_order_map[i] = -1;
         }
         return;
     }
+
+    // check for failed vertices
+    for (int k = 0; k < number_of_members; k++) {
+        if (!h_vert_isextendable(vertices[k], number_of_members, upper_bound, lower_bound, 
+                                    min_ext_out_deg, min_ext_in_deg, minimum_out_degrees, 
+                                    minimum_in_degrees, minimum_clique_size)) {
+
+            success = false;
+            for (int i = 0; i < hg.number_of_vertices; i++) {
+                hd.vertex_order_map[i] = -1;
+            }
+            return;
+        }
+    }
+    
 
     (*hd.remaining_count) = 0;
     (*hd.removed_count) = 0;
@@ -1958,15 +1973,28 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         h_calculate_LU_bounds(hd, upper_bound, lower_bound, min_ext_out_deg, min_ext_in_deg, vertices, 
                             number_of_members, num_val_cands, minimum_out_degrees, 
                             minimum_in_degrees, minimum_out_degree_ratio, minimum_in_degree_ratio, 
-                            minimum_clique_size);
+                            minimum_clique_size, success);
 
         // check whether new bounds are valid
-        if(lower_bound > upper_bound || upper_bound == 0){    
-            success = false;
+        if(success == false){    
             for (int i = 0; i < hg.number_of_vertices; i++) {
                 hd.vertex_order_map[i] = -1;
             }
             return;
+        }
+
+        // check for failed vertices
+        for (int k = 0; k < number_of_members; k++) {
+            if (!h_vert_isextendable(vertices[k], number_of_members, upper_bound, lower_bound, 
+                                     min_ext_out_deg, min_ext_in_deg, minimum_out_degrees, 
+                                     minimum_in_degrees, minimum_clique_size)) {
+
+                success = false;
+                for (int i = 0; i < hg.number_of_vertices; i++) {
+                    hd.vertex_order_map[i] = -1;
+                }
+                return;
+            }
         }
 
         num_val_cands = 0;
@@ -2005,7 +2033,7 @@ void h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
                            int& min_ext_in_deg, Vertex* vertices, int number_of_members, 
                            int number_of_candidates, int* minimum_out_degrees, 
                            int* minimum_in_degrees, double minimum_out_degree_ratio, 
-                           double minimum_in_degree_ratio, int minimum_clique_size)
+                           double minimum_in_degree_ratio, int minimum_clique_size, int& success)
 {
     //lower & upper bound are initialized using the degree of vertex in S
 	//and tighten using the degree of vertex in ext_S
@@ -2035,11 +2063,14 @@ void h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
 		}
 		else if(nmin_clq_clqdeg_o==vertices[i].out_mem_deg)
 		{
-			if(nminclqdeg_candeg_o>vertices[i].out_can_deg)
+			if(nminclqdeg_candeg_o>vertices[i].out_can_deg){
 				nminclqdeg_candeg_o = vertices[i].out_can_deg;
+            }
 		}
-		if(nmin_clq_totaldeg_o>vertices[i].out_mem_deg+vertices[i].out_can_deg)
+
+		if(nmin_clq_totaldeg_o>vertices[i].out_mem_deg+vertices[i].out_can_deg){
 			nmin_clq_totaldeg_o = vertices[i].out_mem_deg+vertices[i].out_can_deg;
+        }
 
 		// in direction
 		nclq_clqdeg_sum_i += vertices[i].in_mem_deg;
@@ -2050,38 +2081,58 @@ void h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
 		}
 		else if(nmin_clq_clqdeg_i==vertices[i].in_mem_deg)
 		{
-			if(nminclqdeg_candeg_i>vertices[i].in_can_deg)
+			if(nminclqdeg_candeg_i>vertices[i].in_can_deg){
 				nminclqdeg_candeg_i = vertices[i].in_can_deg;
+            }
 		}
-		if(nmin_clq_totaldeg_i>vertices[i].in_mem_deg+vertices[i].in_can_deg)
+
+		if(nmin_clq_totaldeg_i>vertices[i].in_mem_deg+vertices[i].in_can_deg){
 			nmin_clq_totaldeg_i = vertices[i].in_mem_deg+vertices[i].in_can_deg;
+        }
 	}
+
 	min_ext_out_deg = h_get_mindeg(number_of_members+1, minimum_out_degrees, minimum_clique_size);
 	min_ext_in_deg = h_get_mindeg(number_of_members+1, minimum_in_degrees, minimum_clique_size);
-	if(nmin_clq_clqdeg_o<minimum_out_degrees[number_of_members+1] || nmin_clq_clqdeg_i<minimum_in_degrees[number_of_members+1])//check the requirment of bound pruning rule
+	
+    if(nmin_clq_clqdeg_o<minimum_out_degrees[number_of_members] || nmin_clq_clqdeg_i<minimum_in_degrees[number_of_members])//check the requirment of bound pruning rule
 	{
 		// ==== calculate L_min and U_min ====
 		//initialize lower bound
-		int nmin_cands = max((h_get_mindeg(number_of_members+1, minimum_out_degrees, minimum_clique_size)-nmin_clq_clqdeg_o),
-				(h_get_mindeg(number_of_members+1, minimum_in_degrees, minimum_clique_size)-nmin_clq_clqdeg_i));
+		int nmin_cands = max((h_get_mindeg(number_of_members, minimum_out_degrees, minimum_clique_size)-nmin_clq_clqdeg_o),
+				(h_get_mindeg(number_of_members, minimum_in_degrees, minimum_clique_size)-nmin_clq_clqdeg_i));
 		int nmin_cands_o = nmin_cands;
-		while(nmin_cands_o<=nminclqdeg_candeg_o && nmin_clq_clqdeg_o+nmin_cands_o<minimum_out_degrees[number_of_members+nmin_cands_o])
+
+		while(nmin_cands_o<=nminclqdeg_candeg_o && nmin_clq_clqdeg_o+nmin_cands_o<minimum_out_degrees[number_of_members+nmin_cands_o]){
 			nmin_cands_o++;
-		if(nmin_clq_clqdeg_o+nmin_cands_o<minimum_out_degrees[number_of_members+nmin_cands_o])
+        }
+
+		if(nmin_clq_clqdeg_o+nmin_cands_o<minimum_out_degrees[number_of_members+nmin_cands_o]){
 			nmin_cands_o = number_of_candidates+1;
+            success = false;
+            return;
+        }
 
 		int nmin_cands_i = nmin_cands;
-		while(nmin_cands_i<=nminclqdeg_candeg_i && nmin_clq_clqdeg_i+nmin_cands_i<minimum_in_degrees[number_of_members+nmin_cands_i])
+
+		while(nmin_cands_i<=nminclqdeg_candeg_i && nmin_clq_clqdeg_i+nmin_cands_i<minimum_in_degrees[number_of_members+nmin_cands_i]){
 			nmin_cands_i++;
-		if(nmin_clq_clqdeg_i+nmin_cands_i<minimum_in_degrees[number_of_members+nmin_cands_i])
+        }
+
+		if(nmin_clq_clqdeg_i+nmin_cands_i<minimum_in_degrees[number_of_members+nmin_cands_i]){
 			nmin_cands_i = number_of_candidates+1;
+            success = false;
+            return;
+        }
+
 		lower_bound = max(nmin_cands_o, nmin_cands_i);
 
 		//initialize upper bound
 		upper_bound = min((int)(nmin_clq_totaldeg_o/minimum_out_degree_ratio),
 				(int)(nmin_clq_totaldeg_i/minimum_in_degree_ratio))+1-number_of_members;
-		if(upper_bound>number_of_candidates)
+
+		if(upper_bound>number_of_candidates){
 			upper_bound = number_of_candidates;
+        }
 
 		// ==== tighten lower bound and upper bound based on the clique degree of candidates ====
 		if(lower_bound<upper_bound)
@@ -2089,11 +2140,13 @@ void h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
 			//tighten lower bound
 			ncand_clqdeg_sum_o = 0;
 			ncand_clqdeg_sum_i = 0;
+
 			for(i=0;i<lower_bound;i++)
 			{
 				ncand_clqdeg_sum_o += hd.candidate_out_mem_degs[i];
 				ncand_clqdeg_sum_i += hd.candidate_in_mem_degs[i];
 			}
+
 			while(i<upper_bound
 					&& nclq_clqdeg_sum_o+ncand_clqdeg_sum_i<number_of_members*minimum_out_degrees[number_of_members+i]
 					&& nclq_clqdeg_sum_i+ncand_clqdeg_sum_o<number_of_members*minimum_in_degrees[number_of_members+i])
@@ -2102,13 +2155,18 @@ void h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
 				ncand_clqdeg_sum_i += hd.candidate_in_mem_degs[i];
 				i++;
 			}
+
 			if(nclq_clqdeg_sum_o+ncand_clqdeg_sum_o<number_of_members*minimum_out_degrees[number_of_members+i]
-				&& nclq_clqdeg_sum_i+ncand_clqdeg_sum_i<number_of_members*minimum_in_degrees[number_of_members+i])
+				&& nclq_clqdeg_sum_i+ncand_clqdeg_sum_i<number_of_members*minimum_in_degrees[number_of_members+i]){
 				lower_bound = upper_bound+1;
+                success = false;
+                return;
+            }
 			else //tighten upper bound
 			{
 				lower_bound = i;
 				ntightened_max_cands = i;
+
 				while(i<upper_bound)
 				{
 					ncand_clqdeg_sum_o += hd.candidate_out_mem_degs[i];
@@ -2118,8 +2176,10 @@ void h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
 						&& nclq_clqdeg_sum_i+ncand_clqdeg_sum_o>=number_of_members*minimum_in_degrees[number_of_members+i])
 						ntightened_max_cands = i;
 				}
-				if(upper_bound>ntightened_max_cands)
+
+				if(upper_bound>ntightened_max_cands){
 					upper_bound = ntightened_max_cands;
+                }
 
 				if(lower_bound>1)
 				{
@@ -2131,39 +2191,24 @@ void h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
 	}
 	else
 	{
-		min_ext_out_deg = h_get_mindeg(number_of_members+1, minimum_out_degrees, minimum_clique_size);
-		min_ext_in_deg = h_get_mindeg(number_of_members+1, minimum_in_degrees, minimum_clique_size);
 		upper_bound = number_of_candidates;
-		if(number_of_members+1<minimum_clique_size)
+		
+        if(number_of_members<minimum_clique_size){
 			lower_bound = minimum_clique_size-number_of_members;
-		else
-			lower_bound = 1;
+        }
+		else{
+			lower_bound = 0;
+        }
 	}
 
-	if(number_of_members+upper_bound<minimum_clique_size)
-		upper_bound = 0;
+	if(number_of_members+upper_bound<minimum_clique_size){
+        success = false;
+        return;
+    }
 
-	if(upper_bound>0 && upper_bound>=lower_bound)
-	{
-		for(i=0;i<number_of_members;i++)
-		{
-			//Type-II Degree-, Upper- and Lower-Bound Based Pruning (P3, P4, P5 in vldb paper)
-			if(vertices[i].out_mem_deg+vertices[i].out_can_deg<min_ext_out_deg ||
-				vertices[i].in_mem_deg+vertices[i].in_can_deg<min_ext_in_deg ||
-				vertices[i].out_mem_deg+vertices[i].out_can_deg<h_get_mindeg(number_of_members+vertices[i].out_can_deg, minimum_out_degrees, minimum_clique_size) ||
-				vertices[i].in_mem_deg+vertices[i].in_can_deg<h_get_mindeg(number_of_members+vertices[i].in_can_deg, minimum_in_degrees, minimum_clique_size) ||
-				vertices[i].out_can_deg==0 && vertices[i].out_mem_deg<h_get_mindeg(number_of_members+1, minimum_out_degrees, minimum_clique_size) ||
-				vertices[i].in_can_deg==0 && vertices[i].in_mem_deg<h_get_mindeg(number_of_members+1, minimum_in_degrees, minimum_clique_size) ||
-				vertices[i].out_mem_deg+upper_bound<minimum_out_degrees[number_of_members+upper_bound] ||
-				vertices[i].in_mem_deg+upper_bound<minimum_in_degrees[number_of_members+upper_bound] ||
-				vertices[i].out_mem_deg+vertices[i].out_can_deg<h_get_mindeg(number_of_members+lower_bound, minimum_out_degrees, minimum_clique_size) ||
-				vertices[i].in_mem_deg+vertices[i].in_can_deg<h_get_mindeg(number_of_members+lower_bound, minimum_in_degrees, minimum_clique_size))
-			{
-				upper_bound = 0;
-				break;
-			}
-		}
-	}
+	if (upper_bound < 0 || upper_bound < lower_bound) {
+        success = false;
+    }
 }
 
 void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members, 
