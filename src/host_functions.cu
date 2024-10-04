@@ -31,6 +31,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     uint64_t* tasks_count;          // unified memory for tasks count
     uint64_t* buffer_count;         // unified memory for buffer count
     uint64_t* cliques_count;        // unified memory for cliques count
+    uint64_t* cliques_size;
     uint64_t* write_count;
 
     // TIME
@@ -70,6 +71,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     chkerr(cudaMallocManaged((void**)&tasks_count, sizeof(uint64_t)));
     chkerr(cudaMallocManaged((void**)&buffer_count, sizeof(uint64_t)));
     chkerr(cudaMallocManaged((void**)&cliques_count, sizeof(uint64_t)));
+    chkerr(cudaMallocManaged((void**)&cliques_size, sizeof(uint64_t)));
 
     // DEBUG
     if (dss.DEBUG_TOGGLE) {
@@ -199,7 +201,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             // consolidate all the warp tasks/cliques buffers into the next global tasks array, 
             // buffer, and cliques
             d_transfer_buffers<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count, 
-                                                                 cliques_count);
+                                                                 cliques_count, cliques_size);
             cudaDeviceSynchronize();
 
             // FILL TASKS FROM BUFFER
@@ -220,7 +222,9 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
 
             // determine whether cliques has exceeded defined threshold, if so dump them to a file, 
             // variables changed in kernel
-            if (*cliques_count > dss.CLIQUES_DUMP) {
+            if (*cliques_count > (int)(dss.CLIQUES_OFFSET_SIZE * (dss.CLIQUES_PERCENT / 100.0)) || 
+                *cliques_size > (int)(dss.CLIQUES_SIZE * (dss.CLIQUES_PERCENT / 100.0))) {
+
                 h_dump_cliques(hc, h_dd, temp_results, dss);
             }
 
@@ -229,27 +233,35 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
                 print_D_Data_Sizes(h_dd, dss);
             }
 
-            // GET HELP FROM OTHER PROCESS
-            if(*buffer_count > HELP_THRESHOLD){
-                // return whether work was successfully given
-                divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, 
-                                                 h_dd, *buffer_count, dss);
-                // update buffer count if work was given
-                if(divided_work){
-                    *buffer_count -= (*buffer_count > dss.EXPAND_THRESHOLD) ? dss.EXPAND_THRESHOLD 
-                    + ((*buffer_count - dss.EXPAND_THRESHOLD) * ((100 - HELP_PERCENT) / 100.0)) : 
-                    *buffer_count;
+            // // GET HELP FROM OTHER PROCESS
+            // if(*buffer_count > HELP_THRESHOLD){
 
-                    chkerr(cudaMemcpy(h_dd.buffer_count, buffer_count, sizeof(uint64_t), 
-                                      cudaMemcpyHostToDevice));
+            //     // DEBUG - rm
+            //     cout << "1" << endl;
 
-                    // DEBUG
-                    if (dss.DEBUG_TOGGLE) {
-                        output_file << "SENDING WORK TO PROCESS " << taker << endl;
-                        print_D_Data_Sizes(h_dd, dss);
-                    }
-                }
-            }
+            //     // return whether work was successfully given
+            //     divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, 
+            //                                      h_dd, *buffer_count, dss);
+
+            //     // DEBUG - rm
+            //     cout << "2" << endl;
+
+            //     // update buffer count if work was given
+            //     if(divided_work){
+            //         *buffer_count -= (*buffer_count > dss.EXPAND_THRESHOLD) ? dss.EXPAND_THRESHOLD 
+            //         + ((*buffer_count - dss.EXPAND_THRESHOLD) * ((100 - HELP_PERCENT) / 100.0)) : 
+            //         *buffer_count;
+
+            //         chkerr(cudaMemcpy(h_dd.buffer_count, buffer_count, sizeof(uint64_t), 
+            //                           cudaMemcpyHostToDevice));
+
+            //         // DEBUG
+            //         if (dss.DEBUG_TOGGLE) {
+            //             output_file << "SENDING WORK TO PROCESS " << taker << endl;
+            //             print_D_Data_Sizes(h_dd, dss);
+            //         }
+            //     }
+            // }
         }
 
         // we have finished all our work, so if we get to the top of the loop again it is because 
@@ -1007,7 +1019,8 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
             if (j != number_of_covered) {
                 success = true;
 
-                // sets success to false is failed vertex found 
+                // sets success to false is failed vertex found, sets to 2 if next vertex to be
+                // added is a failed vertex
                 h_remove_one_vertex(hg, hd, read_vertices, tot_vert, num_cand, num_mem, start, 
                                     minimum_out_degrees, minimum_in_degrees, minimum_clique_size,
                                     success);
