@@ -125,7 +125,10 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
         (*hd.current_level)++;
     
         // if cliques is more than threshold dump
-        if (hc.cliques_offset[(*hc.cliques_count)] > dss.CLIQUES_DUMP) {
+        if (*hc.cliques_count > (int)(dss.CLIQUES_OFFSET_SIZE * (dss.CLIQUES_PERCENT / 100.0)) || 
+                hc.cliques_offset[*hc.cliques_count] > (int)(dss.CLIQUES_SIZE * 
+                (dss.CLIQUES_PERCENT / 100.0))) {
+
             h_flush_cliques(hc, temp_results);
         }
 
@@ -658,7 +661,8 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
     // sort enumeration order before writing to tasks
     qsort(vertices, total_vertices, sizeof(Vertex), h_comp_vert_Q);
 
-    h_condense_graph(hd, hg, vertices, number_of_candidates);
+    // DEBUG - uncomment
+    //h_condense_graph(hd, hg, vertices, number_of_candidates);
 
     total_vertices = number_of_candidates;
 
@@ -923,6 +927,9 @@ void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_
     hg.number_of_lvl2adj = number_of_lvl2adj;
 }
 
+// DEBUG - rm
+// 3091 7267 7310 7382 7752 7761 8687 9050 9763 11140 12052 16755 17169 19191 21060 22582
+
 void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss, 
                     int* minimum_out_degrees, int* minimum_in_degrees, 
                     double minimum_out_degree_ratio, double minimum_in_degree_ratio, 
@@ -999,17 +1006,17 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
         num_cand = tot_vert - num_mem;
         expansions = num_cand;
 
-        // LOOKAHEAD PRUNING
-        success = true;
+        // // LOOKAHEAD PRUNING
+        // success = true;
 
-        // sets success to false if lookahead fails
-        h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start, 
-                            minimum_out_degrees, minimum_in_degrees, minimum_clique_size, 
-                            success);
+        // // sets success to false if lookahead fails
+        // h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start, 
+        //                     minimum_out_degrees, minimum_in_degrees, minimum_clique_size, 
+        //                     success);
         
-        if (success) {
-            continue;
-        }
+        // if (success) {
+        //     continue;
+        // }
 
         // --- NEXT LEVEL ---
 
@@ -1064,36 +1071,36 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                              minimum_out_degree_ratio, minimum_in_degree_ratio, 
                              minimum_clique_size, success);
 
-            // if vertex in x found as not extendable, check if current set is clique and continue 
-            // to next iteration
-            if (!success) {
-                // only first process needs to check and write clique as all processes do same
-                if (grank == 0) {
-                    // check if current set is clique
-                    h_check_for_clique(hc, vertices, number_of_members, minimum_out_degrees, 
-                                   minimum_in_degrees, minimum_clique_size);
-                }
+            // // if vertex in x found as not extendable, check if current set is clique and continue 
+            // // to next iteration
+            // if (!success) {
+            //     // only first process needs to check and write clique as all processes do same
+            //     if (grank == 0) {
+            //         // check if current set is clique
+            //         h_check_for_clique(hc, vertices, number_of_members, minimum_out_degrees, 
+            //                        minimum_in_degrees, minimum_clique_size);
+            //     }
 
-                // continue to next iteration
-                delete vertices;
-                continue;
-            }
+            //     // continue to next iteration
+            //     delete vertices;
+            //     continue;
+            // }
 
-            // CRITICAL VERTEX PRUNING
-            success = 1;
+            // // CRITICAL VERTEX PRUNING
+            // success = 1;
 
-            // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
-            h_critical_vertex_pruning(hg, hd, vertices, total_vertices, number_of_candidates, 
-                                      number_of_members, upper_bound, lower_bound, min_ext_out_deg, 
-                                      min_ext_in_deg, minimum_out_degrees, minimum_in_degrees, 
-                                      minimum_out_degree_ratio, minimum_in_degree_ratio, 
-                                      minimum_clique_size, success);
+            // // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
+            // // h_critical_vertex_pruning(hg, hd, vertices, total_vertices, number_of_candidates, 
+            // //                           number_of_members, upper_bound, lower_bound, min_ext_out_deg, 
+            // //                           min_ext_in_deg, minimum_out_degrees, minimum_in_degrees, 
+            // //                           minimum_out_degree_ratio, minimum_in_degree_ratio, 
+            // //                           minimum_clique_size, success);
 
-            // if critical fail continue onto next iteration
-            if (success == 2) {
-                delete vertices;
-                continue;
-            }
+            // // if critical fail continue onto next iteration
+            // if (success == 2) {
+            //     delete vertices;
+            //     continue;
+            // }
 
             // CHECK FOR CLIQUE
             // only first process needs to check and write clique as all processes do same

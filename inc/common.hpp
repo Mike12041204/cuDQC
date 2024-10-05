@@ -29,7 +29,7 @@
 using namespace std;
 
 // CPU DISTRIBUTED / PARALLEL SETTINGS
-#define NUMBER_OF_PROCESSESS 4
+#define NUMBER_OF_PROCESSESS 1
 #define NUMBER_OF_HTHREADS 16
 
 // GPU KERNEL LAUNCH
@@ -51,8 +51,8 @@ using namespace std;
 // shared memory vertices
 #define VERTICES_SIZE 50
 // cpu expansion settings
-#define CPU_LEVELS 1
-#define CPU_EXPAND_THRESHOLD 1
+#define CPU_LEVELS 10000
+#define CPU_EXPAND_THRESHOLD 6912
 // mpi settings
 #define MAX_MESSAGE 1000000000
 // must be atleast be 1

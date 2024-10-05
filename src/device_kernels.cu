@@ -131,26 +131,26 @@ __global__ void d_expand_level(GPU_Data* dd)
             // sets success to false if failed found
             d_add_one_vertex(dd, wd, ld);
 
-            // if failed found check for clique and continue on to the next iteration
-            if (!wd.success[WIB_IDX]) {
-                d_check_for_clique(dd, wd, ld);
+            // // if failed found check for clique and continue on to the next iteration
+            // if (!wd.success[WIB_IDX]) {
+            //     d_check_for_clique(dd, wd, ld);
                 
-                continue;
-            }
+            //     continue;
+            // }
 
-            // CRITICAL VERTEX PRUNING
-            if(LANE_IDX == 0){
-                wd.success[WIB_IDX] = 1;
-            }
-            __syncwarp();
+            // // CRITICAL VERTEX PRUNING
+            // if(LANE_IDX == 0){
+            //     wd.success[WIB_IDX] = 1;
+            // }
+            // __syncwarp();
 
-            // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
-            d_critical_vertex_pruning(dd, wd, ld);
+            // // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
+            // //d_critical_vertex_pruning(dd, wd, ld);
 
-            // critical fail, cannot be clique continue onto next iteration
-            if (wd.success[WIB_IDX] == 2) {
-                continue;
-            }
+            // // critical fail, cannot be clique continue onto next iteration
+            // if (wd.success[WIB_IDX] == 2) {
+            //     continue;
+            // }
 
             // HANDLE CLIQUES
             d_check_for_clique(dd, wd, ld);
