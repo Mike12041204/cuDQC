@@ -91,11 +91,20 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
         
         *hd.maximal_expansion = true;
 
+        // DEBUG - rm
+        db0 = 0;
+        db1 = 0;
+        db2 = 0;
+        db3 = 0;
+
         // EXPAND LEVEL
         // will set maximal expansion false if no work generated
         h_expand_level(hg, hd, hc, dss, minimum_out_degrees, minimum_in_degrees, 
                        minimum_out_degree_ratio, minimum_in_degree_ratio, minimum_clique_size);
 
+        // DEBUG - rm
+        //cout << db0 << " " << db1 << " " << db2 << " " << db3 << endl << endl;
+        
         // FILL TASKS FROM BUFFER
         // determine the write location for this level
         if ((*hd.current_level) % 2 == 0) {
@@ -671,6 +680,7 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
     {
         for (int j = 0; j < total_vertices; j++) {
             hd.tasks1_vertices[j] = vertices[j];
+            hd.tasks1_vertices[j].lvl2adj = 0;
         }
         (*(hd.tasks1_count))++;
         hd.tasks1_offset[(*(hd.tasks1_count))] = total_vertices;
@@ -1006,19 +1016,26 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
         num_cand = tot_vert - num_mem;
         expansions = num_cand;
 
-        // // LOOKAHEAD PRUNING
-        // success = true;
+        // DEBUG - uncomment
 
-        // // sets success to false if lookahead fails
-        // h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start, 
-        //                     minimum_out_degrees, minimum_in_degrees, minimum_clique_size, 
-        //                     success);
+        // LOOKAHEAD PRUNING
+        success = true;
+
+        // sets success to false if lookahead fails
+        h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start, 
+                            minimum_out_degrees, minimum_in_degrees, minimum_clique_size, 
+                            success);
         
-        // if (success) {
-        //     continue;
-        // }
+        if (success) {
+            continue;
+        }
 
         // --- NEXT LEVEL ---
+
+        // DEBUG - rm
+        for(int i = 0 ; i < tot_vert; i++){
+            db0 += read_vertices[start + i].out_can_deg;
+        }
 
         for (int j = number_of_covered; j < expansions; j++) {
 
@@ -1035,9 +1052,14 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                 if (!success) {
                     break;
                 }
-                if(success == 2){
-                    continue;
-                }
+                // if(success == 2){
+                //     continue;
+                // }
+            }
+
+            // DEBUG - rm
+            for(int i = 0 ; i < tot_vert; i++){
+                db1 += read_vertices[start + i].out_can_deg;
             }
 
             // INITIALIZE NEW VERTICES
@@ -1070,6 +1092,13 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                              min_ext_in_deg, minimum_out_degrees, minimum_in_degrees, 
                              minimum_out_degree_ratio, minimum_in_degree_ratio, 
                              minimum_clique_size, success);
+
+            // DEBUG - rm
+            for(int i = 0 ; i < total_vertices; i++){
+                db2 += vertices[i].out_can_deg;
+            }
+
+            // DEBUG - uncomment
 
             // // if vertex in x found as not extendable, check if current set is clique and continue 
             // // to next iteration
@@ -1104,7 +1133,7 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
 
             // CHECK FOR CLIQUE
             // only first process needs to check and write clique as all processes do same
-            if (grank == 0) {
+            if (grank == 0 && number_of_members >= minimum_clique_size) {
                 // check if current set is clique
                 h_check_for_clique(hc, vertices, number_of_members, minimum_out_degrees, 
                                    minimum_in_degrees, minimum_clique_size);
@@ -1367,11 +1396,6 @@ void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* r
         hd.vertex_order_map[read_vertices[start + i].vertexid] = i;
     }
 
-    // update lvl2adj to candidates for all vertices
-    for (int i = num_mem; i < tot_vert; i++) {
-        read_vertices[start + i].lvl2adj = 0;
-    }
-
     for (int i = num_mem; i < tot_vert; i++) {
 
         pvertexid = read_vertices[start + i].vertexid;
@@ -1430,8 +1454,13 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
     int min_out_deg;                    // helper variables
     int min_in_deg;
 
-    min_out_deg = h_get_mindeg(num_mem + 1, minimum_out_degrees, minimum_clique_size);
-    min_in_deg = h_get_mindeg(num_mem + 1, minimum_in_degrees, minimum_clique_size);
+    // DEBUG - rm and uncomment
+
+    //min_out_deg = h_get_mindeg(num_mem + 1, minimum_out_degrees, minimum_clique_size);
+    //min_in_deg = h_get_mindeg(num_mem + 1, minimum_in_degrees, minimum_clique_size);
+
+    min_out_deg = h_get_mindeg(num_mem, minimum_out_degrees, minimum_clique_size);
+    min_in_deg = h_get_mindeg(num_mem, minimum_in_degrees, minimum_clique_size);
 
     // remove one vertex
     num_cand--;
@@ -1462,9 +1491,10 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
                     success = false;
                     break;
                 }
-                else if(phelper1 == tot_vert - 1){
-                    success = 2;
-                }
+                // DEBUG - uncomment
+                // else if(phelper1 == tot_vert - 1){
+                //     success = 2;
+                // }
             }
         }
     }
@@ -1496,9 +1526,10 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
                     success = false;
                     break;
                 }
-                else if(phelper1 == tot_vert - 1){
-                    success = 2;
-                }
+                // DEBUG - uncomment
+                // else if(phelper1 == tot_vert - 1){
+                //     success = 2;
+                // }
             }
         }
     }
@@ -1524,8 +1555,8 @@ void h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
     int min_out_deg;
     int min_in_deg;
 
-    min_out_deg = h_get_mindeg(number_of_members + 2, minimum_out_degrees, minimum_clique_size);
-    min_in_deg = h_get_mindeg(number_of_members + 2, minimum_in_degrees, minimum_clique_size);
+    //min_out_deg = h_get_mindeg(number_of_members + 2, minimum_out_degrees, minimum_clique_size);
+    //min_in_deg = h_get_mindeg(number_of_members + 2, minimum_in_degrees, minimum_clique_size);
 
     // initialize vertex order map
     for (int i = 0; i < total_vertices; i++) {
@@ -1576,6 +1607,10 @@ void h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
                      upper_bound, lower_bound, min_ext_out_deg, min_ext_in_deg, 
                      minimum_out_degrees, minimum_in_degrees, minimum_out_degree_ratio, 
                      minimum_in_degree_ratio, minimum_clique_size, success);
+
+    for (int i = 0; i < hg.number_of_vertices; i++) {
+        hd.vertex_order_map[i] = -1;
+    }
 }
 
 // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
@@ -1821,14 +1856,20 @@ void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvert
         if (phelper1 >= number_of_members) {
             vertices[phelper1].label = 0;
 
-            // only track mem degs of candidates which pass basic degree pruning
-            if(vertices[phelper1].out_mem_deg + vertices[phelper1].out_can_deg >= min_out_deg && 
-               vertices[phelper1].in_mem_deg + vertices[phelper1].in_can_deg >= min_in_deg){
+            // DEBUG - rm and uncomment
+
+            hd.candidate_out_mem_degs[(*hd.remaining_count)] = vertices[phelper1].out_mem_deg;
+            hd.candidate_in_mem_degs[(*hd.remaining_count)] = vertices[phelper1].in_mem_deg;
+            (*hd.remaining_count)++;
+
+            // // only track mem degs of candidates which pass basic degree pruning
+            // if(vertices[phelper1].out_mem_deg + vertices[phelper1].out_can_deg >= min_out_deg && 
+            //    vertices[phelper1].in_mem_deg + vertices[phelper1].in_can_deg >= min_in_deg){
                 
-                hd.candidate_out_mem_degs[(*hd.remaining_count)] = vertices[phelper1].out_mem_deg;
-                hd.candidate_in_mem_degs[(*hd.remaining_count)] = vertices[phelper1].in_mem_deg;
-                (*hd.remaining_count)++;
-            }
+            //     hd.candidate_out_mem_degs[(*hd.remaining_count)] = vertices[phelper1].out_mem_deg;
+            //     hd.candidate_in_mem_degs[(*hd.remaining_count)] = vertices[phelper1].in_mem_deg;
+            //     (*hd.remaining_count)++;
+            // }
         }
     }
 }
@@ -1871,19 +1912,20 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
     qsort(hd.candidate_out_mem_degs, (*hd.remaining_count), sizeof(int), h_comp_int_desc);
     qsort(hd.candidate_in_mem_degs, (*hd.remaining_count), sizeof(int), h_comp_int_desc);
 
-    // set bounds and min ext degs
-    h_calculate_LU_bounds(hd, upper_bound, lower_bound, min_ext_out_deg, min_ext_in_deg, vertices, 
-                          number_of_members, *hd.remaining_count, minimum_out_degrees, 
-                          minimum_in_degrees, minimum_out_degree_ratio, minimum_in_degree_ratio, 
-                          minimum_clique_size, success);
+    // DEBUG - uncomment
+    // // set bounds and min ext degs
+    // h_calculate_LU_bounds(hd, upper_bound, lower_bound, min_ext_out_deg, min_ext_in_deg, vertices, 
+    //                       number_of_members, *hd.remaining_count, minimum_out_degrees, 
+    //                       minimum_in_degrees, minimum_out_degree_ratio, minimum_in_degree_ratio, 
+    //                       minimum_clique_size, success);
 
-    // check whether new bounds are valid
-    if(success == false){
-        for (int i = 0; i < hg.number_of_vertices; i++) {
-            hd.vertex_order_map[i] = -1;
-        }
-        return;
-    }
+    // // check whether new bounds are valid
+    // if(success == false){
+    //     for (int i = 0; i < hg.number_of_vertices; i++) {
+    //         hd.vertex_order_map[i] = -1;
+    //     }
+    //     return;
+    // }
 
     // check for failed vertices
     for (int k = 0; k < number_of_members; k++) {
@@ -2010,19 +2052,20 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         qsort(hd.candidate_out_mem_degs, num_val_cands, sizeof(int), h_comp_int_desc);
         qsort(hd.candidate_in_mem_degs, num_val_cands, sizeof(int), h_comp_int_desc);
 
-        // set bounds and min ext degs
-        h_calculate_LU_bounds(hd, upper_bound, lower_bound, min_ext_out_deg, min_ext_in_deg, vertices, 
-                            number_of_members, num_val_cands, minimum_out_degrees, 
-                            minimum_in_degrees, minimum_out_degree_ratio, minimum_in_degree_ratio, 
-                            minimum_clique_size, success);
+        // DEBUG - uncomment
+        // // set bounds and min ext degs
+        // h_calculate_LU_bounds(hd, upper_bound, lower_bound, min_ext_out_deg, min_ext_in_deg, vertices, 
+        //                     number_of_members, num_val_cands, minimum_out_degrees, 
+        //                     minimum_in_degrees, minimum_out_degree_ratio, minimum_in_degree_ratio, 
+        //                     minimum_clique_size, success);
 
-        // check whether new bounds are valid
-        if(success == false){    
-            for (int i = 0; i < hg.number_of_vertices; i++) {
-                hd.vertex_order_map[i] = -1;
-            }
-            return;
-        }
+        // // check whether new bounds are valid
+        // if(success == false){    
+        //     for (int i = 0; i < hg.number_of_vertices; i++) {
+        //         hd.vertex_order_map[i] = -1;
+        //     }
+        //     return;
+        // }
 
         // check for failed vertices
         for (int k = 0; k < number_of_members; k++) {
@@ -2057,9 +2100,10 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         (*hd.remaining_count) = num_val_cands;
     }
 
-    for (int i = 0; i < hg.number_of_vertices; i++) {
-        hd.vertex_order_map[i] = -1;
-    }
+    // DEBUG - uncomment
+    // for (int i = 0; i < hg.number_of_vertices; i++) {
+    //     hd.vertex_order_map[i] = -1;
+    // }
 
     for (int i = 0; i < (*hd.remaining_count); i++) {
         vertices[number_of_members + i] = vertices[hd.remaining_candidates[i]];
@@ -2259,9 +2303,10 @@ void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members
     int min_out_deg;
     int min_in_deg;
 
-    if (number_of_members < minimum_clique_size) {
-        return;
-    }
+    // DEBUG - uncomment
+    // if (number_of_members < minimum_clique_size) {
+    //     return;
+    // }
 
     clique = true;
 
@@ -2294,6 +2339,7 @@ void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex
 
         for (int k = 0; k < total_vertices; k++) {
             write_vertices[start_write + k] = vertices[k];
+            write_vertices[start_write + k].lvl2adj = 0;
         }
 
         (*write_count)++;
@@ -2304,6 +2350,7 @@ void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex
 
         for (int k = 0; k < total_vertices; k++) {
             hd.buffer_vertices[start_write + k] = vertices[k];
+            write_vertices[start_write + k].lvl2adj = 0;
         }
 
         (*hd.buffer_count)++;

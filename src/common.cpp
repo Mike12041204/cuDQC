@@ -12,6 +12,9 @@ MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];          // array of handles for 
 MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
 bool global_free_list[NUMBER_OF_PROCESSESS];
 
+// DEBUG - rm
+uint64_t db0, db1, db2, db3;
+
 CPU_Graph::CPU_Graph(ifstream& graph_stream)
 {
     string line;

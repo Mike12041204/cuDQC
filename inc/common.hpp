@@ -51,8 +51,8 @@ using namespace std;
 // shared memory vertices
 #define VERTICES_SIZE 50
 // cpu expansion settings
-#define CPU_LEVELS 10000
-#define CPU_EXPAND_THRESHOLD 6912
+#define CPU_LEVELS 100000
+#define CPU_EXPAND_THRESHOLD 100000
 // mpi settings
 #define MAX_MESSAGE 1000000000
 // must be atleast be 1
@@ -295,7 +295,8 @@ extern MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];          // array of handl
 extern MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
 extern bool global_free_list[NUMBER_OF_PROCESSESS];
 
-extern int db0, db1, db2, db3;
+// DEBUG - rm
+extern uint64_t db0, db1, db2, db3;
 
 inline void chkerr(cudaError_t code)
 {
