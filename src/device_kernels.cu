@@ -88,9 +88,10 @@ __global__ void d_expand_level(GPU_Data* dd)
                 if (!wd.success[WIB_IDX]) {
                     break;
                 }
-                if(wd.success[WIB_IDX] == 2){
-                    continue;
-                }
+                // DEBUG - uncomment
+                // if(wd.success[WIB_IDX] == 2){
+                //     continue;
+                // }
             }
 
             // INITIALIZE NEW VERTICES
@@ -131,26 +132,26 @@ __global__ void d_expand_level(GPU_Data* dd)
             // sets success to false if failed found
             d_add_one_vertex(dd, wd, ld);
 
-            // // if failed found check for clique and continue on to the next iteration
-            // if (!wd.success[WIB_IDX]) {
-            //     d_check_for_clique(dd, wd, ld);
+            // if failed found check for clique and continue on to the next iteration
+            if (!wd.success[WIB_IDX]) {
+                d_check_for_clique(dd, wd, ld);
                 
-            //     continue;
-            // }
+                continue;
+            }
 
-            // // CRITICAL VERTEX PRUNING
-            // if(LANE_IDX == 0){
-            //     wd.success[WIB_IDX] = 1;
-            // }
-            // __syncwarp();
+            // CRITICAL VERTEX PRUNING
+            if(LANE_IDX == 0){
+                wd.success[WIB_IDX] = 1;
+            }
+            __syncwarp();
 
-            // // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
-            // //d_critical_vertex_pruning(dd, wd, ld);
+            // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
+            d_critical_vertex_pruning(dd, wd, ld);
 
-            // // critical fail, cannot be clique continue onto next iteration
-            // if (wd.success[WIB_IDX] == 2) {
-            //     continue;
-            // }
+            // critical fail, cannot be clique continue onto next iteration
+            if (wd.success[WIB_IDX] == 2) {
+                continue;
+            }
 
             // HANDLE CLIQUES
             d_check_for_clique(dd, wd, ld);
@@ -552,10 +553,12 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
 
-    min_out_deg = d_get_mindeg(wd.number_of_members[WIB_IDX] + 2, dd->minimum_out_degrees, 
-                               *dd->minimum_clique_size);
-    min_in_deg = d_get_mindeg(wd.number_of_members[WIB_IDX] + 2, dd->minimum_in_degrees, 
-                               *dd->minimum_clique_size);
+    // DEBUG - uncomment
+
+    // min_out_deg = d_get_mindeg(wd.number_of_members[WIB_IDX] + 2, dd->minimum_out_degrees, 
+    //                            *dd->minimum_clique_size);
+    // min_in_deg = d_get_mindeg(wd.number_of_members[WIB_IDX] + 2, dd->minimum_in_degrees, 
+    //                            *dd->minimum_clique_size);
 
     // initialize vertex order map
     for(int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE){
@@ -866,17 +869,25 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
         if (phelper1 >= wd.number_of_members[WIB_IDX]) {
             ld.vertices[phelper1].label = 0;
 
-            // only track mem degs of candidates which pass basic degree pruning
-            if(ld.vertices[phelper1].out_mem_deg + ld.vertices[phelper1].out_can_deg >= min_out_deg
-               && ld.vertices[phelper1].in_mem_deg + ld.vertices[phelper1].in_can_deg >= 
-               min_in_deg){
+            // DEBUG - rm and uncomment
+
+            dd->lane_candidate_out_mem_degs[lane_write + lane_remaining_count] = 
+                ld.vertices[phelper1].out_mem_deg;
+            dd->lane_candidate_in_mem_degs[lane_write + lane_remaining_count] = 
+                ld.vertices[phelper1].in_mem_deg;
+            lane_remaining_count++;
+
+            // // only track mem degs of candidates which pass basic degree pruning
+            // if(ld.vertices[phelper1].out_mem_deg + ld.vertices[phelper1].out_can_deg >= min_out_deg
+            //    && ld.vertices[phelper1].in_mem_deg + ld.vertices[phelper1].in_can_deg >= 
+            //    min_in_deg){
                 
-                dd->lane_candidate_out_mem_degs[lane_write + lane_remaining_count] = 
-                    ld.vertices[phelper1].out_mem_deg;
-                dd->lane_candidate_in_mem_degs[lane_write + lane_remaining_count] = 
-                    ld.vertices[phelper1].in_mem_deg;
-                lane_remaining_count++;
-            }
+            //     dd->lane_candidate_out_mem_degs[lane_write + lane_remaining_count] = 
+            //         ld.vertices[phelper1].out_mem_deg;
+            //     dd->lane_candidate_in_mem_degs[lane_write + lane_remaining_count] = 
+            //         ld.vertices[phelper1].in_mem_deg;
+            //     lane_remaining_count++;
+            // }
         }
     }
     __syncwarp();

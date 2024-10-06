@@ -266,88 +266,112 @@ void print_graph(CPU_Graph& hg)
 //     delete twohop_neighbors;
 // }
 
-// void print_CPU_Data(CPU_Data& hd)
-// {
-//     cout << endl << " --- (CPU_Data)host_data details --- " << endl;
-//     cout << endl << "Tasks1: " << "Size: " << (*(hd.tasks1_count)) << endl;
-//     cout << endl << "Offsets:" << endl;
-//     for (uint64_t i = 0; i <= (*(hd.tasks1_count)); i++) {
-//         cout << hd.tasks1_offset[i] << " ";
-//     }
-//     cout << endl << "Vertex:" << endl;
-//     for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
-//         cout << hd.tasks1_vertices[i].vertexid << " ";
-//     }
-//     cout << endl << "Label:" << endl;
-//     for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
-//         cout << hd.tasks1_vertices[i].label << " ";
-//     }
-//     cout << endl << "Indeg:" << endl;
-//     for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
-//         cout << hd.tasks1_vertices[i].indeg << " ";
-//     }
-//     cout << endl << "Exdeg:" << endl;
-//     for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
-//         cout << hd.tasks1_vertices[i].exdeg << " ";
-//     }
-//     cout << endl << "Lvl2adj:" << endl;
-//     for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
-//         cout << hd.tasks1_vertices[i].lvl2adj << " ";
-//     }
+void print_CPU_Data(CPU_Data& hd)
+{
+    cout << endl << " --- (CPU_Data)host_data details --- " << endl;
+    cout << endl << "Tasks1: " << "Size: " << (*(hd.tasks1_count)) << endl;
+    cout << endl << "Offsets:" << endl;
+    for (uint64_t i = 0; i <= (*(hd.tasks1_count)); i++) {
+        cout << hd.tasks1_offset[i] << " ";
+    }
+    cout << endl << "Vertex:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
+        cout << hd.tasks1_vertices[i].vertexid << " ";
+    }
+    cout << endl << "Label:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
+        cout << hd.tasks1_vertices[i].label << " ";
+    }
+    cout << endl << "Out-Mem-Deg:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
+        cout << hd.tasks1_vertices[i].out_mem_deg << " ";
+    }
+    cout << endl << "Out-Can-Deg:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
+        cout << hd.tasks1_vertices[i].out_can_deg << " ";
+    }
+    cout << endl << "In-Mem-Deg:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
+        cout << hd.tasks1_vertices[i].in_mem_deg << " ";
+    }
+    cout << endl << "In-Can-Deg:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
+        cout << hd.tasks1_vertices[i].in_can_deg << " ";
+    }
+    cout << endl << "Lvl2adj:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
+        cout << hd.tasks1_vertices[i].lvl2adj << " ";
+    }
 
-//     cout << endl << endl << "Tasks2: " << "Size: " << (*(hd.tasks2_count)) << endl;
-//     cout << endl << "Offsets:" << endl;
-//     for (uint64_t i = 0; i <= (*(hd.tasks2_count)); i++) {
-//         cout << hd.tasks2_offset[i] << " ";
-//     }
-//     cout << endl << "Vertex:" << endl;
-//     for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
-//         cout << hd.tasks2_vertices[i].vertexid << " ";
-//     }
-//     cout << endl << "Label:" << endl;
-//     for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
-//         cout << hd.tasks2_vertices[i].label << " ";
-//     }
-//     cout << endl << "Indeg:" << endl;
-//     for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
-//         cout << hd.tasks2_vertices[i].indeg << " ";
-//     }
-//     cout << endl << "Exdeg:" << endl;
-//     for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
-//         cout << hd.tasks2_vertices[i].exdeg << " ";
-//     }
-//     cout << endl << "Lvl2adj:" << endl;
-//     for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
-//         cout << hd.tasks2_vertices[i].lvl2adj << " ";
-//     }
+    cout << endl << endl << "Tasks2: " << "Size: " << (*(hd.tasks2_count)) << endl;
+    cout << endl << "Offsets:" << endl;
+    for (uint64_t i = 0; i <= (*(hd.tasks2_count)); i++) {
+        cout << hd.tasks2_offset[i] << " ";
+    }
+    cout << endl << "Vertex:" << endl;
+    for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
+        cout << hd.tasks2_vertices[i].vertexid << " ";
+    }
+    cout << endl << "Label:" << endl;
+    for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
+        cout << hd.tasks2_vertices[i].label << " ";
+    }
+    cout << endl << "Out-Mem-Deg:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks2_count))]; i++) {
+        cout << hd.tasks2_vertices[i].out_mem_deg << " ";
+    }
+    cout << endl << "Out-Can-Deg:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks2_count))]; i++) {
+        cout << hd.tasks2_vertices[i].out_can_deg << " ";
+    }
+    cout << endl << "In-Mem-Deg:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks2_count))]; i++) {
+        cout << hd.tasks2_vertices[i].in_mem_deg << " ";
+    }
+    cout << endl << "In-Can-Deg:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks2_count))]; i++) {
+        cout << hd.tasks2_vertices[i].in_can_deg << " ";
+    }
+    cout << endl << "Lvl2adj:" << endl;
+    for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
+        cout << hd.tasks2_vertices[i].lvl2adj << " ";
+    }
 
-//     cout << endl << endl << "Buffer: " << "Size: " << (*(hd.buffer_count)) << endl;
-//     cout << endl << "Offsets:" << endl;
-//     for (uint64_t i = 0; i <= (*(hd.buffer_count)); i++) {
-//         cout << hd.buffer_offset[i] << " ";
-//     }
-//     cout << endl << "Vertex:" << endl;
-//     for (uint64_t i = 0; i < hd.buffer_offset[(*(hd.buffer_count))]; i++) {
-//         cout << hd.buffer_vertices[i].vertexid << " ";
-//     }
-//     cout << endl << "Label:" << endl;
-//     for (uint64_t i = 0; i < hd.buffer_offset[(*(hd.buffer_count))]; i++) {
-//         cout << hd.buffer_vertices[i].label << " ";
-//     }
-//     cout << endl << "Indeg:" << endl;
-//     for (uint64_t i = 0; i < hd.buffer_offset[(*(hd.buffer_count))]; i++) {
-//         cout << hd.buffer_vertices[i].indeg << " ";
-//     }
-//     cout << endl << "Exdeg:" << endl;
-//     for (uint64_t i = 0; i < hd.buffer_offset[(*(hd.buffer_count))]; i++) {
-//         cout << hd.buffer_vertices[i].exdeg << " ";
-//     }
-//     cout << endl << "Lvl2adj:" << endl;
-//     for (uint64_t i = 0; i < hd.buffer_offset[(*(hd.buffer_count))]; i++) {
-//         cout << hd.buffer_vertices[i].lvl2adj << " ";
-//     }
-//     cout << endl << endl;
-// }
+    cout << endl << endl << "Buffer: " << "Size: " << (*(hd.buffer_count)) << endl;
+    cout << endl << "Offsets:" << endl;
+    for (uint64_t i = 0; i <= (*(hd.buffer_count)); i++) {
+        cout << hd.buffer_offset[i] << " ";
+    }
+    cout << endl << "Vertex:" << endl;
+    for (uint64_t i = 0; i < hd.buffer_offset[(*(hd.buffer_count))]; i++) {
+        cout << hd.buffer_vertices[i].vertexid << " ";
+    }
+    cout << endl << "Label:" << endl;
+    for (uint64_t i = 0; i < hd.buffer_offset[(*(hd.buffer_count))]; i++) {
+        cout << hd.buffer_vertices[i].label << " ";
+    }
+    cout << endl << "Out-Mem-Deg:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.buffer_count))]; i++) {
+        cout << hd.buffer_vertices[i].out_mem_deg << " ";
+    }
+    cout << endl << "Out-Can-Deg:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.buffer_count))]; i++) {
+        cout << hd.buffer_vertices[i].out_can_deg << " ";
+    }
+    cout << endl << "In-Mem-Deg:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.buffer_count))]; i++) {
+        cout << hd.buffer_vertices[i].in_mem_deg << " ";
+    }
+    cout << endl << "In-Can-Deg:" << endl;
+    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.buffer_count))]; i++) {
+        cout << hd.buffer_vertices[i].in_can_deg << " ";
+    }
+    cout << endl << "Lvl2adj:" << endl;
+    for (uint64_t i = 0; i < hd.buffer_offset[(*(hd.buffer_count))]; i++) {
+        cout << hd.buffer_vertices[i].lvl2adj << " ";
+    }
+    cout << endl << endl;
+}
 
 // void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss)
 // {
