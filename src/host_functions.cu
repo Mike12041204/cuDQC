@@ -34,6 +34,13 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     uint64_t* cliques_size;
     uint64_t* write_count;
 
+    // DEBUG - rm
+    uint64_t *gb0, *gb1, *gb2, *gb3;
+    chkerr(cudaMallocManaged((void**)&gb0, sizeof(uint64_t)));
+    chkerr(cudaMallocManaged((void**)&gb1, sizeof(uint64_t)));
+    chkerr(cudaMallocManaged((void**)&gb2, sizeof(uint64_t)));
+    chkerr(cudaMallocManaged((void**)&gb3, sizeof(uint64_t)));
+
     // TIME
     auto start = chrono::high_resolution_clock::now();
     if(grank == 0){
@@ -199,11 +206,21 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             
             *hd.maximal_expansion = true;
 
+            // DEBUG - rm
+            *gb0 = 0;
+            *gb1 = 0;
+            *gb2 = 0;
+            *gb3 = 0;
+
             // EXPAND LEVEL
             // expand all tasks in 'tasks' array, each warp will write to their respective warp 
             // tasks buffer in global memory
-            d_expand_level<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd);
+            // DEBUG - rm parameters
+            d_expand_level<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, gb0, gb1, gb2, gb3);
             cudaDeviceSynchronize();
+
+            // DEBUG - rm
+            //cout << *gb0 << " " << *gb1 << " " << *gb2 << " " << *gb3 << endl << endl;
 
             // DEBUG
             if (dss.DEBUG_TOGGLE) {
@@ -1079,8 +1096,6 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                              min_ext_in_deg, minimum_out_degrees, minimum_in_degrees, 
                              minimum_out_degree_ratio, minimum_in_degree_ratio, 
                              minimum_clique_size, success);
-
-            // DEBUG - uncomment
 
             // if vertex in x found as not extendable, check if current set is clique and continue 
             // to next iteration

@@ -79,7 +79,9 @@
         "xtree": "cpp",
         "xutility": "cpp",
         "__nullptr": "cpp",
-        "__node_handle": "cpp"
+        "__node_handle": "cpp",
+        "__tree": "cpp",
+        "map": "cpp"
     },
     "makefile.makefilePath": "${workspaceFolder}/Makefile",
     "makefile.makePath": "C:/Program Files (x86)/GnuWin32/bin/make.exe"
