@@ -373,94 +373,109 @@ void print_CPU_Data(CPU_Data& hd)
     cout << endl << endl;
 }
 
-// void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss)
-// {
-//     uint64_t* current_level = new uint64_t;
+void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss)
+{
+    uint64_t* current_level = new uint64_t;
 
-//     uint64_t* tasks1_count = new uint64_t;
-//     uint64_t* tasks1_offset = new uint64_t[dss.EXPAND_THRESHOLD + 1];
-//     Vertex* tasks1_vertices = new Vertex[dss.TASKS_SIZE];
+    uint64_t* tasks1_count = new uint64_t;
+    uint64_t* tasks1_offset = new uint64_t[dss.EXPAND_THRESHOLD + 1];
+    Vertex* tasks1_vertices = new Vertex[dss.TASKS_SIZE];
 
-//     uint64_t* buffer_count = new uint64_t;
-//     uint64_t* buffer_offset = new uint64_t[dss.BUFFER_OFFSET_SIZE];
-//     Vertex* buffer_vertices = new Vertex[dss.BUFFER_SIZE];
+    uint64_t* buffer_count = new uint64_t;
+    uint64_t* buffer_offset = new uint64_t[dss.BUFFER_OFFSET_SIZE];
+    Vertex* buffer_vertices = new Vertex[dss.BUFFER_SIZE];
 
 
-//     chkerr(cudaMemcpy(current_level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(current_level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
-//     chkerr(cudaMemcpy(tasks1_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-//     chkerr(cudaMemcpy(tasks1_offset, h_dd.tasks_offset, (dss.EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
-//     chkerr(cudaMemcpy(tasks1_vertices, h_dd.tasks_vertices, (dss.TASKS_SIZE) * sizeof(Vertex), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(tasks1_count, h_dd.tasks_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(tasks1_offset, h_dd.tasks_offset, (dss.EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(tasks1_vertices, h_dd.tasks_vertices, (dss.TASKS_SIZE) * sizeof(Vertex), cudaMemcpyDeviceToHost));
 
-//     chkerr(cudaMemcpy(buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-//     chkerr(cudaMemcpy(buffer_offset, h_dd.buffer_offset, (dss.BUFFER_OFFSET_SIZE) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
-//     chkerr(cudaMemcpy(buffer_vertices, h_dd.buffer_vertices, (dss.BUFFER_SIZE) * sizeof(Vertex), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(buffer_count, h_dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(buffer_offset, h_dd.buffer_offset, (dss.BUFFER_OFFSET_SIZE) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(buffer_vertices, h_dd.buffer_vertices, (dss.BUFFER_SIZE) * sizeof(Vertex), cudaMemcpyDeviceToHost));
 
-//     cout << " --- (GPU_Data)device_data details --- " << endl;
-//     cout << endl << "Tasks1: Level: " << (*current_level) << " Size: " << (*tasks1_count) << endl;
-//     cout << endl << "Offsets:" << endl;
-//     for (int i = 0; i <= (*tasks1_count); i++) {
-//         cout << tasks1_offset[i] << " " << flush;
-//     }
-//     cout << endl << "Vertex:" << endl;
-//     for (int i = 0; i < tasks1_offset[*tasks1_count]; i++) {
-//         cout << tasks1_vertices[i].vertexid << " " << flush;
-//     }
-//     cout << endl << "Label:" << endl;
-//     for (int i = 0; i < tasks1_offset[*tasks1_count]; i++) {
-//         cout << tasks1_vertices[i].label << " " << flush;
-//     }
-//     cout << endl << "Indeg:" << endl;
-//     for (int i = 0; i < tasks1_offset[*tasks1_count]; i++) {
-//         cout << tasks1_vertices[i].indeg << " " << flush;
-//     }
-//     cout << endl << "Exdeg:" << endl;
-//     for (int i = 0; i < tasks1_offset[*tasks1_count]; i++) {
-//         cout << tasks1_vertices[i].exdeg << " " << flush;
-//     }
-//     cout << endl << "Lvl2adj:" << endl;
-//     for (int i = 0; i < tasks1_offset[*tasks1_count]; i++) {
-//         cout << tasks1_vertices[i].lvl2adj << " " << flush;
-//     }
-//     cout << endl;
+    cout << " --- (GPU_Data)device_data details --- " << endl;
+    cout << endl << "Tasks1: " << "Size: " << (*tasks1_count) << endl;
+    cout << endl << "Offsets:" << endl;
+    for (uint64_t i = 0; i <= (*tasks1_count); i++) {
+        cout << tasks1_offset[i] << " ";
+    }
+    cout << endl << "Vertex:" << endl;
+    for (uint64_t i = 0; i < tasks1_offset[*tasks1_count]; i++) {
+        cout << tasks1_vertices[i].vertexid << " ";
+    }
+    cout << endl << "Label:" << endl;
+    for (uint64_t i = 0; i < tasks1_offset[*tasks1_count]; i++) {
+        cout << tasks1_vertices[i].label << " ";
+    }
+    cout << endl << "Out-Mem-Deg:" << endl;
+    for (uint64_t i = 0; i < tasks1_offset[*tasks1_count]; i++) {
+        cout << tasks1_vertices[i].out_mem_deg << " ";
+    }
+    cout << endl << "Out-Can-Deg:" << endl;
+    for (uint64_t i = 0; i < tasks1_offset[*tasks1_count]; i++) {
+        cout << tasks1_vertices[i].out_can_deg << " ";
+    }
+    cout << endl << "In-Mem-Deg:" << endl;
+    for (uint64_t i = 0; i < tasks1_offset[*tasks1_count]; i++) {
+        cout << tasks1_vertices[i].in_mem_deg << " ";
+    }
+    cout << endl << "In-Can-Deg:" << endl;
+    for (uint64_t i = 0; i < tasks1_offset[*tasks1_count]; i++) {
+        cout << tasks1_vertices[i].in_can_deg << " ";
+    }
+    cout << endl << "Lvl2adj:" << endl;
+    for (uint64_t i = 0; i < tasks1_offset[*tasks1_count]; i++) {
+        cout << tasks1_vertices[i].lvl2adj << " ";
+    }
 
-//     cout << endl << "Buffer: " << "Size: " << (*buffer_count) << endl;
-//     cout << endl << "Offsets:" << endl;
-//     for (int i = 0; i <= (*buffer_count); i++) {
-//         cout << buffer_offset[i] << " " << flush;
-//     }
-//     cout << endl << "Vertex:" << endl;
-//     for (int i = 0; i < buffer_offset[*buffer_count]; i++) {
-//         cout << buffer_vertices[i].vertexid << " " << flush;
-//     }
-//     cout << endl << "Label:" << endl;
-//     for (int i = 0; i < buffer_offset[*buffer_count]; i++) {
-//         cout << buffer_vertices[i].label << " " << flush;
-//     }
-//     cout << endl << "Indeg:" << endl;
-//     for (int i = 0; i < buffer_offset[*buffer_count]; i++) {
-//         cout << buffer_vertices[i].indeg << " " << flush;
-//     }
-//     cout << endl << "Exdeg:" << endl;
-//     for (int i = 0; i < buffer_offset[*buffer_count]; i++) {
-//         cout << buffer_vertices[i].exdeg << " " << flush;
-//     }
-//     cout << endl << "Lvl2adj:" << endl;
-//     for (int i = 0; i < buffer_offset[*buffer_count]; i++) {
-//         cout << buffer_vertices[i].lvl2adj << " " << flush;
-//     }
-//     cout << endl;
+    cout << endl << endl << "Buffer: " << "Size: " << (*buffer_count) << endl;
+    cout << endl << "Offsets:" << endl;
+    for (uint64_t i = 0; i <= (*buffer_count); i++) {
+        cout << buffer_offset[i] << " ";
+    }
+    cout << endl << "Vertex:" << endl;
+    for (uint64_t i = 0; i < buffer_offset[(*buffer_count)]; i++) {
+        cout << buffer_vertices[i].vertexid << " ";
+    }
+    cout << endl << "Label:" << endl;
+    for (uint64_t i = 0; i < buffer_offset[(*buffer_count)]; i++) {
+        cout << buffer_vertices[i].label << " ";
+    }
+    cout << endl << "Out-Mem-Deg:" << endl;
+    for (uint64_t i = 0; i < tasks1_offset[(*buffer_count)]; i++) {
+        cout << buffer_vertices[i].out_mem_deg << " ";
+    }
+    cout << endl << "Out-Can-Deg:" << endl;
+    for (uint64_t i = 0; i < tasks1_offset[(*buffer_count)]; i++) {
+        cout << buffer_vertices[i].out_can_deg << " ";
+    }
+    cout << endl << "In-Mem-Deg:" << endl;
+    for (uint64_t i = 0; i < tasks1_offset[(*buffer_count)]; i++) {
+        cout << buffer_vertices[i].in_mem_deg << " ";
+    }
+    cout << endl << "In-Can-Deg:" << endl;
+    for (uint64_t i = 0; i < tasks1_offset[(*buffer_count)]; i++) {
+        cout << buffer_vertices[i].in_can_deg << " ";
+    }
+    cout << endl << "Lvl2adj:" << endl;
+    for (uint64_t i = 0; i < buffer_offset[(*buffer_count)]; i++) {
+        cout << buffer_vertices[i].lvl2adj << " ";
+    }
+    cout << endl << endl;
 
-//     delete current_level;
+    delete current_level;
 
-//     delete tasks1_count;
-//     delete tasks1_offset;
-//     delete tasks1_vertices;
+    delete tasks1_count;
+    delete tasks1_offset;
+    delete tasks1_vertices;
 
-//     delete buffer_count;
-//     delete buffer_offset;
-//     delete buffer_vertices;
-// }
+    delete buffer_count;
+    delete buffer_offset;
+    delete buffer_vertices;
+}
 
 // void print_All_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
 // {

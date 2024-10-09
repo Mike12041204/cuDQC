@@ -169,6 +169,9 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
 
         // TRANSFER TO GPU
         h_move_to_gpu(hd, h_dd, dss, output);
+
+        // DEBUG - rm
+        //print_GPU_Data(h_dd, dss);
     }
 
     // DEBUG
@@ -207,6 +210,10 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             *hd.maximal_expansion = true;
 
             // DEBUG - rm
+            chkerr(cudaMemset(h_dd.current_task, 0, sizeof(int)));
+            cudaDeviceSynchronize();
+
+            // DEBUG - rm
             *gb0 = 0;
             *gb1 = 0;
             *gb2 = 0;
@@ -220,7 +227,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             cudaDeviceSynchronize();
 
             // DEBUG - rm
-            //cout << *gb0 << " " << *gb1 << " " << *gb2 << " " << *gb3 << endl << endl;
+            cout << *gb0 << " " << *gb1 << " " << *gb2 << " " << *gb3 << endl << endl;
 
             // DEBUG
             if (dss.DEBUG_TOGGLE) {
@@ -2354,7 +2361,7 @@ void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex
 
         for (int k = 0; k < total_vertices; k++) {
             hd.buffer_vertices[start_write + k] = vertices[k];
-            write_vertices[start_write + k].lvl2adj = 0;
+            hd.buffer_vertices[start_write + k].lvl2adj = 0;
         }
 
         (*hd.buffer_count)++;

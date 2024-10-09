@@ -12,8 +12,8 @@ __global__ void d_fill_from_buffer(GPU_Data* dd, uint64_t* tasks_count, uint64_t
 // --- SECONDARY EXPANSION KERNELS ---
 __device__ void d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
 __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
-__device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
-__device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
+__device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, uint64_t* gb0, uint64_t* gb1, uint64_t* gb2, uint64_t* gb3);
+__device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, uint64_t* gb0, uint64_t* gb1, uint64_t* gb2, uint64_t* gb3);
 __device__ void d_check_for_clique(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
 __device__ void d_write_to_tasks(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
 __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, int pvertexid, 
@@ -22,7 +22,7 @@ __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& l
                                       int number_of_crit_adj);
 __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
                                       int number_of_candidates);
-__device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
+__device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, uint64_t* gb0, uint64_t* gb1, uint64_t* gb2, uint64_t* gb3);
 
 // --- TERTIARY KERNELS --- 
 __device__ void d_oe_sort_vert(Vertex* target, int size, int (*func)(Vertex&, Vertex&));
@@ -121,18 +121,18 @@ __device__ __forceinline__ bool d_cand_isvalid(Vertex& vertex, GPU_Data* dd, War
         return false;
     else if (vertex.in_mem_deg + vertex.in_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.in_can_deg + 1, dd->minimum_in_degrees, *dd->minimum_clique_size))
         return false;
-    else if (vertex.out_mem_deg + vertex.out_can_deg < wd.min_ext_out_deg[WIB_IDX])
-        return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < wd.min_ext_in_deg[WIB_IDX])
-        return false;
-    else if (vertex.out_mem_deg + wd.upper_bound[WIB_IDX] - 1 < dd->minimum_out_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]])
-        return false;
-    else if (vertex.in_mem_deg + wd.upper_bound[WIB_IDX] - 1 < dd->minimum_in_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]])
-        return false;
-    else if (vertex.out_mem_deg + vertex.out_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd->minimum_out_degrees, *dd->minimum_clique_size))
-        return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd->minimum_in_degrees, *dd->minimum_clique_size))
-        return false;
+    // else if (vertex.out_mem_deg + vertex.out_can_deg < wd.min_ext_out_deg[WIB_IDX])
+    //     return false;
+    // else if (vertex.in_mem_deg + vertex.in_can_deg < wd.min_ext_in_deg[WIB_IDX])
+    //     return false;
+    // else if (vertex.out_mem_deg + wd.upper_bound[WIB_IDX] - 1 < dd->minimum_out_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]])
+    //     return false;
+    // else if (vertex.in_mem_deg + wd.upper_bound[WIB_IDX] - 1 < dd->minimum_in_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]])
+    //     return false;
+    // else if (vertex.out_mem_deg + vertex.out_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd->minimum_out_degrees, *dd->minimum_clique_size))
+    //     return false;
+    // else if (vertex.in_mem_deg + vertex.in_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd->minimum_in_degrees, *dd->minimum_clique_size))
+    //     return false;
     else
         return true;
 
@@ -176,22 +176,22 @@ __device__ __forceinline__ bool d_vert_isextendable(Vertex& vertex, GPU_Data* dd
         return false;
     else if (vertex.in_mem_deg + vertex.in_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.in_can_deg, dd->minimum_in_degrees, *dd->minimum_clique_size))
         return false;
-    else if (vertex.out_mem_deg + vertex.out_can_deg < wd.min_ext_out_deg[WIB_IDX])
-        return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < wd.min_ext_in_deg[WIB_IDX])
-        return false;
+    // else if (vertex.out_mem_deg + vertex.out_can_deg < wd.min_ext_out_deg[WIB_IDX])
+    //     return false;
+    // else if (vertex.in_mem_deg + vertex.in_can_deg < wd.min_ext_in_deg[WIB_IDX])
+    //     return false;
     else if (vertex.out_can_deg == 0 && vertex.out_mem_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.out_can_deg, dd->minimum_out_degrees, *dd->minimum_clique_size))
         return false;
     else if (vertex.in_can_deg == 0 && vertex.in_mem_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + vertex.in_can_deg, dd->minimum_in_degrees, *dd->minimum_clique_size))
         return false;
-    else if (vertex.out_mem_deg + wd.upper_bound[WIB_IDX] < dd->minimum_out_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]])
-        return false;
-    else if (vertex.in_mem_deg + wd.upper_bound[WIB_IDX] < dd->minimum_in_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]])
-        return false;
-    else if (vertex.out_mem_deg + vertex.out_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd->minimum_out_degrees, *dd->minimum_clique_size))
-        return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd->minimum_in_degrees, *dd->minimum_clique_size))
-        return false;
+    // else if (vertex.out_mem_deg + wd.upper_bound[WIB_IDX] < dd->minimum_out_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]])
+    //     return false;
+    // else if (vertex.in_mem_deg + wd.upper_bound[WIB_IDX] < dd->minimum_in_degrees[wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX]])
+    //     return false;
+    // else if (vertex.out_mem_deg + vertex.out_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd->minimum_out_degrees, *dd->minimum_clique_size))
+    //     return false;
+    // else if (vertex.in_mem_deg + vertex.in_can_deg < d_get_mindeg(wd.number_of_members[WIB_IDX] + wd.lower_bound[WIB_IDX], dd->minimum_in_degrees, *dd->minimum_clique_size))
+    //     return false;
     else
         return true;
 

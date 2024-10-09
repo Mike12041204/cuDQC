@@ -10,7 +10,7 @@ void initialize_maxes();
 void print_maxes();
 void print_graph(CPU_Graph& hg);
 void print_CPU_Data(CPU_Data& hd);
-// void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss);
+void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss);
 // void print_CPU_Graph(CPU_Graph& hg);
 // void print_GPU_Graph(GPU_Data& h_dd, CPU_Graph& hg);
 // void print_WTask_Buffers(GPU_Data& h_dd, DS_Sizes& dss);
