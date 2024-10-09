@@ -248,6 +248,8 @@ struct Warp_Data
     int nmin_clq_totaldeg_i[WARPS_PER_BLOCK];
     int nclq_clqdeg_sum_i[WARPS_PER_BLOCK];
     int ncand_clqdeg_sum_i[WARPS_PER_BLOCK];
+    // DEBUG - maybe rm
+    int rw_counter[WARPS_PER_BLOCK];
 };
 
 // LOCAL DATA

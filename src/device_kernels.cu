@@ -1016,6 +1016,348 @@ __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& l
     __syncwarp();
 }
 
+// returns true if invalid bounds or failed found
+__device__ bool d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, uint64_t* gb0, uint64_t* gb1, uint64_t* gb2, uint64_t* gb3)
+{
+    // helper variables used throughout method to store various values, names have no meaning
+    int pvertexid;
+    int phelper1;
+    int phelper2;
+    Vertex* read;
+    Vertex* write;
+    // counter for lane intersection results
+    int lane_remaining_count;
+    int lane_removed_count;
+    int warp_write;
+    int lane_write;
+
+    warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
+    lane_write = warp_write + ((*dd->WVERTICES_SIZE / WARP_SIZE) * LANE_IDX);
+
+    // used for bound calculation
+    d_oe_sort_int(dd->candidate_out_mem_degs + warp_write, wd.remaining_count[WIB_IDX], 
+                  d_comp_int_desc);
+    d_oe_sort_int(dd->candidate_in_mem_degs + warp_write, wd.remaining_count[WIB_IDX], 
+                  d_comp_int_desc);
+
+    // DEBUG - uncomment
+    // // set bounds and min ext degs
+    // d_calculate_LU_bounds(dd, wd, ld, wd.remaining_count[WIB_IDX]);
+    // __syncwarp();
+
+    // // check whether bounds are valid
+    // if(wd.success[WIB_IDX] == false){
+    //     // reset vertex order map
+    //     for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
+    //         dd->vertex_order_map[warp_write + i] = -1;
+    //     }
+    //     return;
+    // }
+
+    // check for failed vertices
+    for(int i = LANE_IDX; i < wd.number_of_members[WIB_IDX] && wd.success[WIB_IDX]; i += 
+        WARP_SIZE){
+
+        if(!d_vert_isextendable(ld.vertices[i], dd, wd, ld)){
+            wd.success[WIB_IDX] = false;
+            break;
+        }
+    }
+    __syncwarp();
+
+    // reset vertex order map
+    if(!wd.success[WIB_IDX]){
+        for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
+            dd->vertex_order_map[warp_write + i] = -1;
+        }
+        return;
+    }  
+
+    if (LANE_IDX == 0) {
+        wd.remaining_count[WIB_IDX] = 0;
+        wd.removed_count[WIB_IDX] = 0;
+        wd.rw_counter[WIB_IDX] = 0;
+    }
+
+    lane_remaining_count = 0;
+    lane_removed_count = 0;
+    
+    // check for invalid candidates
+    for (int i = wd.number_of_members[WIB_IDX] + LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += 
+         WARP_SIZE) {
+        
+        if (ld.vertices[i].label == 0 && d_cand_isvalid(ld.vertices[i], dd, wd, ld)) {
+            dd->lane_remaining_candidates[lane_write + lane_remaining_count++] = i;
+        }
+        else {
+            dd->lane_removed_candidates[lane_write + lane_removed_count++] = i;
+        }
+    }
+    __syncwarp();
+
+    // scan to calculate write postion in warp arrays
+    phelper2 = lane_remaining_count;
+    pvertexid = lane_removed_count;
+    for (int i = 1; i < WARP_SIZE; i *= 2) {
+        phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_remaining_count, i, WARP_SIZE);
+        if (LANE_IDX >= i) {
+            lane_remaining_count += phelper1;
+        }
+        phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_removed_count, i, WARP_SIZE);
+        if (LANE_IDX >= i) {
+            lane_removed_count += phelper1;
+        }
+        __syncwarp();
+    }
+    // lane remaining count sum is scan for last lane and its value
+    if (LANE_IDX == WARP_SIZE - 1) {
+        wd.remaining_count[WIB_IDX] = lane_remaining_count;
+        wd.removed_count[WIB_IDX] = lane_removed_count;
+    }
+    // make scan exclusive
+    lane_remaining_count -= phelper2;
+    lane_removed_count -= pvertexid;
+
+    // parallel write lane arrays to warp array
+    for (int i = 0; i < phelper2; i++) {
+        dd->remaining_candidates[warp_write + lane_remaining_count + i] = ld.vertices[dd->lane_remaining_candidates[lane_write + i]];
+    }
+    // only need removed if going to be using removed to update degrees
+    if (!(wd.remaining_count[WIB_IDX] < wd.removed_count[WIB_IDX])) {
+        for (int i = 0; i < pvertexid; i++) {
+            dd->removed_candidates[warp_write + lane_removed_count + i] = ld.vertices[dd->lane_removed_candidates[lane_write + i]].vertexid;
+        }
+    }
+    __syncwarp();
+
+    // DEBUG - rm
+    __syncwarp();
+    // if(LANE_IDX == 0){
+    //     for(int i = 0; i < wd.total_vertices[WIB_IDX]; i++){
+    //         atomicAdd((int*)gb0, ld.vertices[i].indeg);
+    //         atomicAdd((int*)gb1, ld.vertices[i].exdeg);
+    //     }
+    // }
+    __syncwarp();
+    
+    while (wd.remaining_count[WIB_IDX] > 0 && wd.removed_count[WIB_IDX] > 0) {
+        // we alternate reading and writing remaining variables from two arrays
+        if (wd.rw_counter[WIB_IDX] % 2 == 0) {
+            read = dd->remaining_candidates + warp_write;
+            write = ld.vertices + wd.number_of_members[WIB_IDX];
+        }
+        else {
+            read = ld.vertices + wd.number_of_members[WIB_IDX];
+            write = dd->remaining_candidates + warp_write;
+        }
+
+        // update degrees
+        if (wd.remaining_count[WIB_IDX] < wd.removed_count[WIB_IDX]) {
+
+            // via remaining, reset exdegs
+            for (int i = LANE_IDX; i < wd.number_of_members[WIB_IDX]; i += WARP_SIZE) {
+                ld.vertices[i].exdeg = 0;
+            }
+            for (int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE) {
+                read[i].exdeg = 0;
+            }
+            __syncwarp();
+
+            // update exdeg based on remaining candidates, every lane should get the next vertex to intersect dynamically
+            for (int i = LANE_IDX; i < wd.number_of_members[WIB_IDX]; i += WARP_SIZE) {
+                pvertexid = ld.vertices[i].vertexid;
+
+                for (int j = 0; j < wd.remaining_count[WIB_IDX]; j++) {
+                    phelper1 = read[j].vertexid;
+                    phelper2 = d_b_search_int(dd->onehop_neighbors + dd->onehop_offsets[phelper1], dd->onehop_offsets[phelper1 + 1] - dd->onehop_offsets[phelper1], pvertexid);
+
+                    if (phelper2 > -1) {
+                        ld.vertices[i].exdeg++;
+                    }
+                }
+            }
+
+            for (int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE) {
+                pvertexid = read[i].vertexid;
+
+                for (int j = 0; j < wd.remaining_count[WIB_IDX]; j++) {
+                    if (j == i) {
+                        continue;
+                    }
+
+                    phelper1 = read[j].vertexid;
+                    phelper2 = d_b_search_int(dd->onehop_neighbors + dd->onehop_offsets[phelper1], dd->onehop_offsets[phelper1 + 1] - dd->onehop_offsets[phelper1], pvertexid);
+
+                    if (phelper2 > -1) {
+                        read[i].exdeg++;
+                    }
+                }
+            }
+        }
+        else {
+
+            // via removed, update exdeg based on remaining candidates, again lane scheduling should be dynamic
+            for (int i = LANE_IDX; i < wd.number_of_members[WIB_IDX]; i += WARP_SIZE) {
+                pvertexid = ld.vertices[i].vertexid;
+
+                for (int j = 0; j < wd.removed_count[WIB_IDX]; j++) {
+                    phelper1 = dd->removed_candidates[warp_write + j];
+                    phelper2 = d_b_search_int(dd->onehop_neighbors + dd->onehop_offsets[phelper1], dd->onehop_offsets[phelper1 + 1] - dd->onehop_offsets[phelper1], pvertexid);
+
+                    if (phelper2 > -1) {
+                        ld.vertices[i].exdeg--;
+                    }
+                }
+            }
+
+            for (int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE) {
+                pvertexid = read[i].vertexid;
+
+                for (int j = 0; j < wd.removed_count[WIB_IDX]; j++) {
+                    phelper1 = dd->removed_candidates[warp_write + j];
+                    phelper2 = d_b_search_int(dd->onehop_neighbors + dd->onehop_offsets[phelper1], dd->onehop_offsets[phelper1 + 1] - dd->onehop_offsets[phelper1], pvertexid);
+
+                    if (phelper2 > -1) {
+                        read[i].exdeg--;
+                    }
+                }
+            }
+        }
+        __syncwarp();
+
+        lane_remaining_count = 0;
+
+        for (int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE) {
+            if (d_cand_isvalid(read[i], dd, wd, ld)) {
+                dd->lane_candidate_indegs[lane_write + lane_remaining_count++] = read[i].indeg;
+            }
+        }
+        __syncwarp();
+
+        // scan to calculate write postion in warp arrays
+        phelper2 = lane_remaining_count;
+        for (int i = 1; i < WARP_SIZE; i *= 2) {
+            phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_remaining_count, i, WARP_SIZE);
+            if (LANE_IDX >= i) {
+                lane_remaining_count += phelper1;
+            }
+            __syncwarp();
+        }
+        // lane remaining count sum is scan for last lane and its value
+        if (LANE_IDX == WARP_SIZE - 1) {
+            wd.num_val_cands[WIB_IDX] = lane_remaining_count;
+        }
+        // make scan exclusive
+        lane_remaining_count -= phelper2;
+
+        // parallel write lane arrays to warp array
+        for (int i = 0; i < phelper2; i++) {
+            dd->candidate_indegs[warp_write + lane_remaining_count + i] = dd->lane_candidate_indegs[lane_write + i];
+        }
+        __syncwarp();
+
+        d_oe_sort_int(dd->candidate_indegs + warp_write, wd.num_val_cands[WIB_IDX], d_comp_int_desc);
+
+        // DEBUG - rm and uncomment
+        wd.success[WIB_IDX] = false;
+        // d_calculate_LU_bounds(dd, wd, ld, wd.num_val_cands[WIB_IDX]);
+        // if (wd.success[WIB_IDX]) {
+        //     return true;
+        // }
+
+        // check for failed vertices
+        for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX] && !wd.success[WIB_IDX]; k += WARP_SIZE) {
+            if (!d_vert_isextendable(ld.vertices[k], dd, wd, ld)) {
+                wd.success[WIB_IDX] = true;
+                break;
+            }
+
+        }
+        __syncwarp();
+        if (wd.success[WIB_IDX]) {
+            return true;
+        }
+
+        lane_remaining_count = 0;
+        lane_removed_count = 0;
+
+        // check for failed candidates
+        for (int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE) {
+            if (d_cand_isvalid(read[i], dd, wd, ld)) {
+                dd->lane_remaining_candidates[lane_write + lane_remaining_count++] = i;
+            }
+            else {
+                dd->lane_removed_candidates[lane_write + lane_removed_count++] = i;
+            }
+        }
+        __syncwarp();
+
+        // scan to calculate write postion in warp arrays
+        phelper2 = lane_remaining_count;
+        pvertexid = lane_removed_count;
+        for (int i = 1; i < WARP_SIZE; i *= 2) {
+            phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_remaining_count, i, WARP_SIZE);
+            if (LANE_IDX >= i) {
+                lane_remaining_count += phelper1;
+            }
+            phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_removed_count, i, WARP_SIZE);
+            if (LANE_IDX >= i) {
+                lane_removed_count += phelper1;
+            }
+            __syncwarp();
+        }
+        // lane remaining count sum is scan for last lane and its value
+        if (LANE_IDX == WARP_SIZE - 1) {
+            wd.num_val_cands[WIB_IDX] = lane_remaining_count;
+            wd.removed_count[WIB_IDX] = lane_removed_count;
+        }
+        // make scan exclusive
+        lane_remaining_count -= phelper2;
+        lane_removed_count -= pvertexid;
+
+        // parallel write lane arrays to warp array
+        for (int i = 0; i < phelper2; i++) {
+            write[lane_remaining_count + i] = read[dd->lane_remaining_candidates[lane_write + i]];
+        }
+        // only need removed if going to be using removed to update degrees
+        if (!(wd.num_val_cands[WIB_IDX] < wd.removed_count[WIB_IDX])) {
+            for (int i = 0; i < pvertexid; i++) {
+                dd->removed_candidates[warp_write + lane_removed_count + i] = read[dd->lane_removed_candidates[lane_write + i]].vertexid;
+            }
+        }
+
+        if (LANE_IDX == 0) {
+            wd.remaining_count[WIB_IDX] = wd.num_val_cands[WIB_IDX];
+            wd.rw_counter[WIB_IDX]++;
+        }
+        __syncwarp();
+    }
+
+    // DEBUG - rm
+    __syncwarp();
+    if(LANE_IDX == 0){
+        for(int i = 0; i < wd.total_vertices[WIB_IDX]; i++){
+            atomicAdd((int*)gb2, ld.vertices[i].indeg);
+            atomicAdd((int*)gb3, ld.vertices[i].exdeg);
+        }
+    }
+    __syncwarp();
+
+    // condense vertices so remaining are after members, only needs to be done if they were not written into vertices last time
+    if (wd.rw_counter[WIB_IDX] % 2 == 0) {
+        for (int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE) {
+            ld.vertices[wd.number_of_members[WIB_IDX] + i] = dd->remaining_candidates[warp_write + i];
+        }
+    }
+
+    if (LANE_IDX == 0) {
+        wd.total_vertices[WIB_IDX] = wd.total_vertices[WIB_IDX] - wd.number_of_candidates[WIB_IDX] + wd.remaining_count[WIB_IDX];
+        wd.number_of_candidates[WIB_IDX] = wd.remaining_count[WIB_IDX];
+    }
+
+    return false;
+}
+
 // sets success to false if failed or invalid bounds found else leaves as true
 __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, uint64_t* gb0, uint64_t* gb1, uint64_t* gb2, uint64_t* gb3)
 {
