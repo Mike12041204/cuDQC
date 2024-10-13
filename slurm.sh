@@ -26,7 +26,9 @@ print_job_script() {
 module load OpenMPI/4.1.5-GCC-12.3.0
 module load CUDA/12.2.0
 
-srun --mpi=pmix_v3 ./cuDQC ${graph} ${out_gamma} ${in_gamma} ${min_size} ${dssizes} ${output}
+# DEBUG - rm and uncomment
+#srun --mpi=pmix_v3 ./cuDQC ${graph} ${out_gamma} ${in_gamma} ${min_size} ${dssizes} ${output}
+srun ./cuDQC ${graph} ${out_gamma} ${in_gamma} ${min_size} ${dssizes} ${output}
 EOT
 }
 

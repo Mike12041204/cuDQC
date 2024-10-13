@@ -51,7 +51,8 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     mpiSizeBuffer = new uint64_t[MAX_MESSAGE];
     mpiVertexBuffer = new Vertex[MAX_MESSAGE];
     // open communication channels
-    mpi_irecv_all(grank);
+    // DEBUG - uncomment
+    //mpi_irecv_all(grank);
     for (int i = 0; i < wsize; ++i) {
         global_free_list[i] = false;
     }
@@ -188,20 +189,21 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
         // HELP OTHER PROCESS
         // only way this variable is true is if this process got finished all of its work broke out
         // of inner loop and returned here
-        if(help_others){
-            // decode buffer
-            decode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer);
-            // populate tasks from buffer
-            d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count);
-            cudaDeviceSynchronize();
-            *hd.maximal_expansion = false;
+        // DEBUG - uncomment
+        // if(help_others){
+        //     // decode buffer
+        //     decode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer);
+        //     // populate tasks from buffer
+        //     d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count);
+        //     cudaDeviceSynchronize();
+        //     *hd.maximal_expansion = false;
 
-            // DEBUG
-            if (dss.DEBUG_TOGGLE) {
-                output_file << "RECIEVING WORK FROM PROCESS " << from << endl;
-                print_D_Data_Sizes(h_dd, dss);
-            }
-        }
+        //     // DEBUG
+        //     if (dss.DEBUG_TOGGLE) {
+        //         output_file << "RECIEVING WORK FROM PROCESS " << from << endl;
+        //         print_D_Data_Sizes(h_dd, dss);
+        //     }
+        // }
 
         // HANDLE LOCAL WORK
         // loop while not all work has been completed
@@ -227,7 +229,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             cudaDeviceSynchronize();
 
             // DEBUG - rm
-            cout << *gb0 << " " << *gb1 << " " << *gb2 << " " << *gb3 << endl << endl;
+            //cout << *gb0 << " " << *gb1 << " " << *gb2 << " " << *gb3 << endl << endl;
 
             // DEBUG
             if (dss.DEBUG_TOGGLE) {
@@ -307,7 +309,8 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     // INITIATE HELP FOR OTHER PROCESS
     // each process will block here until they have found another process to recieve work from and
     // then help or all processes are done and the program can complete
-    }while(wsize != take_work_wrap(grank, mpiSizeBuffer, mpiVertexBuffer, from));
+    // DEBUG - rm and uncomment
+    }while(false /**wsize != take_work_wrap(grank, mpiSizeBuffer, mpiVertexBuffer, from)**/);
 
     h_dump_cliques(hc, h_dd, temp_results, dss);
 
