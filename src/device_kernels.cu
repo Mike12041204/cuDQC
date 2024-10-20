@@ -605,11 +605,6 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     // DEGREE BASED PRUNING
     // sets success to false if failed found else leaves as true
     d_degree_pruning(dd, wd, ld);
-
-    // reset vertex order map before condensing
-    for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
-        dd->vertex_order_map[warp_write + i] = -1;
-    }
 }
 
 // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
@@ -827,13 +822,6 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
     // DEGREE BASED PRUNING
     // sets success to false if failed found else leaves as true
     d_degree_pruning(dd, wd, ld);
-
-    // DEBUG - rm
-    // reset vertex order map before condensing
-    for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
-        dd->vertex_order_map[warp_write + i] = -1;
-    }
-    return;
 }
 
 // diameter pruning intitializes vertices labels and candidate indegs array for use in iterative 
@@ -1002,8 +990,8 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     // check whether bounds are valid
     if(wd.success[WIB_IDX] == false){
         // reset vertex order map
-        for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
-            dd->vertex_order_map[warp_write + i] = -1;
+        for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
+            dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
         }
         return;
     }
@@ -1021,8 +1009,8 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     // reset vertex order map
     if(!wd.success[WIB_IDX]){
-        for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
-            dd->vertex_order_map[warp_write + i] = -1;
+        for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
+            dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
         }
         return;
     }   
@@ -1211,8 +1199,8 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         // check whether bounds are valid
         if(wd.success[WIB_IDX] == false){
             // reset vertex order map
-            for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
-                dd->vertex_order_map[warp_write + i] = -1;
+            for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
+                dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
             }
             return;
         }
@@ -1230,8 +1218,8 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
         // reset vertex order map
         if(!wd.success[WIB_IDX]){
-            for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
-                dd->vertex_order_map[warp_write + i] = -1;
+            for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
+                dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
             }
             return;
         }   
@@ -1293,8 +1281,8 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     }
 
     // reset vertex order map before condensing
-    for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
-        dd->vertex_order_map[warp_write + i] = -1;
+    for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
+        dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
     }
 
     // condense vertices out of place
