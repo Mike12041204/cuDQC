@@ -66,14 +66,11 @@ int main(int argc, char* argv[])
     auto start = chrono::high_resolution_clock::now();
 
     // MPI
-    // DEBUG - rm and uncomment
-    wsize = 1;
-    grank = 0;
-    //MPI_Init(&argc, &argv);
-    //MPI_Comm_size(MPI_COMM_WORLD, &size);
-    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    //wsize = size;
-    //grank = rank;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    wsize = size;
+    grank = rank;
 
     // DEBUG
     output = argv[6];
@@ -136,8 +133,7 @@ int main(int argc, char* argv[])
     write_file.close();
 
     // ensure all temp files are written and closed
-    // DEBUG - uncomment
-    //MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // TIME
     auto stop2 = chrono::high_resolution_clock::now();
@@ -197,7 +193,6 @@ int main(int argc, char* argv[])
 
     delete[] minimum_out_degrees;
     delete[] minimum_in_degrees;
-    // DEBUG - uncomment
-    //MPI_Finalize();
+    MPI_Finalize();
     return 0;
 }

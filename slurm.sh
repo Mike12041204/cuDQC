@@ -16,7 +16,7 @@ print_job_script() {
 #SBATCH --time=12:00:00                         # set job max time
 #SBATCH --output=DQC-O_${output}	            # set output path for nodes
 #SBATCH --error=DQC-E_${output}        	        # set error path for nodes
-#SBATCH --nodes=1                               # 4 nodes
+#SBATCH --nodes=4                               # 4 nodes
 #SBATCH --ntasks-per-node=1                     # 1 process per node
 #SBATCH --cpus-per-task=16                      # 16 thread per process
 #SBATCH --mem=94G                               # 94GB memory per process
@@ -27,8 +27,7 @@ module load OpenMPI/4.1.5-GCC-12.3.0
 module load CUDA/12.2.0
 
 # DEBUG - rm and uncomment
-#srun --mpi=pmix_v3 ./cuDQC ${graph} ${out_gamma} ${in_gamma} ${min_size} ${dssizes} ${output}
-srun ./cuDQC ${graph} ${out_gamma} ${in_gamma} ${min_size} ${dssizes} ${output}
+srun --mpi=pmix_v3 ./cuDQC ${graph} ${out_gamma} ${in_gamma} ${min_size} ${dssizes} ${output}
 EOT
 }
 

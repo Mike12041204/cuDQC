@@ -3,7 +3,7 @@
 
 // --- PRIMARY KERNELS ---
 
-__global__ void d_expand_level(GPU_Data* dd, uint64_t* gb0, uint64_t* gb1, uint64_t* gb2, uint64_t* gb3)
+__global__ void d_expand_level(GPU_Data* dd)
 {
     __shared__ Warp_Data wd;        // data is stored in data structures to reduce the number of variables that need to be passed to methods
     Local_Data ld;
@@ -19,16 +19,12 @@ __global__ void d_expand_level(GPU_Data* dd, uint64_t* gb0, uint64_t* gb1, uint6
 
     // --- CURRENT LEVEL ---
 
-    // DEBUG - make dynamic
-    // // initialize i for each warp
-    // int i = 0;
-    // if (LANE_IDX == 0) {
-    //     i = atomicAdd(dd->current_task, 1);
-    // }
-    // i = __shfl_sync(0xFFFFFFFF, i, 0);
+    //DEBUG - make dynamic
+    // initialize i for each warp
+    int i = WARP_IDX;
     
-    //while (i < *dd->tasks_count) {
-    for(int i = WARP_IDX; i < *dd->tasks_count; i += NUMBER_OF_WARPS){
+    while (i < *dd->tasks_count) 
+    {
 
         // INITIALIZE OLD VERTICES
         // get information on vertices being handled within tasks
@@ -59,23 +55,22 @@ __global__ void d_expand_level(GPU_Data* dd, uint64_t* gb0, uint64_t* gb1, uint6
         }
         __syncwarp();
 
-        // DEBUG - uncomment
-        // // LOOKAHEAD PRUNING
-        // wd.success[WIB_IDX] = true;
-        // __syncwarp();
+        // LOOKAHEAD PRUNING
+        wd.success[WIB_IDX] = true;
+        __syncwarp();
 
-        // // sets success to false if lookahead fails
-        // d_lookahead_pruning(dd, wd, ld);
+        // sets success to false if lookahead fails
+        d_lookahead_pruning(dd, wd, ld);
         
-        // if (wd.success[WIB_IDX]) {
-               // DEBUG - make dynamic
-        //     // schedule warps next task
-        //     if (LANE_IDX == 0) {
-        //         i = atomicAdd(dd->current_task, 1);
-        //     }
-        //     i = __shfl_sync(0xFFFFFFFF, i, 0);
-        //     continue;
-        // }
+        if (wd.success[WIB_IDX]) {
+            //DEBUG - make dynamic
+            // schedule warps next task
+            if (LANE_IDX == 0) {
+                i = atomicAdd(dd->current_task, 1);
+            }
+            i = __shfl_sync(0xFFFFFFFF, i, 0);
+            continue;
+        }
 
         // --- NEXT LEVEL ---
 
@@ -138,29 +133,28 @@ __global__ void d_expand_level(GPU_Data* dd, uint64_t* gb0, uint64_t* gb1, uint6
             __syncwarp();
             
             // sets success to false if failed found
-            d_add_one_vertex(dd, wd, ld, gb0, gb1, gb2, gb3);
+            d_add_one_vertex(dd, wd, ld);
 
-            // DEBUG - uncomment
-            // // if failed found check for clique and continue on to the next iteration
-            // if (!wd.success[WIB_IDX]) {
-            //     d_check_for_clique(dd, wd, ld);
+            // if failed found check for clique and continue on to the next iteration
+            if (!wd.success[WIB_IDX]) {
+                d_check_for_clique(dd, wd, ld);
                 
-            //     continue;
-            // }
+                continue;
+            }
 
-            // // CRITICAL VERTEX PRUNING
-            // if(LANE_IDX == 0){
-            //     wd.success[WIB_IDX] = 1;
-            // }
-            // __syncwarp();
+            // CRITICAL VERTEX PRUNING
+            if(LANE_IDX == 0){
+                wd.success[WIB_IDX] = 1;
+            }
+            __syncwarp();
 
-            // // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
-            // d_critical_vertex_pruning(dd, wd, ld, gb0, gb1, gb2, gb3);
+            // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
+            d_critical_vertex_pruning(dd, wd, ld);
 
-            // // critical fail, cannot be clique continue onto next iteration
-            // if (wd.success[WIB_IDX] == 2) {
-            //     continue;
-            // }
+            // critical fail, cannot be clique continue onto next iteration
+            if (wd.success[WIB_IDX] == 2) {
+                continue;
+            }
 
             // HANDLE CLIQUES
             d_check_for_clique(dd, wd, ld);
@@ -172,8 +166,7 @@ __global__ void d_expand_level(GPU_Data* dd, uint64_t* gb0, uint64_t* gb1, uint6
 
             // WRITE TASKS TO BUFFERS
             // sort vertices in Quick efficient enumeration order before writing
-            // DEBUG - uncomment
-            //d_oe_sort_vert(ld.vertices, wd.total_vertices[WIB_IDX], d_comp_vert_Q);
+            d_oe_sort_vert(ld.vertices, wd.total_vertices[WIB_IDX], d_comp_vert_Q);
 
             if (wd.number_of_candidates[WIB_IDX] > 0) {
                 d_write_to_tasks(dd, wd, ld);
@@ -181,11 +174,11 @@ __global__ void d_expand_level(GPU_Data* dd, uint64_t* gb0, uint64_t* gb1, uint6
         }
 
         // DEBUG - make dynamic
-        // // schedule warps next task
-        // if (LANE_IDX == 0) {
-        //     i = atomicAdd(dd->current_task, 1);
-        // }
-        // i = __shfl_sync(0xFFFFFFFF, i, 0);
+        // schedule warps next task
+        if (LANE_IDX == 0) {
+            i = atomicAdd(dd->current_task, 1);
+        }
+        i = __shfl_sync(0xFFFFFFFF, i, 0);
     }
 
     // TODO - make each block just sum this themselves without atomic operation
@@ -290,9 +283,7 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
         dd->cliques_vertex[*dd->cliques_start + cliques_write[WIB_IDX] + i] = dd->wcliques_vertex[(*dd->WCLIQUES_SIZE * WARP_IDX) + i];
     }
 
-    // DEBUG - change back?
     if (IDX == NUMBER_OF_DTHREADS - 1) {
-    //if (IDX == 0) {
         // handle tasks and buffer counts
         if (*dd->total_tasks <= *dd->EXPAND_THRESHOLD) {
             *dd->tasks_count = *dd->total_tasks;
@@ -307,8 +298,7 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
         *dd->total_cliques = 0;
         (*dd->current_level)++;
 
-        // DEBUG - uncomment
-        //*dd->current_task = NUMBER_OF_WARPS;
+        *dd->current_task = NUMBER_OF_WARPS;
         *tasks_count = *dd->tasks_count;
         *buffer_count = *dd->buffer_count;
         *cliques_count = *dd->cliques_count;
@@ -386,13 +376,6 @@ __device__ void d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     for(int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE){
         dd->vertex_order_map[warp_write + dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid] = i;
     }
-
-    // DEBUG - uncomment
-    // // update lvl2adj to candidates for all vertices
-    // for (int i = wd.num_mem[WIB_IDX] + LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE) {
-    //     dd->tasks_vertices[wd.start[WIB_IDX] + i].lvl2adj = 0;
-    // }
-    // __syncwarp();
 
     for (int i = wd.num_mem[WIB_IDX]; i < wd.tot_vert[WIB_IDX]; i++) {
 
@@ -495,7 +478,6 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     pneighbors_start = dd->out_offsets[pvertexid];
     pneighbors_end = dd->out_offsets[pvertexid + 1];
 
-    // DEBUG - uncomment
     for (int i = pneighbors_start + LANE_IDX; i < pneighbors_end && wd.success[WIB_IDX]; i += 
          WARP_SIZE) {
 
@@ -533,7 +515,6 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     pneighbors_start = dd->in_offsets[pvertexid];
     pneighbors_end = dd->in_offsets[pvertexid + 1];
 
-    // DEBUG - uncomment
     for (int i = pneighbors_start + LANE_IDX; i < pneighbors_end && wd.success[WIB_IDX]; i += 
          WARP_SIZE) {
 
@@ -567,7 +548,7 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 }
 
 // sets success to false if failed found else leaves as true
-__device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, uint64_t* gb0, uint64_t* gb1, uint64_t* gb2, uint64_t* gb3)
+__device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
     int pvertexid;
     int phelper1;
@@ -636,7 +617,7 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, ui
 
     // DEGREE BASED PRUNING
     // sets success to false if failed found else leaves as true
-    d_degree_pruning(dd, wd, ld, gb0, gb1, gb2, gb3);
+    d_degree_pruning(dd, wd, ld);
 
     // reset vertex order map before condensing
     for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
@@ -645,7 +626,7 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, ui
 }
 
 // sets success as 2 if critical fail, 0 if failed found or invalid bound, 1 otherwise
-__device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, uint64_t* gb0, uint64_t* gb1, uint64_t* gb2, uint64_t* gb3)
+__device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
     int phelper1;                   // intersection
     int number_of_crit_adj;         // pruning
@@ -847,7 +828,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
 
         // no failed vertices found so add all critical vertex adj candidates to clique
         for (int k = wd.number_of_members[WIB_IDX] + LANE_IDX; k < wd.number_of_members[WIB_IDX] + 
-            number_of_crit_adj; k += WARP_SIZE) {
+             number_of_crit_adj; k += WARP_SIZE) {
 
             ld.vertices[k].label = 1;
         }
@@ -864,7 +845,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
 
     // DEGREE BASED PRUNING
     // sets success to false if failed found else leaves as true
-    d_degree_pruning(dd, wd, ld, gb0, gb1, gb2, gb3);
+    d_degree_pruning(dd, wd, ld);
 
     // DEBUG - rm
     // reset vertex order map before condensing
@@ -980,8 +961,10 @@ __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& l
 
         if (dd->adjacencies[warp_write + k] == number_of_crit_adj) {
 
-            dd->candidate_out_mem_degs[lane_write + lane_remaining_count] = ld.vertices[k].out_mem_deg;
-            dd->candidate_in_mem_degs[lane_write + lane_remaining_count] = ld.vertices[k].in_mem_deg;
+            dd->lane_candidate_out_mem_degs[lane_write + lane_remaining_count] = 
+                ld.vertices[k].out_mem_deg;
+            dd->lane_candidate_in_mem_degs[lane_write + lane_remaining_count] = 
+                ld.vertices[k].in_mem_deg;
             lane_remaining_count++;
         }
         else {
@@ -1017,7 +1000,7 @@ __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& l
 }
 
 // sets success to false if failed or invalid bounds found else leaves as true
-__device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, uint64_t* gb0, uint64_t* gb1, uint64_t* gb2, uint64_t* gb3)
+__device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
     int lane_write;                 // place each lane will write in warp array
     int pvertexid;                  // helper variables
@@ -1039,19 +1022,18 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, ui
     d_oe_sort_int(dd->candidate_in_mem_degs + warp_write, wd.remaining_count[WIB_IDX], 
                   d_comp_int_desc);
 
-    // DEBUG - uncomment
-    // // set bounds and min ext degs
-    // d_calculate_LU_bounds(dd, wd, ld, wd.remaining_count[WIB_IDX]);
-    // __syncwarp();
+    //set bounds and min ext degs
+    d_calculate_LU_bounds(dd, wd, ld, wd.remaining_count[WIB_IDX]);
+    __syncwarp();
 
-    // // check whether bounds are valid
-    // if(wd.success[WIB_IDX] == false){
-    //     // reset vertex order map
-    //     for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
-    //         dd->vertex_order_map[warp_write + i] = -1;
-    //     }
-    //     return;
-    // }
+    // check whether bounds are valid
+    if(wd.success[WIB_IDX] == false){
+        // reset vertex order map
+        for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
+            dd->vertex_order_map[warp_write + i] = -1;
+        }
+        return;
+    }
 
     // check for failed vertices
     for(int i = LANE_IDX; i < wd.number_of_members[WIB_IDX] && wd.success[WIB_IDX]; i += 
@@ -1128,32 +1110,8 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, ui
         }
     //}
     __syncwarp();
-
-    __syncwarp();
-    if(IDX == 0){
-        atomicAdd((int*)gb0, 1);
-        printf("+++++++++++++++++++++++++++++++++++++++++++++++++\n");
-    }
-    __syncwarp();
     
     while (wd.remaining_count[WIB_IDX] > 0 && wd.removed_count[WIB_IDX] > 0) {
-
-        // DEBUG - rm
-        __syncwarp();
-        if(IDX == 0 && *dd->current_level == 2){
-            printf("-------------------------------------------------\n");
-            printf("REMAINING %i %llu\n", *dd->current_level, *gb0);
-            for(int i = 0; i < wd.remaining_count[WIB_IDX]; i++){
-                printf("%i : %i  ", ld.vertices[dd->remaining_candidates[warp_write + i]].vertexid, ld.vertices[dd->remaining_candidates[warp_write + i]].out_can_deg);
-            }
-            printf("\n");
-            printf("REMOVED\n");
-            for(int i = 0; i < wd.removed_count[WIB_IDX]; i++){
-                printf("%i  ", ld.vertices[dd->removed_candidates[warp_write + i]].vertexid);
-            }
-            printf("\n\n");
-        }
-        __syncwarp();
 
         // update degrees
         if (wd.remaining_count[WIB_IDX] < wd.removed_count[WIB_IDX]) {
@@ -1214,6 +1172,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, ui
                         ld.vertices[phelper1].in_can_deg--;
                     }
                 }
+                __syncwarp();
 
                 pneighbors_start = dd->in_offsets[pvertexid];
                 pneighbors_end = dd->in_offsets[pvertexid + 1];
@@ -1276,19 +1235,18 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, ui
         d_oe_sort_int(dd->candidate_in_mem_degs + warp_write, wd.num_val_cands[WIB_IDX], 
                       d_comp_int_desc);
 
-        // DEBUG - uncomment
-        // // set bounds and min ext degs
-        // d_calculate_LU_bounds(dd, wd, ld, wd.num_val_cands[WIB_IDX]);
-        // __syncwarp();
+        // set bounds and min ext degs
+        d_calculate_LU_bounds(dd, wd, ld, wd.num_val_cands[WIB_IDX]);
+        __syncwarp();
 
-        // // check whether bounds are valid
-        // if(wd.success[WIB_IDX] == false){
-        //     // reset vertex order map
-        //     for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
-        //         dd->vertex_order_map[warp_write + i] = -1;
-        //     }
-        //     return;
-        // }
+        // check whether bounds are valid
+        if(wd.success[WIB_IDX] == false){
+            // reset vertex order map
+            for(int i = LANE_IDX; i < *dd->WVERTICES_SIZE; i += WARP_SIZE){
+                dd->vertex_order_map[warp_write + i] = -1;
+            }
+            return;
+        }
 
         // check for failed vertices
         for(int i = LANE_IDX; i < wd.number_of_members[WIB_IDX] && wd.success[WIB_IDX]; i += 
@@ -1519,6 +1477,7 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
                 else //tighten upper bound
                 {
                     wd.lower_bound[WIB_IDX] = i;
+
                     ntightened_max_cands = i;
                     while(i<wd.upper_bound[WIB_IDX])
                     {
@@ -1706,25 +1665,33 @@ __device__ void d_oe_sort_int(int* target, int size, int (*func)(int, int))
 // --- DEBUG KERNELS ---
 __device__ void d_print_vertices(Vertex* vertices, int size)
 {
-    // printf("\nOffsets:\n0 %i\nVertex:\n", size);
-    // for (int i = 0; i < size; i++) {
-    //     printf("%i ", vertices[i].vertexid);
-    // }
-    // printf("\nLabel:\n");
-    // for (int i = 0; i < size; i++) {
-    //     printf("%i ", vertices[i].label);
-    // }
-    // printf("\nIndeg:\n");
-    // for (int i = 0; i < size; i++) {
-    //     printf("%i ", vertices[i].indeg);
-    // }
-    // printf("\nExdeg:\n");
-    // for (int i = 0; i < size; i++) {
-    //     printf("%i ", vertices[i].exdeg);
-    // }
-    // printf("\nLvl2adj:\n");
-    // for (int i = 0; i < size; i++) {
-    //     printf("%i ", vertices[i].lvl2adj);
-    // }
-    // printf("\n");
+    printf("\nOffsets:\n0 %i\nVertex:\n", size);
+    for (int i = 0; i < size; i++) {
+        printf("%i ", vertices[i].vertexid);
+    }
+    printf("\nLabel:\n");
+    for (int i = 0; i < size; i++) {
+        printf("%i ", vertices[i].label);
+    }
+    printf("\nOut-Mem-Deg:\n");
+    for (int i = 0; i < size; i++) {
+        printf("%i ", vertices[i].out_mem_deg);
+    }
+    printf("\nOut-Can-Deg:\n");
+    for (int i = 0; i < size; i++) {
+        printf("%i ", vertices[i].out_can_deg);
+    }
+    printf("\nIn-Mem-Deg:\n");
+    for (int i = 0; i < size; i++) {
+        printf("%i ", vertices[i].in_mem_deg);
+    }
+    printf("\nIn-Can-Deg:\n");
+    for (int i = 0; i < size; i++) {
+        printf("%i ", vertices[i].in_can_deg);
+    }
+    printf("\nLvl2adj:\n");
+    for (int i = 0; i < size; i++) {
+        printf("%i ", vertices[i].lvl2adj);
+    }
+    printf("\n");
 }

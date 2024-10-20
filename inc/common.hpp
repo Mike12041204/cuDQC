@@ -20,7 +20,7 @@
 #include <device_launch_parameters.h>
 #include <sm_30_intrinsics.h>
 #include <device_atomic_functions.h>
-//#include <mpi.h>
+#include <mpi.h>
 #include <omp.h>
 #include <cassert>
 #include <algorithm> 
@@ -29,7 +29,7 @@
 using namespace std;
 
 // CPU DISTRIBUTED / PARALLEL SETTINGS
-#define NUMBER_OF_PROCESSESS 1
+#define NUMBER_OF_PROCESSESS 4
 #define NUMBER_OF_HTHREADS 16
 
 // GPU KERNEL LAUNCH
@@ -197,7 +197,6 @@ struct GPU_Data
     int* total_cliques;
     // DATA STRUCTURE SIZE
     uint64_t* TASKS_SIZE;
-    uint64_t* TASKS_PER_WARP;
     uint64_t* BUFFER_SIZE;
     uint64_t* BUFFER_OFFSET_SIZE;
     uint64_t* CLIQUES_SIZE;
@@ -263,7 +262,7 @@ class DS_Sizes
     
     // DATA STRUCTURE SIZE
     uint64_t TASKS_SIZE;
-    uint64_t TASKS_PER_WARP;
+    uint64_t EXPAND_THRESHOLD;
     uint64_t BUFFER_SIZE;
     uint64_t BUFFER_OFFSET_SIZE;
     uint64_t CLIQUES_SIZE;
@@ -276,7 +275,6 @@ class DS_Sizes
     uint64_t WTASKS_OFFSET_SIZE;
     // global memory vertices, should be a multiple of 32 as to not waste space
     uint64_t WVERTICES_SIZE;
-    uint64_t EXPAND_THRESHOLD;
     uint64_t CLIQUES_DUMP;
     int DEBUG_TOGGLE;
 
@@ -291,13 +289,9 @@ extern ofstream output_file;
 extern int wsize;
 extern int grank;
 extern char msg_buffer[NUMBER_OF_PROCESSESS][100];             // for every task there is a seperate message buffer and incoming/outgoing handle slot
-// DEBUG - uncomment
-//extern MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];          // array of handles for messages with all other thread, allows for asynchronous messaging, handles say whether message is complete
-//extern MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
+extern MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];          // array of handles for messages with all other thread, allows for asynchronous messaging, handles say whether message is complete
+extern MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
 extern bool global_free_list[NUMBER_OF_PROCESSESS];
-
-// DEBUG - rm
-extern uint64_t db0, db1, db2, db3;
 
 inline void chkerr(cudaError_t code)
 {

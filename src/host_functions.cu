@@ -34,12 +34,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     uint64_t* cliques_size;
     uint64_t* write_count;
 
-    // DEBUG - rm
-    uint64_t *gb0, *gb1, *gb2, *gb3;
-    chkerr(cudaMallocManaged((void**)&gb0, sizeof(uint64_t)));
-    chkerr(cudaMallocManaged((void**)&gb1, sizeof(uint64_t)));
-    chkerr(cudaMallocManaged((void**)&gb2, sizeof(uint64_t)));
-    chkerr(cudaMallocManaged((void**)&gb3, sizeof(uint64_t)));
+    // --- INITIALIZE ENVIROMENT ---
 
     // TIME
     auto start = chrono::high_resolution_clock::now();
@@ -51,8 +46,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     mpiSizeBuffer = new uint64_t[MAX_MESSAGE];
     mpiVertexBuffer = new Vertex[MAX_MESSAGE];
     // open communication channels
-    // DEBUG - uncomment
-    //mpi_irecv_all(grank);
+    mpi_irecv_all(grank);
     for (int i = 0; i < wsize; ++i) {
         global_free_list[i] = false;
     }
@@ -92,18 +86,12 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
         print_H_Data_Sizes(hd, hc);
     }
 
-    // CPU EXPANSION
+    // --- CPU EXPANSION ---
     // cpu expand must be called atleast one time to handle first round cover pruning as the gpu 
     // code cannot do this
     for (int i = 0; i < CPU_LEVELS + 1 && !(*hd.maximal_expansion); i++) {
         
         *hd.maximal_expansion = true;
-
-        // DEBUG - rm
-        db0 = 0;
-        db1 = 0;
-        db2 = 0;
-        db3 = 0;
 
         // EXPAND LEVEL
         // will set maximal expansion false if no work generated
@@ -137,9 +125,6 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
         }
 
         (*hd.current_level)++;
-
-        // DEBUG - rm
-        //cout << db0 << " " << db1 << " " << db2 << " " << db3 << endl << endl;
     
         // if cliques is more than threshold dump
         if (*hc.cliques_count > (int)(dss.CLIQUES_OFFSET_SIZE * (dss.CLIQUES_PERCENT / 100.0)) || 
@@ -157,6 +142,8 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
 
     h_flush_cliques(hc, temp_results);
 
+    // --- TRANSFER TO GPU ---
+
     // TIME
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
@@ -170,15 +157,14 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
 
         // TRANSFER TO GPU
         h_move_to_gpu(hd, h_dd, dss, output);
-
-        // DEBUG - rm
-        //print_GPU_Data(h_dd, dss);
     }
 
     // DEBUG
     if(grank == 0){
         cout << "EXPANDING TASKS:     ";
     }
+
+    // --- GPU EXPANSION ---
 
     help_others = false;
 
@@ -189,21 +175,20 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
         // HELP OTHER PROCESS
         // only way this variable is true is if this process got finished all of its work broke out
         // of inner loop and returned here
-        // DEBUG - uncomment
-        // if(help_others){
-        //     // decode buffer
-        //     decode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer);
-        //     // populate tasks from buffer
-        //     d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count);
-        //     cudaDeviceSynchronize();
-        //     *hd.maximal_expansion = false;
+        if(help_others){
+            // decode buffer
+            decode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer);
+            // populate tasks from buffer
+            d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count);
+            cudaDeviceSynchronize();
+            *hd.maximal_expansion = false;
 
-        //     // DEBUG
-        //     if (dss.DEBUG_TOGGLE) {
-        //         output_file << "RECIEVING WORK FROM PROCESS " << from << endl;
-        //         print_D_Data_Sizes(h_dd, dss);
-        //     }
-        // }
+            // DEBUG
+            if (dss.DEBUG_TOGGLE) {
+                output_file << "RECIEVING WORK FROM PROCESS " << from << endl;
+                print_D_Data_Sizes(h_dd, dss);
+            }
+        }
 
         // HANDLE LOCAL WORK
         // loop while not all work has been completed
@@ -211,25 +196,11 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             
             *hd.maximal_expansion = true;
 
-            // DEBUG - rm
-            chkerr(cudaMemset(h_dd.current_task, 0, sizeof(int)));
-            cudaDeviceSynchronize();
-
-            // DEBUG - rm
-            *gb0 = 0;
-            *gb1 = 0;
-            *gb2 = 0;
-            *gb3 = 0;
-
             // EXPAND LEVEL
             // expand all tasks in 'tasks' array, each warp will write to their respective warp 
             // tasks buffer in global memory
-            // DEBUG - rm parameters
-            d_expand_level<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, gb0, gb1, gb2, gb3);
+            d_expand_level<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd);
             cudaDeviceSynchronize();
-
-            // DEBUG - rm
-            //cout << *gb0 << " " << *gb1 << " " << *gb2 << " " << *gb3 << endl << endl;
 
             // DEBUG
             if (dss.DEBUG_TOGGLE) {
@@ -271,35 +242,29 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
                 print_D_Data_Sizes(h_dd, dss);
             }
 
-            // // GET HELP FROM OTHER PROCESS
-            // if(*buffer_count > HELP_THRESHOLD){
+            // GET HELP FROM OTHER PROCESS
+            if(*buffer_count > HELP_THRESHOLD){
 
-            //     // DEBUG - rm
-            //     cout << "1" << endl;
+                // return whether work was successfully given
+                divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, 
+                                                 h_dd, *buffer_count, dss);
 
-            //     // return whether work was successfully given
-            //     divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, 
-            //                                      h_dd, *buffer_count, dss);
+                // update buffer count if work was given
+                if(divided_work){
+                    *buffer_count -= (*buffer_count > dss.EXPAND_THRESHOLD) ? dss.EXPAND_THRESHOLD 
+                    + ((*buffer_count - dss.EXPAND_THRESHOLD) * ((100 - HELP_PERCENT) / 100.0)) : 
+                    *buffer_count;
 
-            //     // DEBUG - rm
-            //     cout << "2" << endl;
+                    chkerr(cudaMemcpy(h_dd.buffer_count, buffer_count, sizeof(uint64_t), 
+                                      cudaMemcpyHostToDevice));
 
-            //     // update buffer count if work was given
-            //     if(divided_work){
-            //         *buffer_count -= (*buffer_count > dss.EXPAND_THRESHOLD) ? dss.EXPAND_THRESHOLD 
-            //         + ((*buffer_count - dss.EXPAND_THRESHOLD) * ((100 - HELP_PERCENT) / 100.0)) : 
-            //         *buffer_count;
-
-            //         chkerr(cudaMemcpy(h_dd.buffer_count, buffer_count, sizeof(uint64_t), 
-            //                           cudaMemcpyHostToDevice));
-
-            //         // DEBUG
-            //         if (dss.DEBUG_TOGGLE) {
-            //             output_file << "SENDING WORK TO PROCESS " << taker << endl;
-            //             print_D_Data_Sizes(h_dd, dss);
-            //         }
-            //     }
-            // }
+                    // DEBUG
+                    if (dss.DEBUG_TOGGLE) {
+                        output_file << "SENDING WORK TO PROCESS " << taker << endl;
+                        print_D_Data_Sizes(h_dd, dss);
+                    }
+                }
+            }
         }
 
         // we have finished all our work, so if we get to the top of the loop again it is because 
@@ -309,10 +274,11 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     // INITIATE HELP FOR OTHER PROCESS
     // each process will block here until they have found another process to recieve work from and
     // then help or all processes are done and the program can complete
-    // DEBUG - rm and uncomment
-    }while(false /**wsize != take_work_wrap(grank, mpiSizeBuffer, mpiVertexBuffer, from)**/);
+    }while(wsize != take_work_wrap(grank, mpiSizeBuffer, mpiVertexBuffer, from));
 
     h_dump_cliques(hc, h_dd, temp_results, dss);
+
+    // --- FINALIZE ENVIROMENT ---
 
     // clean up
     h_free_memory(hd, h_dd, hc);
@@ -458,7 +424,6 @@ void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Si
     chkerr(cudaMemcpy(h_dd.current_task, pcurrent, sizeof(int), cudaMemcpyHostToDevice));
     // DATA STRUCTURE SIZES
     chkerr(cudaMalloc((void**)&h_dd.TASKS_SIZE, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&h_dd.TASKS_PER_WARP, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.BUFFER_SIZE, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.BUFFER_OFFSET_SIZE, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.CLIQUES_SIZE, sizeof(uint64_t)));
@@ -472,7 +437,6 @@ void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Si
     chkerr(cudaMalloc((void**)&h_dd.EXPAND_THRESHOLD, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.CLIQUES_DUMP, sizeof(uint64_t)));
     chkerr(cudaMemcpy(h_dd.TASKS_SIZE, &dss.TASKS_SIZE, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.TASKS_PER_WARP, &dss.TASKS_PER_WARP, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.BUFFER_SIZE, &dss.BUFFER_SIZE, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.BUFFER_OFFSET_SIZE, &dss.BUFFER_OFFSET_SIZE, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.CLIQUES_SIZE, &dss.CLIQUES_SIZE, sizeof(uint64_t), cudaMemcpyHostToDevice));
@@ -697,8 +661,7 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
     // sort enumeration order before writing to tasks
     qsort(vertices, total_vertices, sizeof(Vertex), h_comp_vert_Q);
 
-    // DEBUG - uncomment
-    //h_condense_graph(hd, hg, vertices, number_of_candidates);
+    h_condense_graph(hd, hg, vertices, number_of_candidates);
 
     total_vertices = number_of_candidates;
 
@@ -1352,7 +1315,6 @@ void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     chkerr(cudaFree(h_dd.cliques_start));
     // DATA STRUCTURE SIZES
     chkerr(cudaFree(h_dd.TASKS_SIZE));
-    chkerr(cudaFree(h_dd.TASKS_PER_WARP));
     chkerr(cudaFree(h_dd.BUFFER_SIZE));
     chkerr(cudaFree(h_dd.BUFFER_OFFSET_SIZE));
     chkerr(cudaFree(h_dd.CLIQUES_SIZE));

@@ -10,7 +10,7 @@ NVCCLDFLAGS := -lmpi -Xcompiler "-fopenmp"
 CXXLDFLAGS := -lmpi -fopenmp
 INCLUDES = -Iinc
 
-OBJECTS = program.o src/common.o src/host_functions.o src/Quick_rmnonmax.o src/host_debug.o src/device_kernels.o # DEBUG - uncomment src/cuTS_MPI.o
+OBJECTS = program.o src/common.o src/host_functions.o src/Quick_rmnonmax.o src/host_debug.o src/device_kernels.o src/cuTS_MPI.o
 TARGET = cuDQC
 
 all: d2u $(TARGET)
@@ -28,7 +28,7 @@ program.o: program.cu inc/common.hpp inc/host_functions.hpp inc/Quick_rmnonmax.h
 src/common.o: src/common.cpp inc/common.hpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-src/host_functions.o: src/host_functions.cu inc/common.hpp inc/host_functions.hpp inc/host_debug.h inc/device_kernels.hpp # DEBUG - uncomment inc/cuTS_MPI.h
+src/host_functions.o: src/host_functions.cu inc/common.hpp inc/host_functions.hpp inc/host_debug.h inc/device_kernels.hpp inc/cuTS_MPI.h
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
 
 src/host_debug.o: src/host_debug.cpp inc/common.hpp inc/host_debug.h
@@ -40,9 +40,8 @@ src/device_kernels.o: src/device_kernels.cu inc/common.hpp inc/device_kernels.hp
 src/Quick_rmnonmax.o: src/Quick_rmnonmax.cpp inc/common.hpp inc/Quick_rmnonmax.h
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-# DEBUG - uncomment
-#src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.hpp inc/cuTS_MPI.h
-#	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.hpp inc/cuTS_MPI.h
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 # various clean and print shortcuts
 .PHONY: c

@@ -8,13 +8,9 @@ ofstream output_file;
 int wsize;
 int grank;
 char msg_buffer[NUMBER_OF_PROCESSESS][100];             // for every task there is a seperate message buffer and incoming/outgoing handle slot 
-// DEBUG - uncomment
-//MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];          // array of handles for messages with all other thread, allows for asynchronous messaging, handles say whether message is complete
-//MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
+MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];          // array of handles for messages with all other thread, allows for asynchronous messaging, handles say whether message is complete
+MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
 bool global_free_list[NUMBER_OF_PROCESSESS];
-
-// DEBUG - rm
-uint64_t db0, db1, db2, db3;
 
 CPU_Graph::CPU_Graph(ifstream& graph_stream)
 {
@@ -56,8 +52,6 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
         while (line_stream >> vertex) {
             out_nei[current_line].push_back(vertex);
             in_nei[vertex].push_back(current_line);
-
-            number_of_edges++;
         }
         current_line++;
     }
@@ -66,6 +60,22 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
 	for(int i = 0; i < number_of_vertices; i++){
 		sort(out_nei[i].begin(), out_nei[i].end());
 		sort(in_nei[i].begin(), in_nei[i].end());
+
+		// NOTE - enforce simple graph, no multi-edges
+        auto last = std::unique(out_nei[i].begin(), out_nei[i].end());
+        out_nei[i].erase(last, out_nei[i].end());
+		last = std::unique(in_nei[i].begin(), in_nei[i].end());
+        in_nei[i].erase(last, in_nei[i].end());
+
+		// NOTE - enfore simple graph, no self edges
+        out_nei[i].erase(remove(out_nei[i].begin(), out_nei[i].end(), i), out_nei[i].end());
+		in_nei[i].erase(remove(in_nei[i].begin(), in_nei[i].end(), i), in_nei[i].end());
+
+		sort(out_nei[i].begin(), out_nei[i].end());
+		sort(in_nei[i].begin(), in_nei[i].end());
+
+		// NOTE - count is here as edge adjustment needs to be handled first
+        number_of_edges += out_nei[i].size();
 	}
 
 	// write to CSR arrays
@@ -523,7 +533,7 @@ DS_Sizes::DS_Sizes(const string& filename)
 
             switch (line_count) {
                 case 0: TASKS_SIZE = value; break;
-                case 1: TASKS_PER_WARP = value; break;
+                case 1: EXPAND_THRESHOLD = value; break;
                 case 2: BUFFER_SIZE = value; break;
                 case 3: BUFFER_OFFSET_SIZE = value; break;
                 case 4: CLIQUES_SIZE = value; break;
@@ -543,6 +553,5 @@ DS_Sizes::DS_Sizes(const string& filename)
 
     file.close();
 
-    EXPAND_THRESHOLD = (TASKS_PER_WARP * NUMBER_OF_WARPS);
     CLIQUES_DUMP = (CLIQUES_OFFSET_SIZE * (CLIQUES_PERCENT / 100.0));
 }
