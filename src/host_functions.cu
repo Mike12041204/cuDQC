@@ -676,7 +676,6 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
     {
         for (int j = 0; j < total_vertices; j++) {
             hd.tasks1_vertices[j] = vertices[j];
-            hd.tasks1_vertices[j].lvl2adj = 0;
         }
         (*(hd.tasks1_count))++;
         hd.tasks1_offset[(*(hd.tasks1_count))] = total_vertices;
@@ -1010,18 +1009,6 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
         num_cand = tot_vert - num_mem;
         expansions = num_cand;
 
-        // LOOKAHEAD PRUNING
-        success = true;
-
-        // sets success to false if lookahead fails
-        h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start, 
-                            minimum_out_degrees, minimum_in_degrees, minimum_clique_size, 
-                            success);
-        
-        if (success) {
-            continue;
-        }
-
         // --- NEXT LEVEL ---
 
         for (int j = number_of_covered; j < expansions; j++) {
@@ -1042,6 +1029,18 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
                 if(success == 2){
                     continue;
                 }
+            }
+
+            // LOOKAHEAD PRUNING
+            success = true;
+
+            // sets success to false if lookahead fails
+            h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start, 
+                                minimum_out_degrees, minimum_in_degrees, minimum_clique_size, 
+                                success);
+            
+            if (success) {
+                break;
             }
 
             // INITIALIZE NEW VERTICES
@@ -1359,39 +1358,12 @@ void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* r
         }
     }
 
-    // initialize vertex order map
-    for (int i = 0; i < tot_vert; i++) {
-        hd.vertex_order_map[read_vertices[start + i].vertexid] = i;
-    }
-
-    for (int i = num_mem; i < tot_vert; i++) {
-
-        pvertexid = read_vertices[start + i].vertexid;
-
-        pneighbors_start = hg.twohop_offsets[pvertexid];
-        pneighbors_end = hg.twohop_offsets[pvertexid + 1];
-
-        for (uint64_t j = pneighbors_start; j < pneighbors_end; j++) {
-
-            phelper1 = hd.vertex_order_map[hg.twohop_neighbors[j]];
-
-            if (phelper1 >= num_mem) {
-                read_vertices[start + phelper1].lvl2adj++;
-            }
-        }
-    }
-
-    // reset vertex order map
-    for (int i = 0; i < tot_vert; i++) {
-        hd.vertex_order_map[read_vertices[start + i].vertexid] = -1;
-    }
-
     // check for lookahead
     for (int i = num_mem; i < tot_vert; i++) {
-        if (read_vertices[start + i].lvl2adj < num_cand - 1 || read_vertices[start + i].out_mem_deg 
-            + read_vertices[start + i].out_can_deg < min_out_deg || 
-            read_vertices[start + i].in_mem_deg + read_vertices[start + i].in_can_deg < 
-            min_in_deg) {
+        if (read_vertices[start + i].out_mem_deg + read_vertices[start + i].out_can_deg 
+            < min_out_deg || read_vertices[start + i].in_mem_deg + 
+            read_vertices[start + i].in_can_deg < min_in_deg || read_vertices[start + i].lvl2adj 
+            < tot_vert - 1) {
 
             success = false;
             return;
@@ -1422,12 +1394,18 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
     int min_out_deg;                    // helper variables
     int min_in_deg;
 
-    min_out_deg = h_get_mindeg(num_mem + 1, minimum_out_degrees, minimum_clique_size);
-    min_in_deg = h_get_mindeg(num_mem + 1, minimum_in_degrees, minimum_clique_size);
-
     // remove one vertex
     num_cand--;
     tot_vert--;
+
+    // return false if not enough vertices remaining
+    if(tot_vert < minimum_clique_size){
+        success = false;
+        return;
+    }
+
+    min_out_deg = h_get_mindeg(num_mem + 1, minimum_out_degrees, minimum_clique_size);
+    min_in_deg = h_get_mindeg(num_mem + 1, minimum_in_degrees, minimum_clique_size);
 
     // initialize vertex order map
     for (int i = 0; i < tot_vert; i++) {
@@ -1467,7 +1445,6 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
         for (int i = 0; i < tot_vert; i++) {
             hd.vertex_order_map[read_vertices[start + i].vertexid] = -1;
         }
-
         return;
     }
 
@@ -1492,6 +1469,27 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
                     success = 2;
                 }
             }
+        }
+    }
+
+    // return if failed found
+    if(!success){
+        // reset vertex order map
+        for (int i = 0; i < tot_vert; i++) {
+            hd.vertex_order_map[read_vertices[start + i].vertexid] = -1;
+        }
+        return;
+    }
+
+    pneighbors_start = hg.twohop_offsets[pvertexid];
+    pneighbors_end = hg.twohop_offsets[pvertexid + 1];
+
+    for (uint64_t i = pneighbors_start; i < pneighbors_end; i++) {
+
+        phelper1 = hd.vertex_order_map[hg.twohop_neighbors[i]];
+
+        if (phelper1 >= num_mem) {
+            read_vertices[start + phelper1].lvl2adj--;
         }
     }
 
@@ -2297,7 +2295,6 @@ void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex
 
         for (int i = 0; i < total_vertices; i++) {
             write_vertices[start_write + i] = vertices[i];
-            write_vertices[start_write + i].lvl2adj = 0;
         }
 
         (*write_count)++;
@@ -2308,7 +2305,6 @@ void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex
 
         for (int i = 0; i < total_vertices; i++) {
             hd.buffer_vertices[start_write + i] = vertices[i];
-            hd.buffer_vertices[start_write + i].lvl2adj = 0;
         }
 
         (*hd.buffer_count)++;
