@@ -85,7 +85,8 @@
         "__bit_reference": "cpp",
         "__hash_table": "cpp",
         "__split_buffer": "cpp",
-        "string_view": "cpp"
+        "string_view": "cpp",
+        "cassert": "cpp"
     },
     "makefile.makefilePath": "${workspaceFolder}/Makefile",
     "makefile.makePath": "C:/Program Files (x86)/GnuWin32/bin/make.exe"

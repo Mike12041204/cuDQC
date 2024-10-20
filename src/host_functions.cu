@@ -585,9 +585,9 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
         pneighbors_start = hg.out_offsets[pvertexid];
         pneighbors_end = hg.out_offsets[pvertexid + 1];
 
-        for (uint64_t j = pneighbors_start; j < pneighbors_end; j++) {
+        for (uint64_t i = pneighbors_start; i < pneighbors_end; i++) {
 
-            phelper1 = hg.out_neighbors[j];
+            phelper1 = hg.out_neighbors[i];
 
             if (vertices[phelper1].label == 0) {
                 vertices[phelper1].in_can_deg--;
@@ -603,9 +603,9 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
         pneighbors_start = hg.in_offsets[pvertexid];
         pneighbors_end = hg.in_offsets[pvertexid + 1];
 
-        for (uint64_t j = pneighbors_start; j < pneighbors_end; j++) {
+        for (uint64_t i = pneighbors_start; i < pneighbors_end; i++) {
 
-            phelper1 = hg.in_neighbors[j];
+            phelper1 = hg.in_neighbors[i];
 
             if (vertices[phelper1].label == 0) {
                 vertices[phelper1].out_can_deg--;
@@ -888,8 +888,8 @@ void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_
 	}
 	// transfer twohop neighbors
 	for(int i = 0; i < number_of_candidates; i++){
-		for(uint64_t k = 0; k < hg.twohop_offsets[i + 1] - hg.twohop_offsets[i]; k++){
-			hg.twohop_neighbors[hg.twohop_offsets[i] + k] = ppnew_lvl2_nbs[i][k + 1];
+		for(uint64_t j = 0; j < hg.twohop_offsets[i + 1] - hg.twohop_offsets[i]; j++){
+			hg.twohop_neighbors[hg.twohop_offsets[i] + j] = ppnew_lvl2_nbs[i][j + 1];
 		}
 	}
 
@@ -900,8 +900,8 @@ void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_
 	}
 	// transfer out neighbors
 	for(int i = 0; i < number_of_candidates; i++){
-		for(uint64_t k = 0; k < hg.out_offsets[i + 1] - hg.out_offsets[i]; k++){
-			hg.out_neighbors[hg.out_offsets[i] + k] = ppnew_adjlists_o[i][k + 1];
+		for(uint64_t j = 0; j < hg.out_offsets[i + 1] - hg.out_offsets[i]; j++){
+			hg.out_neighbors[hg.out_offsets[i] + j] = ppnew_adjlists_o[i][j + 1];
 		}
 	}
 
@@ -912,8 +912,8 @@ void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_
 	}
 	// transfer out neighbors
 	for(int i = 0; i < number_of_candidates; i++){
-		for(uint64_t k = 0; k < hg.in_offsets[i + 1] - hg.in_offsets[i]; k++){
-			hg.in_neighbors[hg.in_offsets[i] + k] = ppnew_adjlists_i[i][k + 1];
+		for(uint64_t j = 0; j < hg.in_offsets[i + 1] - hg.in_offsets[i]; j++){
+			hg.in_neighbors[hg.in_offsets[i] + j] = ppnew_adjlists_i[i][j + 1];
 		}
 	}
 
@@ -1584,7 +1584,6 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
     uint64_t pneighbors_start;
     uint64_t pneighbors_end;
     int phelper1;
-    bool critical_fail;                 // helper
     int number_of_crit;
     int* adjacencies;
 
@@ -1692,8 +1691,6 @@ void h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, in
     }
 
     // check for critical failure
-    critical_fail = false;
-
     // all vertices within the clique must be within 2hops of the newly ah_dded critical vertex adj vertices
     for (int i = 0; i < number_of_members; i++) {
         if (adjacencies[i] != number_of_crit) {
@@ -2353,8 +2350,8 @@ void h_fill_from_buffer(CPU_Data& hd, int threshold)
     memcpy(&write_vertices[start_write], &hd.buffer_vertices[start_buffer], sizeof(Vertex) * size_buffer);
 
     // handle offsets
-    for (uint64_t j = 1; j <= write_amount; j++) {
-        write_offsets[*write_count + j] = start_write + (hd.buffer_offset[(*hd.buffer_count) - write_amount + j] - start_buffer);
+    for (uint64_t i = 1; i <= write_amount; i++) {
+        write_offsets[*write_count + i] = start_write + (hd.buffer_offset[(*hd.buffer_count) - write_amount + i] - start_buffer);
     }
 
     // update counts

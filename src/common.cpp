@@ -484,8 +484,8 @@ void CPU_Graph::GenLevel2NBs()
 	
 	// transfer twohop neighbors
 	for(int i = 0; i < number_of_vertices; i++){
-		for(uint64_t k = 0; k < twohop_offsets[i + 1] - twohop_offsets[i]; k++){
-			twohop_neighbors[twohop_offsets[i] + k] = mpplvl2_nbs[i][k + 1];
+		for(uint64_t j = 0; j < twohop_offsets[i + 1] - twohop_offsets[i]; j++){
+			twohop_neighbors[twohop_offsets[i] + j] = mpplvl2_nbs[i][j + 1];
 		}
 	}
 
