@@ -438,7 +438,7 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     uint64_t pneighbors_end;
     int min_out_deg;
     int min_in_deg;
-    int warp_write;
+    uint64_t warp_write;
 
     warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
 
@@ -608,7 +608,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
 {
     int phelper1;                   // intersection
     int number_of_crit;         // pruning
-    int warp_write;
+    uint64_t warp_write;
     int pvertexid;                  // intersection
     uint64_t pneighbors_start;
     uint64_t pneighbors_end;
@@ -966,7 +966,7 @@ __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& l
 // sets success to false if failed or invalid bounds found else leaves as true
 __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
-    int lane_write;                 // place each lane will write in warp array
+    uint64_t lane_write;                 // place each lane will write in warp array
     int pvertexid;                  // helper variables
     int phelper1;
     int phelper2;
@@ -975,7 +975,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     uint64_t pneighbors_end;
     int lane_remaining_count;       // counter for lane intersection results
     int lane_removed_count;
-    int warp_write;
+    uint64_t warp_write;
 
     warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
     lane_write = warp_write + ((*dd->WVERTICES_SIZE / WARP_SIZE) * LANE_IDX);
@@ -1314,7 +1314,7 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
         //lower & upper bound are initialized using the degree of vertex in S
         //and tighten using the degree of vertex in ext_S
         int i, ntightened_max_cands;
-        int warp_write;
+        uint64_t warp_write;
 
         warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
 
