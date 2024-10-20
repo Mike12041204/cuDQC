@@ -549,12 +549,12 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
 
-    // DEBUG - uncomment
-
-    // min_out_deg = d_get_mindeg(wd.number_of_members[WIB_IDX] + 2, dd->minimum_out_degrees, 
-    //                            *dd->minimum_clique_size);
-    // min_in_deg = d_get_mindeg(wd.number_of_members[WIB_IDX] + 2, dd->minimum_in_degrees, 
-    //                            *dd->minimum_clique_size);
+    // minimum degrees for candidates, plus two for vertex that will be added and candidates itself
+    // will need to be added as well
+    min_out_deg = d_get_mindeg(wd.number_of_members[WIB_IDX] + 2, dd->minimum_out_degrees, 
+                               *dd->minimum_clique_size);
+    min_in_deg = d_get_mindeg(wd.number_of_members[WIB_IDX] + 2, dd->minimum_in_degrees, 
+                               *dd->minimum_clique_size);
 
     // initialize vertex order map
     for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
@@ -570,8 +570,6 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         wd.number_of_members[WIB_IDX]++;
         wd.number_of_candidates[WIB_IDX]--;
     }
-    // DEBUG - rm
-    __syncwarp();
 
     // update degrees of adjacent vertices
     pneighbors_start = dd->out_offsets[pvertexid];
@@ -881,25 +879,17 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
         if (phelper1 >= wd.number_of_members[WIB_IDX]) {
             ld.vertices[phelper1].label = 0;
 
-            // DEBUG - rm and uncomment
-
-            dd->lane_candidate_out_mem_degs[lane_write + lane_remaining_count] = 
-                ld.vertices[phelper1].out_mem_deg;
-            dd->lane_candidate_in_mem_degs[lane_write + lane_remaining_count] = 
-                ld.vertices[phelper1].in_mem_deg;
-            lane_remaining_count++;
-
-            // // only track mem degs of candidates which pass basic degree pruning
-            // if(ld.vertices[phelper1].out_mem_deg + ld.vertices[phelper1].out_can_deg >= min_out_deg
-            //    && ld.vertices[phelper1].in_mem_deg + ld.vertices[phelper1].in_can_deg >= 
-            //    min_in_deg){
+            // only track mem degs of candidates which pass basic degree pruning
+            if(ld.vertices[phelper1].out_mem_deg + ld.vertices[phelper1].out_can_deg >= min_out_deg
+               && ld.vertices[phelper1].in_mem_deg + ld.vertices[phelper1].in_can_deg >= 
+               min_in_deg){
                 
-            //     dd->lane_candidate_out_mem_degs[lane_write + lane_remaining_count] = 
-            //         ld.vertices[phelper1].out_mem_deg;
-            //     dd->lane_candidate_in_mem_degs[lane_write + lane_remaining_count] = 
-            //         ld.vertices[phelper1].in_mem_deg;
-            //     lane_remaining_count++;
-            // }
+                dd->lane_candidate_out_mem_degs[lane_write + lane_remaining_count] = 
+                    ld.vertices[phelper1].out_mem_deg;
+                dd->lane_candidate_in_mem_degs[lane_write + lane_remaining_count] = 
+                    ld.vertices[phelper1].in_mem_deg;
+                lane_remaining_count++;
+            }
         }
     }
     __syncwarp();
