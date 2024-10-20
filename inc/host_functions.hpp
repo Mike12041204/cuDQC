@@ -168,109 +168,63 @@ inline bool h_cand_isvalid(Vertex& vertex, int clique_size, int upper_bound, int
                            int min_ext_out_deg, int min_ext_in_deg, int* minimum_out_degrees, 
                            int* minimum_in_degrees, int minimum_clique_size) 
 {
-    // DEBUG - rm and uncomment
-
-    if (vertex.out_mem_deg + vertex.out_can_deg < minimum_out_degrees[minimum_clique_size])
+    if(vertex.out_mem_deg + vertex.out_can_deg < min_ext_out_deg)
         return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < minimum_in_degrees[minimum_clique_size])
+    else if(vertex.in_mem_deg + vertex.in_can_deg < min_ext_in_deg)
         return false;
-    else if (vertex.out_mem_deg + vertex.out_can_deg < h_get_mindeg(clique_size + vertex.out_can_deg + 1, minimum_out_degrees, minimum_clique_size))
+    else if (vertex.out_mem_deg + vertex.out_can_deg < h_get_mindeg(clique_size + vertex.out_can_deg + 
+        1, minimum_out_degrees, minimum_clique_size))
         return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < h_get_mindeg(clique_size + vertex.in_can_deg + 1, minimum_in_degrees, minimum_clique_size))
+    else if (vertex.in_mem_deg + vertex.in_can_deg < h_get_mindeg(clique_size + vertex.in_can_deg + 
+        1, minimum_in_degrees, minimum_clique_size))
         return false;
-    else if (vertex.out_mem_deg + vertex.out_can_deg < min_ext_out_deg)
+    else if(vertex.out_mem_deg + upper_bound - 1 < minimum_out_degrees[clique_size + upper_bound])
         return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < min_ext_in_deg)
+    else if(vertex.in_mem_deg + upper_bound - 1 < minimum_in_degrees[clique_size + upper_bound])
         return false;
-    else if (vertex.out_mem_deg + upper_bound - 1 < minimum_out_degrees[clique_size + lower_bound])
+    else if(vertex.out_mem_deg + vertex.out_can_deg < 
+            h_get_mindeg(clique_size + lower_bound, minimum_out_degrees, minimum_clique_size))
         return false;
-    else if (vertex.in_mem_deg + upper_bound - 1 < minimum_in_degrees[clique_size + lower_bound])
-        return false;
-    else if (vertex.out_mem_deg + vertex.out_can_deg < h_get_mindeg(clique_size + lower_bound, minimum_out_degrees, minimum_clique_size))
-        return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < h_get_mindeg(clique_size + lower_bound, minimum_in_degrees, minimum_clique_size))
+    else if(vertex.in_mem_deg + vertex.in_can_deg < 
+            h_get_mindeg(clique_size + lower_bound, minimum_in_degrees, minimum_clique_size))
         return false;
     else
         return true;
-
-    // if(vertex.out_mem_deg + vertex.out_can_deg < min_ext_out_deg)
-    //     return false;
-    // else if(vertex.in_mem_deg + vertex.in_can_deg < min_ext_in_deg)
-    //     return false;
-    // else if (vertex.out_mem_deg + vertex.out_can_deg < h_get_mindeg(clique_size + vertex.out_can_deg + 
-    //     1, minimum_out_degrees, minimum_clique_size))
-    //     return false;
-    // else if (vertex.in_mem_deg + vertex.in_can_deg < h_get_mindeg(clique_size + vertex.in_can_deg + 
-    //     1, minimum_in_degrees, minimum_clique_size))
-    //     return false;
-    // else if(vertex.out_mem_deg + upper_bound - 1 < minimum_out_degrees[clique_size + upper_bound])
-    //     return false;
-    // else if(vertex.in_mem_deg + upper_bound - 1 < minimum_in_degrees[clique_size + upper_bound])
-    //     return false;
-    // else if(vertex.out_mem_deg + vertex.out_can_deg < 
-    //         h_get_mindeg(clique_size + lower_bound, minimum_out_degrees, minimum_clique_size))
-    //     return false;
-    // else if(vertex.in_mem_deg + vertex.in_can_deg < 
-    //         h_get_mindeg(clique_size + lower_bound, minimum_in_degrees, minimum_clique_size))
-    //     return false;
-    // else
-    //     return true;
 }
 inline bool h_vert_isextendable(Vertex& vertex, int clique_size, int upper_bound, int lower_bound, 
                            int min_ext_out_deg, int min_ext_in_deg, int* minimum_out_degrees, 
                            int* minimum_in_degrees, int minimum_clique_size) 
-{
-    // DEBUG - rm and uncomment
-
-    if (vertex.out_mem_deg + vertex.out_can_deg < minimum_out_degrees[minimum_clique_size])
+{ 
+    if(vertex.out_mem_deg + vertex.out_can_deg < min_ext_out_deg)
         return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < minimum_in_degrees[minimum_clique_size])
+    else if(vertex.in_mem_deg + vertex.in_can_deg < min_ext_in_deg)
         return false;
-    else if (vertex.out_mem_deg + vertex.out_can_deg < h_get_mindeg(clique_size + vertex.out_can_deg, minimum_out_degrees, minimum_clique_size))
+    else if (vertex.out_mem_deg + vertex.out_can_deg < h_get_mindeg(clique_size + vertex.out_can_deg, 
+             minimum_out_degrees, minimum_clique_size))
         return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < h_get_mindeg(clique_size + vertex.in_can_deg, minimum_in_degrees, minimum_clique_size))
+    else if (vertex.in_mem_deg + vertex.in_can_deg < h_get_mindeg(clique_size + vertex.in_can_deg, 
+             minimum_in_degrees, minimum_clique_size))
         return false;
-    else if (vertex.out_mem_deg + vertex.out_can_deg < min_ext_out_deg)
+     else if (vertex.out_can_deg == 0 && vertex.out_mem_deg < 
+              h_get_mindeg(clique_size + 1, minimum_out_degrees, 
+                           minimum_clique_size))
         return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < min_ext_in_deg)
+    else if (vertex.in_can_deg == 0 && vertex.in_mem_deg < 
+             h_get_mindeg(clique_size + 1, minimum_in_degrees, 
+                          minimum_clique_size))
         return false;
-    else if (vertex.out_can_deg == 0 && vertex.out_mem_deg < h_get_mindeg(clique_size + vertex.out_can_deg, minimum_out_degrees, minimum_clique_size))
+    else if(vertex.out_mem_deg + upper_bound < minimum_out_degrees[clique_size + upper_bound])
         return false;
-    else if (vertex.in_can_deg == 0 && vertex.in_mem_deg < h_get_mindeg(clique_size + vertex.in_can_deg, minimum_in_degrees, minimum_clique_size))
+    else if(vertex.in_mem_deg + upper_bound < minimum_in_degrees[clique_size + upper_bound])
         return false;
-    else if (vertex.out_mem_deg + upper_bound < minimum_out_degrees[clique_size + upper_bound])
+    else if(vertex.out_mem_deg + vertex.out_can_deg < 
+            h_get_mindeg(clique_size + lower_bound, minimum_out_degrees, minimum_clique_size))
         return false;
-    else if (vertex.in_mem_deg + upper_bound < minimum_in_degrees[clique_size + upper_bound])
-        return false;
-    else if (vertex.out_mem_deg + vertex.out_can_deg < h_get_mindeg(clique_size + lower_bound, minimum_out_degrees, minimum_clique_size))
-        return false;
-    else if (vertex.in_mem_deg + vertex.in_can_deg < h_get_mindeg(clique_size + lower_bound, minimum_in_degrees, minimum_clique_size))
+    else if(vertex.in_mem_deg + vertex.in_can_deg < 
+            h_get_mindeg(clique_size + lower_bound, minimum_in_degrees, minimum_clique_size))
         return false;
     else
         return true;
-    
-    // if(vertex.out_mem_deg + vertex.out_can_deg < min_ext_out_deg)
-    //     return false;
-    // else if(vertex.in_mem_deg + vertex.in_can_deg < min_ext_in_deg)
-    //     return false;
-    // else if (vertex.out_mem_deg + vertex.out_can_deg < h_get_mindeg(clique_size + vertex.out_can_deg, 
-    //          minimum_out_degrees, minimum_clique_size))
-    //     return false;
-    // else if (vertex.in_mem_deg + vertex.in_can_deg < h_get_mindeg(clique_size + vertex.in_can_deg, 
-    //          minimum_in_degrees, minimum_clique_size))
-    //     return false;
-    // else if(vertex.out_mem_deg + upper_bound < minimum_out_degrees[clique_size + upper_bound])
-    //     return false;
-    // else if(vertex.in_mem_deg + upper_bound < minimum_in_degrees[clique_size + upper_bound])
-    //     return false;
-    // else if(vertex.out_mem_deg + vertex.out_can_deg < 
-    //         h_get_mindeg(clique_size + lower_bound, minimum_out_degrees, minimum_clique_size))
-    //     return false;
-    // else if(vertex.in_mem_deg + vertex.in_can_deg < 
-    //         h_get_mindeg(clique_size + lower_bound, minimum_in_degrees, minimum_clique_size))
-    //     return false;
-    // else
-    //     return true;
 }
 
 #endif // DCUQC_HOST_FUNCTIONS_H
