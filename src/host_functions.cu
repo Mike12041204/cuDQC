@@ -1805,12 +1805,11 @@ void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvert
         // if neighbor is a candidate
         if (phelper1 >= number_of_members) {
 
-            // DEBUG - can this go inside if?
-            vertices[phelper1].label = 0;
-
             // only track mem degs of candidates which pass basic degree pruning
             if(vertices[phelper1].out_mem_deg + vertices[phelper1].out_can_deg >= min_out_deg && 
                vertices[phelper1].in_mem_deg + vertices[phelper1].in_can_deg >= min_in_deg){
+
+                vertices[phelper1].label = 0;
                 
                 hd.candidate_out_mem_degs[(*hd.remaining_count)] = vertices[phelper1].out_mem_deg;
                 hd.candidate_in_mem_degs[(*hd.remaining_count)] = vertices[phelper1].in_mem_deg;

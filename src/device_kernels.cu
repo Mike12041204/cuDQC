@@ -863,13 +863,12 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
 
         if (phelper1 >= wd.number_of_members[WIB_IDX]) {
 
-            // DEBUG - can this go inside if?
-            ld.vertices[phelper1].label = 0;
-
             // only track mem degs of candidates which pass basic degree pruning
             if(ld.vertices[phelper1].out_mem_deg + ld.vertices[phelper1].out_can_deg >= min_out_deg
                && ld.vertices[phelper1].in_mem_deg + ld.vertices[phelper1].in_can_deg >= 
                min_in_deg){
+
+                ld.vertices[phelper1].label = 0;
                 
                 dd->lane_candidate_out_mem_degs[lane_write + lane_remaining_count] = 
                     ld.vertices[phelper1].out_mem_deg;
