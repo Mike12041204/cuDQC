@@ -1513,22 +1513,24 @@ __device__ void d_check_for_clique(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     // set to false if any threads in warp do not meet degree requirement
     clique = !(__any_sync(0xFFFFFFFF, !clique));
 
+    if(!clique){
+        return;
+    }
+
     // if clique write to warp buffer for cliques
-    if (clique) {
-        start_write = (*dd->WCLIQUES_SIZE * WARP_IDX) + 
-            dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + 
-            dd->wcliques_count[WARP_IDX]];
+    start_write = (*dd->WCLIQUES_SIZE * WARP_IDX) + 
+        dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + 
+        dd->wcliques_count[WARP_IDX]];
 
-        for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX]; k += WARP_SIZE) {
-            dd->wcliques_vertex[start_write + k] = ld.vertices[k].vertexid;
-        }
-        if (LANE_IDX == 0) {
-            (dd->wcliques_count[WARP_IDX])++;
+    for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX]; k += WARP_SIZE) {
+        dd->wcliques_vertex[start_write + k] = ld.vertices[k].vertexid;
+    }
+    if (LANE_IDX == 0) {
+        (dd->wcliques_count[WARP_IDX])++;
 
-            dd->wcliques_offset[*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX + 
-                dd->wcliques_count[WARP_IDX]] = start_write - (*dd->WCLIQUES_SIZE * WARP_IDX) + 
-                wd.number_of_members[WIB_IDX];
-        }
+        dd->wcliques_offset[*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX + 
+            dd->wcliques_count[WARP_IDX]] = start_write - (*dd->WCLIQUES_SIZE * WARP_IDX) + 
+            wd.number_of_members[WIB_IDX];
     }
 }
 
