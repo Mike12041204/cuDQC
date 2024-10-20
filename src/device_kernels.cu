@@ -91,10 +91,9 @@ __global__ void d_expand_level(GPU_Data* dd)
                 if (!wd.success[WIB_IDX]) {
                     break;
                 }
-                // DEBUG - uncomment
-                // if(wd.success[WIB_IDX] == 2){
-                //     continue;
-                // }
+                if(wd.success[WIB_IDX] == 2){
+                    continue;
+                }
             }
 
             // INITIALIZE NEW VERTICES
@@ -173,7 +172,6 @@ __global__ void d_expand_level(GPU_Data* dd)
             }
         }
 
-        // DEBUG - make dynamic
         // schedule warps next task
         if (LANE_IDX == 0) {
             i = atomicAdd(dd->current_task, 1);
@@ -447,17 +445,10 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
 
-    // DEBUG - rm and uncomment
-
-    min_out_deg = d_get_mindeg(wd.num_mem[WIB_IDX], dd->minimum_out_degrees, 
+    min_out_deg = d_get_mindeg(wd.num_mem[WIB_IDX] + 1, dd->minimum_out_degrees, 
                                *dd->minimum_clique_size);
-    min_in_deg = d_get_mindeg(wd.num_mem[WIB_IDX], dd->minimum_in_degrees, 
+    min_in_deg = d_get_mindeg(wd.num_mem[WIB_IDX] + 1, dd->minimum_in_degrees, 
                                *dd->minimum_clique_size);
-
-    // min_out_deg = d_get_mindeg(wd.num_mem[WIB_IDX] + 1, dd->minimum_out_degrees, 
-    //                            *dd->minimum_clique_size);
-    // min_in_deg = d_get_mindeg(wd.num_mem[WIB_IDX] + 1, dd->minimum_in_degrees, 
-    //                            *dd->minimum_clique_size);
 
     // remove the last candidate in vertices
     if (LANE_IDX == 0) {
@@ -494,10 +485,9 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                     wd.success[WIB_IDX] = false;
                     break;
                 }
-                // DEBUG - uncomment
-                // else if(phelper1 == wd.tot_vert[WIB_IDX] - 1){
-                //     wd.success[WIB_IDX] = 2;
-                // }
+                else if(phelper1 == wd.tot_vert[WIB_IDX] - 1){
+                    wd.success[WIB_IDX] = 2;
+                }
             }
         }
     }
@@ -531,10 +521,9 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                     wd.success[WIB_IDX] = false;
                     break;
                 }
-                // DEBUG - uncomment
-                // else if(phelper1 == wd.tot_vert[WIB_IDX] - 1){
-                //     wd.success[WIB_IDX] = 2;
-                // }
+                else if(phelper1 == wd.tot_vert[WIB_IDX] - 1){
+                    wd.success[WIB_IDX] = 2;
+                }
             }
         }
     }
