@@ -174,17 +174,17 @@ void CPU_Graph::GenLevel2NBs()
 		if(out_size > 0 && in_size > 0)
 		{
 			// set DIA so all vertices which are out adj to vertex i have value 1
-			for(int j=1; j<=out_size; j++)
+			for(uint64_t j=1; j<=out_size; j++)
 				temp_array[tid][out_neighbors[out_offsets[i] + j - 1]] = 1;
 
 			// same for in adj
-			for(int j=1; j<=in_size; j++)
+			for(uint64_t j=1; j<=in_size; j++)
 				temp_array2[tid][in_neighbors[in_offsets[i] + j - 1]] = 1;
 
 
 			//get bidirectional connected neighbors, O and I
 			// for all out adj
-			for(int j=1; j<=out_size; j++)
+			for(uint64_t j=1; j<=out_size; j++)
 			{
 				// get the out adj vertexid
 				int v = out_neighbors[out_offsets[i] + j - 1];
@@ -206,7 +206,7 @@ void CPU_Graph::GenLevel2NBs()
 			}
 
 			// for all in adj
-			for(int j=1; j<=in_size; j++)
+			for(uint64_t j=1; j<=in_size; j++)
 			{
 				// get in adj vertex id
 				int v = in_neighbors[in_offsets[i] + j - 1];
@@ -457,7 +457,7 @@ void CPU_Graph::GenLevel2NBs()
 				memcpy(&mpplvl2_nbs[i][1], pnb_list[tid], sizeof(int)*nlist_len);
 
 			// reset flags
-			for(int j=0;j<nlist_len;j++)
+			for(uint64_t j=0;j<nlist_len;j++)
 				pbflags[tid][pnb_list[tid][j]] = false;
 
 			// clear memory

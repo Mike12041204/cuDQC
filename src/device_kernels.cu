@@ -379,7 +379,7 @@ __device__ void d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         pneighbors_start = dd->twohop_offsets[pvertexid];
         pneighbors_end = dd->twohop_offsets[pvertexid + 1];
 
-        for (int j = pneighbors_start + LANE_IDX; j < pneighbors_end; j += WARP_SIZE) {
+        for (uint64_t j = pneighbors_start + LANE_IDX; j < pneighbors_end; j += WARP_SIZE) {
 
             phelper1 = dd->vertex_order_map[warp_write + dd->twohop_neighbors[j]];
 
@@ -992,7 +992,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     __syncwarp();
 
     // check whether bounds are valid
-    if(wd.success[WIB_IDX] == false){
+    if(!wd.success[WIB_IDX]){
         // reset vertex order map
         for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
             dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
@@ -1200,7 +1200,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         __syncwarp();
 
         // check whether bounds are valid
-        if(wd.success[WIB_IDX] == false){
+        if(!wd.success[WIB_IDX]){
             // reset vertex order map
             for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
                 dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
