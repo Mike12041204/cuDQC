@@ -1504,8 +1504,8 @@ __device__ void d_check_for_clique(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     min_out_deg = dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]];
     min_in_deg = dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]];
 
-    for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX]; k += WARP_SIZE) {
-        if (ld.vertices[k].out_mem_deg < min_out_deg || ld.vertices[k].in_mem_deg < min_in_deg) {
+    for (int i = LANE_IDX; i < wd.number_of_members[WIB_IDX]; i += WARP_SIZE) {
+        if (ld.vertices[i].out_mem_deg < min_out_deg || ld.vertices[i].in_mem_deg < min_in_deg) {
             clique = false;
             break;
         }
@@ -1522,8 +1522,8 @@ __device__ void d_check_for_clique(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + 
         dd->wcliques_count[WARP_IDX]];
 
-    for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX]; k += WARP_SIZE) {
-        dd->wcliques_vertex[start_write + k] = ld.vertices[k].vertexid;
+    for (int i = LANE_IDX; i < wd.number_of_members[WIB_IDX]; i += WARP_SIZE) {
+        dd->wcliques_vertex[start_write + i] = ld.vertices[i].vertexid;
     }
     if (LANE_IDX == 0) {
         (dd->wcliques_count[WARP_IDX])++;
@@ -1540,9 +1540,9 @@ __device__ void d_write_to_tasks(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     start_write = (*dd->WTASKS_SIZE * WARP_IDX) + dd->wtasks_offset[*dd->WTASKS_OFFSET_SIZE * WARP_IDX + dd->wtasks_count[WARP_IDX]];
 
-    for (int k = LANE_IDX; k < wd.total_vertices[WIB_IDX]; k += WARP_SIZE) {
-        dd->wtasks_vertices[start_write + k] = ld.vertices[k];
-        dd->wtasks_vertices[start_write + k].lvl2adj = 0;
+    for (int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE) {
+        dd->wtasks_vertices[start_write + i] = ld.vertices[i];
+        dd->wtasks_vertices[start_write + i].lvl2adj = 0;
     }
     if (LANE_IDX == 0) {
         dd->wtasks_count[WARP_IDX]++;

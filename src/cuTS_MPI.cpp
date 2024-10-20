@@ -366,7 +366,7 @@ void encode_com_buffer(GPU_Data& h_dd, uint64_t* mpiSizeBuffer, Vertex* mpiVerte
 
     // adjust offsets for new start
     adjust = mpiSizeBuffer[1];
-    for(int i = 1; i < count + 2; i++){
+    for(uint64_t i = 1; i < count + 2; i++){
         mpiSizeBuffer[i] -= adjust;
     }
 
