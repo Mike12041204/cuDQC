@@ -19,7 +19,7 @@ __device__ void d_write_to_tasks(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
 __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, int pvertexid, 
                                    int min_out_deg, int min_in_deg);
 __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
-                                      int number_of_crit_adj);
+                                      int number_of_crit);
 __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
                                       int number_of_candidates);
 __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld);
