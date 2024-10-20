@@ -655,8 +655,6 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
                 }
             }
         }
-        // DEBUG - rm
-        __syncwarp();
 
         // if they are a critical vertex in in direction
         if (ld.vertices[i].in_mem_deg + ld.vertices[i].in_can_deg == 
@@ -740,8 +738,6 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
                     ld.vertices[phelper1].in_can_deg--;
                 }
             }
-            // DEBUG - rm
-            __syncwarp();
 
             pneighbors_start = dd->in_offsets[pvertexid];
             pneighbors_end = dd->in_offsets[pvertexid + 1];
@@ -755,8 +751,6 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
                     ld.vertices[phelper1].out_can_deg--;
                 }
             }
-            // DEBUG - rm
-            __syncwarp();
 
             // track 2hop adj
             pneighbors_start = dd->twohop_offsets[pvertexid];
@@ -1070,7 +1064,6 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         wd.remaining_count[WIB_IDX] = lane_remaining_count;
         wd.removed_count[WIB_IDX] = lane_removed_count;
     }
-    // DEBUG - rm
     __syncwarp();
     // make scan exclusive
     lane_remaining_count -= phelper2;
@@ -1081,13 +1074,12 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         dd->remaining_candidates[warp_write + lane_remaining_count + i] = 
             dd->lane_remaining_candidates[lane_write + i];
     }
-    // DEBUG - uncomment
-    //if (wd.remaining_count[WIB_IDX] >= wd.removed_count[WIB_IDX]){
+    if (wd.remaining_count[WIB_IDX] >= wd.removed_count[WIB_IDX]){
         for (int i = 0; i < pvertexid; i++) {
             dd->removed_candidates[warp_write + lane_removed_count + i] = 
                 dd->lane_removed_candidates[lane_write + i];
         }
-    //}
+    }
     __syncwarp();
     
     while (wd.remaining_count[WIB_IDX] > 0 && wd.removed_count[WIB_IDX] > 0) {
@@ -1167,8 +1159,6 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
                 __syncwarp();
             }
         }
-        // DEBUG - rm
-        __syncwarp();
 
         lane_remaining_count = 0;
 
@@ -1289,13 +1279,12 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
             dd->remaining_candidates[warp_write + lane_remaining_count + i] = 
                 dd->lane_remaining_candidates[lane_write + i];
         }
-        // DEBUG - uncomment
-        //if (wd.num_val_cands[WIB_IDX] >= wd.removed_count[WIB_IDX]){
+        if (wd.num_val_cands[WIB_IDX] >= wd.removed_count[WIB_IDX]){
             for (int i = 0; i < pvertexid; i++) {
                 dd->removed_candidates[warp_write + lane_removed_count + i] = 
                     dd->lane_removed_candidates[lane_write + i];
             }
-        //}
+        }
 
         if (LANE_IDX == 0) {
             wd.remaining_count[WIB_IDX] = wd.num_val_cands[WIB_IDX];
