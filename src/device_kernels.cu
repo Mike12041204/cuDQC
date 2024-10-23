@@ -329,16 +329,9 @@ __global__ void d_fill_from_buffer(GPU_Data* dd, uint64_t* tasks_count, uint64_t
 // sets success to false if lookahead fails
 __device__ void d_lookahead_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
-    int pvertexid;
-    int phelper1;
-    uint64_t pneighbors_start;
-    uint64_t pneighbors_end;
     uint64_t start_write;
     int min_out_deg;
     int min_in_deg;
-    uint64_t warp_write;
-
-    warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
 
     min_out_deg = d_get_mindeg(wd.tot_vert[WIB_IDX], dd->minimum_out_degrees, 
                                *dd->minimum_clique_size);

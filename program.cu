@@ -187,7 +187,7 @@ int main(int argc, char* argv[])
     auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
     if(grank == 0){
         cout << "TOTAL TIME:          " << duration.count() << " ms" << endl << endl;
-        cout << "COMPUTATION TIME:    " << computation_time << "ms" << endl;
+        cout << "COMPUTATION TIME:    " << computation_time << " ms" << endl;
         cout << "NUMBER OF CLIQUES:   " << num_cliques << endl;
     }
 

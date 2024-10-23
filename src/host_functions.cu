@@ -1338,10 +1338,6 @@ void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* r
     uint64_t start_write;               // starting write position for new cliques
     int min_out_deg;
     int min_in_deg;
-    uint64_t pneighbors_start;          
-    uint64_t pneighbors_end;
-    int phelper1;
-    int pvertexid;
 
     min_out_deg = h_get_mindeg(tot_vert, minimum_out_degrees, minimum_clique_size);
     min_in_deg = h_get_mindeg(tot_vert, minimum_in_degrees, minimum_clique_size);
