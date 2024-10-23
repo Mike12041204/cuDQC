@@ -174,17 +174,15 @@ struct GPU_Data
     int* total_tasks;
     int* total_cliques;
     // EXPANSION HELPERS
+    Vertex* temp_vertex_array;
     int* vertex_order_map;
     int* temp_int_array_1;
-    Vertex* temp_vertex_array;
-    int* removed_candidates;
-    int* lane_removed_candidates;
+    int* temp_int_array_2;
+    int* temp_int_array_3;
     int* remaining_candidates;
-    int* lane_remaining_candidates;
+    int* removed_candidates;
     int* candidate_in_mem_degs;
-    int* lane_candidate_in_mem_degs;
     int* candidate_out_mem_degs;
-    int* lane_candidate_out_mem_degs;
     // DATA STRUCTURE SIZE
     uint64_t* TASKS_SIZE;
     uint64_t* BUFFER_SIZE;
