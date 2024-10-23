@@ -391,7 +391,7 @@ void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Si
     chkerr(cudaMalloc((void**)&h_dd.lane_candidate_out_mem_degs, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.candidate_in_mem_degs, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.lane_candidate_in_mem_degs, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
-    chkerr(cudaMalloc((void**)&h_dd.adjacencies, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void**)&h_dd.temp_int_array_1, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.minimum_out_degree_ratio, sizeof(double)));
     chkerr(cudaMalloc((void**)&h_dd.minimum_out_degrees, sizeof(int) * (hg.number_of_vertices + 1)));
     chkerr(cudaMalloc((void**)&h_dd.minimum_in_degree_ratio, sizeof(double)));
@@ -420,10 +420,6 @@ void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Si
     chkerr(cudaMemset(h_dd.wcliques_offset, 0, (sizeof(uint64_t) * dss.WCLIQUES_OFFSET_SIZE) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.total_cliques, sizeof(int)));
     chkerr(cudaMemset(h_dd.total_cliques, 0, sizeof(int)));
-    chkerr(cudaMalloc((void**)&h_dd.buffer_offset_start, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&h_dd.buffer_start, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&h_dd.cliques_offset_start, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&h_dd.cliques_start, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.current_task, sizeof(int)));
     int current = NUMBER_OF_WARPS;
     int* pcurrent = &current;
@@ -1289,7 +1285,7 @@ void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     chkerr(cudaFree(h_dd.lane_candidate_out_mem_degs));
     chkerr(cudaFree(h_dd.candidate_in_mem_degs));
     chkerr(cudaFree(h_dd.lane_candidate_in_mem_degs));
-    chkerr(cudaFree(h_dd.adjacencies));
+    chkerr(cudaFree(h_dd.temp_int_array_1));
     chkerr(cudaFree(h_dd.minimum_out_degree_ratio));
     chkerr(cudaFree(h_dd.minimum_out_degrees));
     chkerr(cudaFree(h_dd.minimum_in_degree_ratio));
@@ -1305,10 +1301,6 @@ void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     chkerr(cudaFree(h_dd.wcliques_count));
     chkerr(cudaFree(h_dd.wcliques_vertex));
     chkerr(cudaFree(h_dd.wcliques_offset));
-    chkerr(cudaFree(h_dd.buffer_offset_start));
-    chkerr(cudaFree(h_dd.buffer_start));
-    chkerr(cudaFree(h_dd.cliques_offset_start));
-    chkerr(cudaFree(h_dd.cliques_start));
     // DATA STRUCTURE SIZES
     chkerr(cudaFree(h_dd.TASKS_SIZE));
     chkerr(cudaFree(h_dd.BUFFER_SIZE));

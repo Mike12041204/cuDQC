@@ -178,14 +178,6 @@ __global__ void d_expand_level(GPU_Data* dd)
         atomicAdd(dd->total_tasks, dd->wtasks_count[WARP_IDX]);
         atomicAdd(dd->total_cliques, dd->wcliques_count[WARP_IDX]);
     }
-
-    // TODO - this should be easy to remove and just make local in transfer_buffers
-    if (IDX == 0) {
-        *dd->buffer_offset_start = *dd->buffer_count + 1;
-        *dd->buffer_start = dd->buffer_offset[*dd->buffer_count];
-        *dd->cliques_offset_start = *dd->cliques_count + 1;
-        *dd->cliques_start = dd->cliques_offset[*dd->cliques_count];
-    }
 }
 
 __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* buffer_count, 
@@ -199,10 +191,28 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
     __shared__ int toffsetwrite;
     __shared__ int twrite;
     __shared__ int tasks_end;
+    __shared__ uint64_t total_tasks;
+    __shared__ uint64_t total_cliques;
+    uint64_t t_tasks;
+    uint64_t t_cliques;
+    uint64_t buffer_offset_start;
+    uint64_t buffer_start;
+    uint64_t cliques_offset_start;
+    uint64_t cliques_start;
 
-    // point of this is to find how many vertices will be transfered to tasks, it is easy to know how many tasks as it will just
-    // be the expansion threshold, but to find how many vertices we must now the total size of all the tasks that will be copied.
-    // each block does this but really could be done by one thread outside the GPU
+    buffer_offset_start = *dd->buffer_count + 1;
+    buffer_start = dd->buffer_offset[*dd->buffer_count];
+    cliques_offset_start = *dd->cliques_count + 1;
+    cliques_start = dd->cliques_offset[*dd->cliques_count];
+
+    // BLOCK LEVEL
+    // first warp in each block performs calculations to get information that will be same
+    // for the entire block, these are shared through shared memory
+
+
+    // point of this is to find how many vertices will be transfered to tasks, it is easy to 
+    // know how many tasks as it will just be the expansion threshold, but to find how many 
+    // vertices we must now the total size of all the tasks that will be copied.
     if (TIB_IDX == 0) {
         toffsetwrite = 0;
         twrite = 0;
@@ -217,8 +227,10 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
             twrite += dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * i) + dd->wtasks_count[i]];
             toffsetwrite += dd->wtasks_count[i];
         }
-        // final size is the size of all tasks up until last warp and the remaining tasks in the last warp until expand threshold is satisfied
-        tasks_end = twrite + dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * twarp) + (*dd->EXPAND_THRESHOLD - toffsetwrite)];
+        // final size is the size of all tasks up until last warp and the remaining tasks in the 
+        // last warp until expand threshold is satisfied
+        tasks_end = twrite + dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * twarp) + 
+            (*dd->EXPAND_THRESHOLD - toffsetwrite)];
     }
     __syncthreads();
 
@@ -231,10 +243,12 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
 
         for (int i = 0; i < WARP_IDX; i++) {
             tasks_offset_write[WIB_IDX] += dd->wtasks_count[i];
-            tasks_write[WIB_IDX] += dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * i) + dd->wtasks_count[i]];
+            tasks_write[WIB_IDX] += dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * i) + 
+                dd->wtasks_count[i]];
 
             cliques_offset_write[WIB_IDX] += dd->wcliques_count[i];
-            cliques_write[WIB_IDX] += dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * i) + dd->wcliques_count[i]];
+            cliques_write[WIB_IDX] += dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * i) + 
+                dd->wcliques_count[i]];
         }
     }
     __syncwarp();
@@ -243,23 +257,29 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
     for (uint64_t i = LANE_IDX + 1; i <= dd->wtasks_count[WARP_IDX]; i += WARP_SIZE) {
         if (tasks_offset_write[WIB_IDX] + i - 1 <= *dd->EXPAND_THRESHOLD) {
             // to tasks
-            dd->tasks_offset[tasks_offset_write[WIB_IDX] + i - 1] = dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * WARP_IDX) + i] + tasks_write[WIB_IDX];
+            dd->tasks_offset[tasks_offset_write[WIB_IDX] + i - 1] = 
+                dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * WARP_IDX) + i] + tasks_write[WIB_IDX];
         }
         else {
             // to buffer
-            dd->buffer_offset[tasks_offset_write[WIB_IDX] + i - 2 - *dd->EXPAND_THRESHOLD + *dd->buffer_offset_start] = dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * WARP_IDX) + i] +
-                tasks_write[WIB_IDX] - tasks_end + *dd->buffer_start;
+            dd->buffer_offset[tasks_offset_write[WIB_IDX] + i - 2 - *dd->EXPAND_THRESHOLD + 
+                buffer_offset_start] = dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * WARP_IDX) + i] 
+                + tasks_write[WIB_IDX] - tasks_end + buffer_start;
         }
     }
 
-    for (uint64_t i = LANE_IDX; i < dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * WARP_IDX) + dd->wtasks_count[WARP_IDX]]; i += WARP_SIZE) {
+    for (uint64_t i = LANE_IDX; i < dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * WARP_IDX) + 
+         dd->wtasks_count[WARP_IDX]]; i += WARP_SIZE) {
+
         if (tasks_write[WIB_IDX] + i < tasks_end) {
             // to tasks
-            dd->tasks_vertices[tasks_write[WIB_IDX] + i] = dd->wtasks_vertices[(*dd->WTASKS_SIZE * WARP_IDX) + i];
+            dd->tasks_vertices[tasks_write[WIB_IDX] + i] = 
+                dd->wtasks_vertices[(*dd->WTASKS_SIZE * WARP_IDX) + i];
         }
         else {
             // to buffer
-            dd->buffer_vertices[*dd->buffer_start + tasks_write[WIB_IDX] + i - tasks_end] = dd->wtasks_vertices[(*dd->WTASKS_SIZE * WARP_IDX) + i];
+            dd->buffer_vertices[buffer_start + tasks_write[WIB_IDX] + i - tasks_end] = 
+                dd->wtasks_vertices[(*dd->WTASKS_SIZE * WARP_IDX) + i];
         }
     }
     // NOTE - this sync is important for some reason, larger graphs/et dont work without it
@@ -267,11 +287,15 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
 
     //move to cliques
     for (uint64_t i = LANE_IDX + 1; i <= dd->wcliques_count[WARP_IDX]; i += WARP_SIZE) {
-        dd->cliques_offset[*dd->cliques_offset_start + cliques_offset_write[WIB_IDX] + i - 2] = dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + i] + *dd->cliques_start + 
+        dd->cliques_offset[cliques_offset_start + cliques_offset_write[WIB_IDX] + i - 2] = 
+            dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + i] + cliques_start + 
             cliques_write[WIB_IDX];
     }
-    for (uint64_t i = LANE_IDX; i < dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + dd->wcliques_count[WARP_IDX]]; i += WARP_SIZE) {
-        dd->cliques_vertex[*dd->cliques_start + cliques_write[WIB_IDX] + i] = dd->wcliques_vertex[(*dd->WCLIQUES_SIZE * WARP_IDX) + i];
+    for (uint64_t i = LANE_IDX; i < dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + 
+         dd->wcliques_count[WARP_IDX]]; i += WARP_SIZE) {
+
+        dd->cliques_vertex[cliques_start + cliques_write[WIB_IDX] + i] = 
+            dd->wcliques_vertex[(*dd->WCLIQUES_SIZE * WARP_IDX) + i];
     }
 
     if (IDX == NUMBER_OF_DTHREADS - 1) {
@@ -694,9 +718,9 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
     }
 
     // initialize vertex order map and reset adjacencies
-    // adjacencies[4] = 10, means vertex at position 4 in vertices is adjacent to 10 cv
+    // temp_int_array_1[4] = 10, means vertex at position 4 in vertices is adjacent to 10 cv
     for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
-        dd->adjacencies[warp_write + i] = 0;
+        dd->temp_int_array_1[warp_write + i] = 0;
         dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = i;
     }
     __syncwarp();
@@ -716,7 +740,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
             phelper1 = dd->vertex_order_map[warp_write + dd->twohop_neighbors[j]];
 
             if (phelper1 > -1) {
-                dd->adjacencies[warp_write + phelper1]++;
+                dd->temp_int_array_1[warp_write + phelper1]++;
             }
         }
         __syncwarp();
@@ -728,7 +752,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
     for (int i = LANE_IDX; i < wd.number_of_members[WIB_IDX] && wd.success[WIB_IDX] == 1; i += 
         WARP_SIZE) {
         
-        if (dd->adjacencies[warp_write + i] != number_of_crit) {
+        if (dd->temp_int_array_1[warp_write + i] != number_of_crit) {
             wd.success[WIB_IDX] = 2;
             break;
         }
@@ -747,7 +771,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
     for (int i = wd.number_of_members[WIB_IDX] + LANE_IDX; i < wd.number_of_members[WIB_IDX] + 
         number_of_crit && wd.success[WIB_IDX] == 1; i += WARP_SIZE) {
 
-        if (dd->adjacencies[warp_write + i] < number_of_crit - 1) {
+        if (dd->temp_int_array_1[warp_write + i] < number_of_crit - 1) {
             wd.success[WIB_IDX] = 2;
             break;
         }
@@ -915,7 +939,7 @@ __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& l
     for (int i = wd.number_of_members[WIB_IDX] + LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += 
          WARP_SIZE) {
 
-        if (dd->adjacencies[warp_write + i] == number_of_crit) {
+        if (dd->temp_int_array_1[warp_write + i] == number_of_crit) {
 
             dd->lane_candidate_out_mem_degs[lane_write + lane_remaining_count] = 
                 ld.vertices[i].out_mem_deg;
@@ -1300,7 +1324,6 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
                                       int number_of_candidates)
 {
-    // TODO - parallelize some of the bound calculation
     if(LANE_IDX == 0){
         //lower & upper bound are initialized using the degree of vertex in S
         //and tighten using the degree of vertex in ext_S

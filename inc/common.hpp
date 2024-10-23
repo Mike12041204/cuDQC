@@ -131,51 +131,14 @@ struct CPU_Cliques
 // DEVICE DATA
 struct GPU_Data
 {
-    // GPU DATA
-    // data structures
-    uint64_t* tasks_count;
-    uint64_t* tasks_offset;
-    Vertex* tasks_vertices;
-    uint64_t* buffer_count;
-    uint64_t* buffer_offset;
-    Vertex* buffer_vertices;
-    // vertices
-    Vertex* global_vertices;
-    // warp data structures
-    uint64_t* wtasks_count;
-    uint64_t* wtasks_offset;
-    Vertex* wtasks_vertices;
-    // expansion helpers
-    uint64_t* current_level;
-    int* current_task;
-    // count
-    int* total_tasks;
-    // pruning helpers
-    // TODO - see if some of these can be combined
-    int* removed_candidates;
-    int* lane_removed_candidates;
-    int* remaining_candidates;
-    Vertex* temp_vertex_array;
-    int* lane_remaining_candidates;
-    int* candidate_in_mem_degs;
-    int* lane_candidate_in_mem_degs;
-    int* candidate_out_mem_degs;
-    int* lane_candidate_out_mem_degs;
-    int* adjacencies;
-    int* vertex_order_map;
+    // BASIC INFORMATION
     // run parameters
     double* minimum_out_degree_ratio;
     int* minimum_out_degrees;
     double* minimum_in_degree_ratio;
     int* minimum_in_degrees;
     int* minimum_clique_size;
-    // transfer helpers
-    // TODO - remove
-    uint64_t* buffer_offset_start;
-    uint64_t* buffer_start;
-    uint64_t* cliques_offset_start;
-    uint64_t* cliques_start;
-    // GPU GRAPH
+    // graph
     int* number_of_vertices;
     int* number_of_edges;
     int* out_neighbors;
@@ -184,17 +147,44 @@ struct GPU_Data
     uint64_t* in_offsets;
     int* twohop_neighbors;
     uint64_t* twohop_offsets;
-    // GPU CLIQUES
+    // GPU DATA
     // data structures
+    uint64_t* tasks_count;
+    uint64_t* tasks_offset;
+    Vertex* tasks_vertices;
+    uint64_t* buffer_count;
+    uint64_t* buffer_offset;
+    Vertex* buffer_vertices;
     uint64_t* cliques_count;
     uint64_t* cliques_offset;
     int* cliques_vertex;
     // warp data structures
+    uint64_t* wtasks_count;
+    uint64_t* wtasks_offset;
+    Vertex* wtasks_vertices;
     uint64_t* wcliques_count;
     uint64_t* wcliques_offset;
     int* wcliques_vertex;
+    // vertices
+    Vertex* global_vertices;
+    // expansion helpers
+    uint64_t* current_level;
+    int* current_task;
     // count
+    int* total_tasks;
     int* total_cliques;
+    // EXPANSION HELPERS
+    int* vertex_order_map;
+    int* temp_int_array_1;
+    Vertex* temp_vertex_array;
+    int* removed_candidates;
+    int* lane_removed_candidates;
+    int* remaining_candidates;
+    int* lane_remaining_candidates;
+    int* candidate_in_mem_degs;
+    int* lane_candidate_in_mem_degs;
+    int* candidate_out_mem_degs;
+    int* lane_candidate_out_mem_degs;
     // DATA STRUCTURE SIZE
     uint64_t* TASKS_SIZE;
     uint64_t* BUFFER_SIZE;
