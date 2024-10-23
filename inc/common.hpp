@@ -179,10 +179,8 @@ struct GPU_Data
     int* temp_int_array_1;
     int* temp_int_array_2;
     int* temp_int_array_3;
-    int* remaining_candidates;
-    int* removed_candidates;
-    int* candidate_in_mem_degs;
-    int* candidate_out_mem_degs;
+    int* temp_int_array_4;
+    int* temp_int_array_5;
     // DATA STRUCTURE SIZE
     uint64_t* TASKS_SIZE;
     uint64_t* BUFFER_SIZE;

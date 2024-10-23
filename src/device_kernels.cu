@@ -914,9 +914,9 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
 
     // parallel write lane arrays to warp array
     for (int i = 0; i < phelper2; i++) {
-        dd->candidate_out_mem_degs[warp_write + lane_remaining_count + i] = 
+        dd->temp_int_array_4[warp_write + lane_remaining_count + i] = 
             dd->temp_int_array_1[lane_write + i];
-        dd->candidate_in_mem_degs[warp_write + lane_remaining_count + i] = 
+        dd->temp_int_array_5[warp_write + lane_remaining_count + i] = 
             dd->temp_int_array_2[lane_write + i];
     }
     __syncwarp();
@@ -970,9 +970,9 @@ __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& l
 
     // parallel write lane arrays to warp array
     for (int i = 0; i < phelper2; i++) {
-        dd->candidate_out_mem_degs[warp_write + lane_remaining_count + i] = 
+        dd->temp_int_array_4[warp_write + lane_remaining_count + i] = 
             dd->temp_int_array_1[lane_write + i];
-        dd->candidate_in_mem_degs[warp_write + lane_remaining_count + i] = 
+        dd->temp_int_array_5[warp_write + lane_remaining_count + i] = 
             dd->temp_int_array_2[lane_write + i];
     }
     __syncwarp();
@@ -996,9 +996,9 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     lane_write = warp_write + ((*dd->WVERTICES_SIZE / WARP_SIZE) * LANE_IDX);
 
     // used for bound calculation
-    d_oe_sort_int(dd->candidate_out_mem_degs + warp_write, wd.remaining_count[WIB_IDX], 
+    d_oe_sort_int(dd->temp_int_array_4 + warp_write, wd.remaining_count[WIB_IDX], 
                   d_comp_int_desc);
-    d_oe_sort_int(dd->candidate_in_mem_degs + warp_write, wd.remaining_count[WIB_IDX], 
+    d_oe_sort_int(dd->temp_int_array_5 + warp_write, wd.remaining_count[WIB_IDX], 
                   d_comp_int_desc);
 
     //set bounds and min ext degs
@@ -1082,7 +1082,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     }
     if (wd.remaining_count[WIB_IDX] >= wd.removed_count[WIB_IDX]){
         for (int i = 0; i < pvertexid; i++) {
-            dd->removed_candidates[warp_write + lane_removed_count + i] = 
+            dd->temp_int_array_4[warp_write + lane_removed_count + i] = 
                 dd->temp_int_array_2[lane_write + i];
         }
     }
@@ -1135,7 +1135,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
             
             for(int i = 0; i < wd.removed_count[WIB_IDX]; i++){
 
-                pvertexid = ld.vertices[dd->removed_candidates[warp_write + i]].vertexid;
+                pvertexid = ld.vertices[dd->temp_int_array_4[warp_write + i]].vertexid;
 
                 // update degrees of remaining adjacent vertices
                 pneighbors_start = dd->out_offsets[pvertexid];
@@ -1197,16 +1197,16 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
         // parallel write lane arrays to warp array
         for (int i = 0; i < phelper2; i++) {
-            dd->candidate_out_mem_degs[warp_write + lane_remaining_count + i] = 
+            dd->temp_int_array_4[warp_write + lane_remaining_count + i] = 
                 dd->temp_int_array_1[lane_write + i];
-            dd->candidate_in_mem_degs[warp_write + lane_remaining_count + i] = 
+            dd->temp_int_array_5[warp_write + lane_remaining_count + i] = 
                 dd->temp_int_array_2[lane_write + i];
         }
         __syncwarp();
 
-        d_oe_sort_int(dd->candidate_out_mem_degs + warp_write, wd.num_val_cands[WIB_IDX], 
+        d_oe_sort_int(dd->temp_int_array_4 + warp_write, wd.num_val_cands[WIB_IDX], 
                       d_comp_int_desc);
-        d_oe_sort_int(dd->candidate_in_mem_degs + warp_write, wd.num_val_cands[WIB_IDX], 
+        d_oe_sort_int(dd->temp_int_array_5 + warp_write, wd.num_val_cands[WIB_IDX], 
                       d_comp_int_desc);
 
         // set bounds and min ext degs
@@ -1286,7 +1286,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         }
         if (wd.num_val_cands[WIB_IDX] >= wd.removed_count[WIB_IDX]){
             for (int i = 0; i < pvertexid; i++) {
-                dd->removed_candidates[warp_write + lane_removed_count + i] = 
+                dd->temp_int_array_4[warp_write + lane_removed_count + i] = 
                     dd->temp_int_array_2[lane_write + i];
             }
         }
@@ -1431,16 +1431,16 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
 
                 for(i=0;i<wd.lower_bound[WIB_IDX];i++)
                 {
-                    wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->candidate_out_mem_degs[warp_write + i];
-                    wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->candidate_in_mem_degs[warp_write + i];
+                    wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->temp_int_array_4[warp_write + i];
+                    wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->temp_int_array_5[warp_write + i];
                 }
 
                 while(i<wd.upper_bound[WIB_IDX]
                         && wd.nclq_clqdeg_sum_o[WIB_IDX]+wd.ncand_clqdeg_sum_i[WIB_IDX]<wd.number_of_members[WIB_IDX]*dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+i]
                         && wd.nclq_clqdeg_sum_i[WIB_IDX]+wd.ncand_clqdeg_sum_o[WIB_IDX]<wd.number_of_members[WIB_IDX]*dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+i])
                 {
-                    wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->candidate_out_mem_degs[warp_write + i];
-                    wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->candidate_in_mem_degs[warp_write + i];
+                    wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->temp_int_array_4[warp_write + i];
+                    wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->temp_int_array_5[warp_write + i];
                     i++;
                 }
 
@@ -1456,8 +1456,8 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
                     ntightened_max_cands = i;
                     while(i<wd.upper_bound[WIB_IDX])
                     {
-                        wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->candidate_out_mem_degs[warp_write + i];
-                        wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->candidate_in_mem_degs[warp_write + i];
+                        wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->temp_int_array_4[warp_write + i];
+                        wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->temp_int_array_5[warp_write + i];
                         i++;
                         if(wd.nclq_clqdeg_sum_o[WIB_IDX]+wd.ncand_clqdeg_sum_i[WIB_IDX]>=wd.number_of_members[WIB_IDX]*dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+i]
                             && wd.nclq_clqdeg_sum_i[WIB_IDX]+wd.ncand_clqdeg_sum_o[WIB_IDX]>=wd.number_of_members[WIB_IDX]*dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+i]){
