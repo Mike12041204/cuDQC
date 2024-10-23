@@ -7,8 +7,11 @@ ofstream output_file;
 // MPI VARIABLES
 int wsize;
 int grank;
-char msg_buffer[NUMBER_OF_PROCESSESS][100];             // for every task there is a seperate message buffer and incoming/outgoing handle slot 
-MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];          // array of handles for messages with all other thread, allows for asynchronous messaging, handles say whether message is complete
+// for every task there is a seperate message buffer and incoming/outgoing handle slot
+char msg_buffer[NUMBER_OF_PROCESSESS][100];
+// array of handles for messages with all other thread, allows for asynchronous messaging, 
+// handles say whether message is complete
+MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];
 MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
 bool global_free_list[NUMBER_OF_PROCESSESS];
 
@@ -552,6 +555,4 @@ DS_Sizes::DS_Sizes(const string& filename)
     }
 
     file.close();
-
-    CLIQUES_DUMP = (CLIQUES_OFFSET_SIZE * (CLIQUES_PERCENT / 100.0));
 }

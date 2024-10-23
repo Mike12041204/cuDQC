@@ -441,7 +441,6 @@ void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Si
     chkerr(cudaMalloc((void**)&h_dd.WTASKS_OFFSET_SIZE, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.WVERTICES_SIZE, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&h_dd.EXPAND_THRESHOLD, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&h_dd.CLIQUES_DUMP, sizeof(uint64_t)));
     chkerr(cudaMemcpy(h_dd.TASKS_SIZE, &dss.TASKS_SIZE, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.BUFFER_SIZE, &dss.BUFFER_SIZE, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.BUFFER_OFFSET_SIZE, &dss.BUFFER_OFFSET_SIZE, sizeof(uint64_t), cudaMemcpyHostToDevice));
@@ -454,7 +453,6 @@ void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Si
     chkerr(cudaMemcpy(h_dd.WTASKS_OFFSET_SIZE, &dss.WTASKS_OFFSET_SIZE, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.WVERTICES_SIZE, &dss.WVERTICES_SIZE, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.EXPAND_THRESHOLD, &dss.EXPAND_THRESHOLD, sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(h_dd.CLIQUES_DUMP, &dss.CLIQUES_DUMP, sizeof(uint64_t), cudaMemcpyHostToDevice));
 }
 
 // processes 0th level of expansion
@@ -1324,7 +1322,6 @@ void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     chkerr(cudaFree(h_dd.WTASKS_OFFSET_SIZE));
     chkerr(cudaFree(h_dd.WVERTICES_SIZE));
     chkerr(cudaFree(h_dd.EXPAND_THRESHOLD));
-    chkerr(cudaFree(h_dd.CLIQUES_DUMP));
 }
 
 // --- SECONDARY EXPANSION FUNCTIONS ---

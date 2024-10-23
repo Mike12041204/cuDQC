@@ -208,7 +208,6 @@ struct GPU_Data
     uint64_t* WTASKS_OFFSET_SIZE;
     uint64_t* WVERTICES_SIZE;
     uint64_t* EXPAND_THRESHOLD;
-    uint64_t* CLIQUES_DUMP;
 };
 
 // WARP DATA
@@ -275,7 +274,6 @@ class DS_Sizes
     uint64_t WTASKS_OFFSET_SIZE;
     // global memory vertices, should be a multiple of 32 as to not waste space
     uint64_t WVERTICES_SIZE;
-    uint64_t CLIQUES_DUMP;
     int DEBUG_TOGGLE;
 
     DS_Sizes(const string& filename);
