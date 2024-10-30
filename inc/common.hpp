@@ -110,14 +110,13 @@ struct CPU_Data
     uint64_t* current_level;
     bool* maximal_expansion;
     // pruning helpers
-    // TODO - see if some of these can be combined
     int* vertex_order_map;
     int* remaining_candidates;
     int* removed_candidates;
-    int* remaining_count;
-    int* removed_count;
     int* candidate_in_mem_degs;
     int* candidate_out_mem_degs;
+    int* remaining_count;
+    int* removed_count;
 };
 
 // CPU CLIQUES
