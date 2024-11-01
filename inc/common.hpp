@@ -170,8 +170,8 @@ struct GPU_Data
     uint64_t* current_level;
     int* current_task;
     // count
-    int* total_tasks;
-    int* total_cliques;
+    uint64_t* total_tasks;
+    uint64_t* total_cliques;
     // EXPANSION HELPERS
     Vertex* temp_vertex_array;
     int* vertex_order_map;
