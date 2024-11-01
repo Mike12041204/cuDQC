@@ -191,8 +191,10 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
     __shared__ int toffsetwrite;
     __shared__ int twrite;
     __shared__ int tasks_end;
-    uint64_t total_tasks;
-    uint64_t total_cliques;
+    __shared__ uint64_t total_tasks;
+    __shared__ uint64_t total_cliques;
+    uint64_t t_tasks;
+    uint64_t t_cliques;
     uint64_t buffer_offset_start;
     uint64_t buffer_start;
     uint64_t cliques_offset_start;
@@ -203,14 +205,10 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
     cliques_offset_start = *dd->cliques_count + 1;
     cliques_start = dd->cliques_offset[*dd->cliques_count];
 
-    // WARP LEVEL CALCULATIONS
-    // each warp independently calculates the data needed for 
+    // BLOCK LEVEL
+    // first warp in each block performs calculations to get information that will be same
+    // for the entire block, these are shared through shared memory
 
-
-
-    // for (int j = 1; j < 32; j *= 2) {
-    //     num_mem += __shfl_xor_sync(0xFFFFFFFF, num_mem, j);
-    // }
 
     // point of this is to find how many vertices will be transfered to tasks, it is easy to 
     // know how many tasks as it will just be the expansion threshold, but to find how many 
@@ -300,7 +298,7 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
             dd->wcliques_vertex[(*dd->WCLIQUES_SIZE * WARP_IDX) + i];
     }
 
-    if (IDX == 0) {
+    if (IDX == NUMBER_OF_DTHREADS - 1) {
         // handle tasks and buffer counts
         if (*dd->total_tasks <= *dd->EXPAND_THRESHOLD) {
             *dd->tasks_count = *dd->total_tasks;
