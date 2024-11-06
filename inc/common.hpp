@@ -20,7 +20,7 @@
 #include <device_launch_parameters.h>
 #include <sm_30_intrinsics.h>
 #include <device_atomic_functions.h>
-#include <mpi.h>
+//#include <mpi.h>
 #include <omp.h>
 #include <cassert>
 #include <algorithm> 
@@ -29,7 +29,7 @@
 using namespace std;
 
 // CPU DISTRIBUTED / PARALLEL SETTINGS
-#define NUMBER_OF_PROCESSESS 2
+#define NUMBER_OF_PROCESSESS 1
 #define NUMBER_OF_HTHREADS 16
 
 // GPU KERNEL LAUNCH
@@ -273,8 +273,8 @@ extern ofstream output_file;
 extern int wsize;
 extern int grank;
 extern char msg_buffer[NUMBER_OF_PROCESSESS][100];             // for every task there is a seperate message buffer and incoming/outgoing handle slot
-extern MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];          // array of handles for messages with all other thread, allows for asynchronous messaging, handles say whether message is complete
-extern MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
+//extern MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];          // array of handles for messages with all other thread, allows for asynchronous messaging, handles say whether message is complete
+//extern MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
 extern bool global_free_list[NUMBER_OF_PROCESSESS];
 
 inline void chkerr(cudaError_t code)
