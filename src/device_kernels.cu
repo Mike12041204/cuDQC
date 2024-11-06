@@ -251,10 +251,10 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
             // take inclusive scan of partial sums
             helper = tasks_offset_write;
             helper2 = tasks_write;
-            for (int i = 1; i < WARP_SIZE; i *= 2) {
-                if(LANE_IDX >= i){
-                    tasks_offset_write += __shfl_up_sync(0xFFFFFFFF, tasks_offset_write, i);
-                    tasks_write += __shfl_up_sync(0xFFFFFFFF, tasks_write, i);
+            for (int j = 1; j < WARP_SIZE; j *= 2) {
+                if(LANE_IDX >= j){
+                    tasks_offset_write += __shfl_up_sync(0xFFFFFFFF, tasks_offset_write, j);
+                    tasks_write += __shfl_up_sync(0xFFFFFFFF, tasks_write, j);
                 }
             }
             tasks_offset_write += offset_helper;
@@ -276,7 +276,7 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
                 lane_helper = __ffs(mask) - 1;
 
                 // we know now the warp which breaks, use this to set tasks end
-                if(LANE_IDX == i){
+                if(LANE_IDX == lane_helper){
                     // make scan exclusive and thus starting count for warp
                     tasks_offset_write -= helper;
                     tasks_write -= helper2;
@@ -317,10 +317,10 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
         // take inclusive scan of partial sums
         helper = temp_offset;
         helper2 = temp_tasks;
-        for (int i = 1; i < WARP_SIZE; i *= 2) {
-            if(LANE_IDX >= i){
-                temp_offset += __shfl_up_sync(0xFFFFFFFF, temp_offset, i);
-                temp_tasks += __shfl_up_sync(0xFFFFFFFF, temp_tasks, i);
+        for (int j = 1; j < WARP_SIZE; j *= 2) {
+            if(LANE_IDX >= j){
+                temp_offset += __shfl_up_sync(0xFFFFFFFF, temp_offset, j);
+                temp_tasks += __shfl_up_sync(0xFFFFFFFF, temp_tasks, j);
             }
         }
         temp_offset += offset_helper;
@@ -342,7 +342,7 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
             lane_helper = __ffs(mask) - 1;
 
             // we know now the warp which breaks, use this to set tasks end
-            if(LANE_IDX == i){
+            if(LANE_IDX == lane_helper){
                 // make scan exclusive and thus starting count for warp
                 temp_offset -= helper;
                 temp_tasks -= helper2;
@@ -350,10 +350,10 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
                 tasks_end = temp_tasks + dd->wtasks_offset[*dd->WTASKS_OFFSET_SIZE * i + 
                     *dd->EXPAND_THRESHOLD - temp_offset];
             }
-        }
 
-        temp_offset = 0;
-        temp_tasks = 0;
+            temp_offset = 0;
+            temp_tasks = 0;
+        }
     }
 
     // GET TOTAL COUNTS
