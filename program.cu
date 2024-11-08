@@ -17,6 +17,7 @@ int main(int argc, char* argv[])
     string filename2;
     ifstream read_file;                 // multiple read files
     ofstream write_file;                // writing results to mutiple files
+    ofstream results_file;
     string line;                        // stores lines from read file
     string output;
     int rank;
@@ -162,8 +163,32 @@ int main(int argc, char* argv[])
         // RM NON-MAX
         if(!(write_file.tellp() == ofstream::pos_type(0))){
             filename = "DQC-T_" + output;
-            filename2 = "DQC-R_" + output;
+            filename2 = "DQC-TR_" + output;
             num_cliques = RemoveNonMax(filename.c_str(), filename2.c_str());
+
+            // convert ids back to their original state before condensing
+            filename = "DQC-R_" + output;
+            read_file.open(filename2);
+            results_file.open(filename);
+
+            while(getline(read_file, line)){
+                istringstream iss(line);
+                int condensed_id;
+                bool first = true;
+
+                while(iss >> condensed_id){
+                    if(!first){
+                        results_file << hg.original_id_map[condensed_id] << " ";
+                    }
+                    else{
+                        first = false;
+                        results_file << condensed_id << " ";
+                    }
+                }
+                results_file << "\n";
+            }
+            read_file.close();
+            results_file.close();
         }
         else{
             num_cliques = 0;

@@ -519,6 +519,7 @@ CPU_Graph::~CPU_Graph()
 	delete[] in_neighbors;
 	delete[] twohop_offsets;
 	delete[] twohop_neighbors;
+	delete[] original_id_map;
 }
 
 DS_Sizes::DS_Sizes(const string& filename)

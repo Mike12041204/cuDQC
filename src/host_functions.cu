@@ -716,6 +716,9 @@ void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_
 		id2index_map[nvertex_no] = i;
 	}
 
+    // save index2id in graph to covert back at the end of the program
+    hg.original_id_map = index2id;
+
 	//reset 2hop adj
 	// for all vertices
 	for(i=0;i<number_of_candidates;i++)
@@ -902,7 +905,6 @@ void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_
 		}
 	}
 
-    delete[] index2id;
     delete[] gptemp_array;
     for(i=0;i<number_of_candidates;i++){
         delete[] ppnew_lvl2_nbs[i];
