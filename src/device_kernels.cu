@@ -43,7 +43,7 @@ __global__ void d_expand_level(GPU_Data* dd)
         }
         // sum members across warp
         for (int j = 1; j < 32; j *= 2) {
-            num_mem += __shfl_xor_sync(0xFFFFFFFF, num_mem, j);
+            num_mem += __shfl_xor_sync(FULL_WARP, num_mem, j);
         }
 
         if (LANE_IDX == 0) {
@@ -168,7 +168,7 @@ __global__ void d_expand_level(GPU_Data* dd)
         if (LANE_IDX == 0) {
             i = atomicAdd(dd->current_task, 1);
         }
-        i = __shfl_sync(0xFFFFFFFF, i, 0);
+        i = __shfl_sync(FULL_WARP, i, 0);
     }
 }
 
@@ -217,7 +217,7 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
         offset_helper1[WIB_IDX] = 0;
         offset_helper2[WIB_IDX] = 0;
 
-        tasks_end[WIB_IDX] = 0xFFFFFFFF;
+        tasks_end[WIB_IDX] = MAX_INT;
     }
     __syncwarp();
 
@@ -237,7 +237,7 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
             active_mask = (1U << helper1) - 1;
             active_count = helper1;
         } else {
-            active_mask = 0xFFFFFFFF;
+            active_mask = FULL_WARP;
             active_count = WARP_SIZE;
         }
         __syncwarp(active_mask);
@@ -313,10 +313,10 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
 
     // combine sums
     for (int i = 1; i < WARP_SIZE; i *= 2) {
-        tasks_offset_write += __shfl_xor_sync(0xFFFFFFFF, tasks_offset_write, i);
-        tasks_write += __shfl_xor_sync(0xFFFFFFFF, tasks_write, i);
-        cliques_offset_write += __shfl_xor_sync(0xFFFFFFFF, cliques_offset_write, i);
-        cliques_write += __shfl_xor_sync(0xFFFFFFFF, cliques_write, i);
+        tasks_offset_write += __shfl_xor_sync(FULL_WARP, tasks_offset_write, i);
+        tasks_write += __shfl_xor_sync(FULL_WARP, tasks_write, i);
+        cliques_offset_write += __shfl_xor_sync(FULL_WARP, cliques_offset_write, i);
+        cliques_write += __shfl_xor_sync(FULL_WARP, cliques_write, i);
     }
 
     // GET TOTAL COUNTS
@@ -793,7 +793,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
     }
     // get sum
     for (int i = 1; i < WARP_SIZE; i *= 2) {
-        number_of_crit += __shfl_xor_sync(0xFFFFFFFF, number_of_crit, i);
+        number_of_crit += __shfl_xor_sync(FULL_WARP, number_of_crit, i);
     }
 
     // no crit found, nothing to be done, return
@@ -978,7 +978,7 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
     // scan to calculate write postion in warp arrays
     phelper2 = lane_remaining_count;
     for (int i = 1; i < WARP_SIZE; i *= 2) {
-        phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_remaining_count, i, WARP_SIZE);
+        phelper1 = __shfl_up_sync(FULL_WARP, lane_remaining_count, i, WARP_SIZE);
         if (LANE_IDX >= i) {
             lane_remaining_count += phelper1;
         }
@@ -1030,7 +1030,7 @@ __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& l
     // scan to calculate write postion in warp arrays
     phelper2 = lane_remaining_count;
     for (int i = 1; i < WARP_SIZE; i *= 2) {
-        phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_remaining_count, i, WARP_SIZE);
+        phelper1 = __shfl_up_sync(FULL_WARP, lane_remaining_count, i, WARP_SIZE);
         if (LANE_IDX >= i) {
             lane_remaining_count += phelper1;
         }
@@ -1127,8 +1127,8 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     phelper2 = lane_remaining_count;
     pvertexid = lane_removed_count;
     for (int i = 1; i < WARP_SIZE; i *= 2) {
-        phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_remaining_count, i, WARP_SIZE);
-        phelper3 = __shfl_up_sync(0xFFFFFFFF, lane_removed_count, i, WARP_SIZE);
+        phelper1 = __shfl_up_sync(FULL_WARP, lane_remaining_count, i, WARP_SIZE);
+        phelper3 = __shfl_up_sync(FULL_WARP, lane_removed_count, i, WARP_SIZE);
         if (LANE_IDX >= i) {
             lane_remaining_count += phelper1;
             lane_removed_count += phelper3;
@@ -1252,7 +1252,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         // scan to calculate write postion in warp arrays
         phelper2 = lane_remaining_count;
         for (int i = 1; i < WARP_SIZE; i *= 2) {
-            phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_remaining_count, i, WARP_SIZE);
+            phelper1 = __shfl_up_sync(FULL_WARP, lane_remaining_count, i, WARP_SIZE);
             if (LANE_IDX >= i) {
                 lane_remaining_count += phelper1;
             }
@@ -1331,8 +1331,8 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         phelper2 = lane_remaining_count;
         pvertexid = lane_removed_count;
         for (int i = 1; i < WARP_SIZE; i *= 2) {
-            phelper1 = __shfl_up_sync(0xFFFFFFFF, lane_remaining_count, i, WARP_SIZE);
-            phelper3 = __shfl_up_sync(0xFFFFFFFF, lane_removed_count, i, WARP_SIZE);
+            phelper1 = __shfl_up_sync(FULL_WARP, lane_remaining_count, i, WARP_SIZE);
+            phelper3 = __shfl_up_sync(FULL_WARP, lane_removed_count, i, WARP_SIZE);
             if (LANE_IDX >= i) {
                 lane_remaining_count += phelper1;
                 lane_removed_count += phelper3;
@@ -1394,6 +1394,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
                                       int number_of_candidates)
 {
+    int x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24;
     if(LANE_IDX == 0){
         //lower & upper bound are initialized using the degree of vertex in S
         //and tighten using the degree of vertex in ext_S
@@ -1591,7 +1592,7 @@ __device__ void d_check_for_clique(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         }
     }
     // set to false if any threads in warp do not meet degree requirement
-    clique = !(__any_sync(0xFFFFFFFF, !clique));
+    clique = !(__any_sync(FULL_WARP, !clique));
 
     if(!clique){
         return;
