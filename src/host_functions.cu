@@ -228,14 +228,6 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
                 cudaDeviceSynchronize();
             }
 
-            // // DEBUG - rm
-            // uint64_t* current_level = new uint64_t;
-            // chkerr(cudaMemcpy(current_level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-            // if (*current_level == 3) {
-            //     print_GPU_Data(h_dd, dss);
-            //     //print_All_Warp_Data_Sizes(h_dd, dss);
-            // }
-
             // FINISH LEVEL
             // determine whether maximal expansion has been accomplished, variables changed in 
             // kernel
@@ -2122,8 +2114,7 @@ void h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
 		if(nmin_clq_clqdeg_o+nmin_cands_o<minimum_out_degrees[number_of_members+nmin_cands_o]){
 			nmin_cands_o = number_of_candidates+1;
             success = false;
-            // DEBUG - uncomment
-            //return;
+            return;
         }
 
 		int nmin_cands_i = nmin_cands;
@@ -2135,8 +2126,7 @@ void h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
 		if(nmin_clq_clqdeg_i+nmin_cands_i<minimum_in_degrees[number_of_members+nmin_cands_i]){
 			nmin_cands_i = number_of_candidates+1;
             success = false;
-            // DEBUG - uncomment
-            //return;
+            return;
         }
 
 		lower_bound = max(nmin_cands_o, nmin_cands_i);
@@ -2175,8 +2165,7 @@ void h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
 				&& nclq_clqdeg_sum_i+ncand_clqdeg_sum_i<number_of_members*minimum_in_degrees[number_of_members+i]){
 				lower_bound = upper_bound+1;
                 success = false;
-                // DEBUG - uncomment
-                //return;
+                return;
             }
 			else //tighten upper bound
 			{
@@ -2222,8 +2211,7 @@ void h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
 
 	if(number_of_members+upper_bound<minimum_clique_size){
         success = false;
-        // DEBUG - uncomment
-        //return;
+        return;
     }
 
 	if (upper_bound < 0 || upper_bound < lower_bound) {
