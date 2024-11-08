@@ -172,428 +172,437 @@ __global__ void d_expand_level(GPU_Data* dd)
     }
 }
 
-__global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* buffer_count, 
-                                   uint64_t* cliques_count, uint64_t* cliques_size)
-{
-    // write location for each warp in relation to current level
-    uint64_t tasks_write;
-    int tasks_offset_write;
-    uint64_t cliques_write;
-    int cliques_offset_write;
-    // helpers to find tasks end
-    uint64_t tasks_end;
-    uint64_t offset_helper;
-    uint64_t offset_helper2;
-    int temp_offset;
-    uint64_t temp_tasks;
-    int helper;
-    int helper2;
-    bool bool_helper;
-    int lane_helper;
-    unsigned int mask;
-    // total counts used to set data structure counts
-    uint64_t total_tasks;
-    uint64_t total_cliques;
-    // start locations for writing to cliques and 
-    int buffer_offset_start;
-    uint64_t buffer_start;
-    int cliques_offset_start;
-    uint64_t cliques_start;
-    // sizes of this warps data
-    int warp_tasks_count;
-    uint64_t warp_tasks_size;
-    int warp_cliques_count;
-    uint64_t warp_cliques_size;
-    // write locations for this warp
-    uint64_t write_tasks;
-    int write_tasks_offset;
-    uint64_t write_cliques;
-    int write_cliques_offset;
-
-    // INITIALIZATION
-    write_tasks = *dd->WTASKS_SIZE * WARP_IDX;
-    write_tasks_offset = *dd->WTASKS_OFFSET_SIZE * WARP_IDX;
-    write_cliques = *dd->WCLIQUES_SIZE * WARP_IDX;
-    write_cliques_offset = *dd->WCLIQUES_OFFSET_SIZE * WARP_IDX;
-
-    warp_tasks_count = dd->wtasks_count[WARP_IDX];
-    warp_tasks_size = dd->wtasks_offset[warp_tasks_count];
-    warp_cliques_count = dd->wcliques_count[WARP_IDX];
-    warp_cliques_size = dd->wcliques_offset[warp_cliques_count];
-
-    buffer_offset_start = *dd->buffer_count + 1;
-    buffer_start = dd->buffer_offset[*dd->buffer_count];
-    cliques_offset_start = *dd->cliques_count + 1;
-    cliques_start = dd->cliques_offset[*dd->cliques_count];
-
-    // GET WRITE LOCATIONS AND TASKS END
-    // initialize values
-    tasks_write = 0;
-    tasks_offset_write = 0;
-    cliques_write = 0;
-    cliques_offset_write = 0;
-
-    // get warp offsets and find size of all vertices which will go into tasks
-    offset_helper = 0;
-    for (int i = LANE_IDX; i < WARP_IDX; i += WARP_SIZE) {
-        
-        // get next 32 warp counts
-        tasks_offset_write += dd->wtasks_count[i];
-        tasks_write += dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * i) + tasks_offset_write];
-
-        // get partial sums
-        cliques_offset_write += dd->wcliques_count[i];
-        cliques_write += dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * i) + 
-            dd->wcliques_count[i]];
-
-        // if tasks end occurs while finding our warp offsets
-        if(offset_helper < *dd->EXPAND_THRESHOLD){
-            // take inclusive scan of partial sums
-            helper = tasks_offset_write;
-            helper2 = tasks_write;
-            for (int j = 1; j < WARP_SIZE; j *= 2) {
-                if(LANE_IDX >= j){
-                    tasks_offset_write += __shfl_up_sync(0xFFFFFFFF, tasks_offset_write, j);
-                    tasks_write += __shfl_up_sync(0xFFFFFFFF, tasks_write, j);
-                }
-            }
-            tasks_offset_write += offset_helper;
-            tasks_write += offset_helper2;
-
-            // maintain partial sum
-            if(LANE_IDX == WARP_SIZE - 1){
-                offset_helper = tasks_offset_write;
-                offset_helper2 = tasks_write;
-            }
-
-            // we know this batch of sizes started below the expand threshold then exceeded it we
-            // have to find out specifically which warp this occured at
-            if(offset_helper >= *dd->EXPAND_THRESHOLD){
-                bool_helper = false;
-                bool_helper = tasks_offset_write >= *dd->EXPAND_THRESHOLD;
-
-                mask = __ballot_sync(0xFFFFFFFF, bool_helper);
-                lane_helper = __ffs(mask) - 1;
-
-                // we know now the warp which breaks, use this to set tasks end
-                if(LANE_IDX == lane_helper){
-                    // make scan exclusive and thus starting count for warp
-                    tasks_offset_write -= helper;
-                    tasks_write -= helper2;
-
-                    tasks_end = tasks_write + dd->wtasks_offset[*dd->WTASKS_OFFSET_SIZE * i + 
-                        *dd->EXPAND_THRESHOLD - tasks_offset_write];
-                }
-            }
-
-            tasks_offset_write = 0;
-            tasks_write = 0;
-        }
-    }
-
-    if (LANE_IDX == 0) {
-        tasks_offset_write += 1 + offset_helper;
-        tasks_write += offset_helper2;
-        cliques_offset_write += 1;
-    }
-
-    // combine sums
-    for (int i = 1; i < WARP_SIZE; i *= 2) {
-        tasks_write += __shfl_xor_sync(0xFFFFFFFF, tasks_write, i);
-        cliques_offset_write += __shfl_xor_sync(0xFFFFFFFF, cliques_offset_write, i);
-        cliques_write += __shfl_xor_sync(0xFFFFFFFF, cliques_write, i);
-    }
-
-    // if we haven't already found tasks end while finding offsets find it now
-    temp_offset = 0;
-    temp_tasks = 0;
-    for(int i = WARP_IDX + LANE_IDX; i < NUMBER_OF_WARPS && offset_helper < *dd->EXPAND_THRESHOLD; 
-        i += WARP_SIZE){
-
-        // get next 32 warp counts
-        temp_offset += dd->wtasks_count[i];
-        temp_tasks += dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * i) + temp_offset];
-
-        // take inclusive scan of partial sums
-        helper = temp_offset;
-        helper2 = temp_tasks;
-        for (int j = 1; j < WARP_SIZE; j *= 2) {
-            if(LANE_IDX >= j){
-                temp_offset += __shfl_up_sync(0xFFFFFFFF, temp_offset, j);
-                temp_tasks += __shfl_up_sync(0xFFFFFFFF, temp_tasks, j);
-            }
-        }
-        temp_offset += offset_helper;
-        temp_tasks += offset_helper2;
-
-        // maintain partial sum
-        if(LANE_IDX == WARP_SIZE - 1){
-            offset_helper = temp_offset;
-            offset_helper2 = temp_tasks;
-        }
-
-        // we know this batch of sizes started below the expand threshold then exceeded it we
-        // have to find out specifically which warp this occured at
-        if(offset_helper >= *dd->EXPAND_THRESHOLD){
-            bool_helper = false;
-            bool_helper = temp_offset >= *dd->EXPAND_THRESHOLD;
-
-            mask = __ballot_sync(0xFFFFFFFF, bool_helper);
-            lane_helper = __ffs(mask) - 1;
-
-            // we know now the warp which breaks, use this to set tasks end
-            if(LANE_IDX == lane_helper){
-                // make scan exclusive and thus starting count for warp
-                temp_offset -= helper;
-                temp_tasks -= helper2;
-
-                tasks_end = temp_tasks + dd->wtasks_offset[*dd->WTASKS_OFFSET_SIZE * i + 
-                    *dd->EXPAND_THRESHOLD - temp_offset];
-            }
-
-            temp_offset = 0;
-            temp_tasks = 0;
-        }
-    }
-
-    // GET TOTAL COUNTS
-    // last warp has summed all values
-    if(WARP_IDX == NUMBER_OF_WARPS && LANE_IDX == 0){
-        total_tasks = tasks_offset_write - 1 + dd->wtasks_count[WARP_IDX];
-        total_cliques = cliques_offset_write - 1 + dd->wcliques_count[WARP_IDX];
-
-        // handle tasks and buffer counts
-        *dd->tasks_count = max(*dd->EXPAND_THRESHOLD, total_tasks);
-        *dd->buffer_count += max((uint64_t)0, total_tasks - *dd->EXPAND_THRESHOLD);
-        *dd->cliques_count += total_cliques;
-    }
-
-    // COPY TASKS DATA
-    // there are 3 cases: First, warp will copy all data to tasks. Second, warp will copy all data 
-    // to buffer. Third, warp will copy some data to tasks and some to buffer, only one warp will 
-    // do this
-
-    // case 1 - tasks
-    if(tasks_offset_write + warp_tasks_count < *dd->EXPAND_THRESHOLD){
-        // copy offsets
-        // TODO - remove + 1 from within loop variable
-        for(uint64_t i = LANE_IDX + 1; i <= warp_tasks_count; i += WARP_SIZE){
-            dd->tasks_offset[tasks_offset_write + i - 1] = 
-                dd->wtasks_offset[write_tasks_offset + i] + tasks_write;
-        }
-        // copy vertices
-        for(uint64_t i = LANE_IDX; i < warp_tasks_size; i += WARP_SIZE){
-            dd->tasks_vertices[tasks_write + i] = dd->wtasks_vertices[write_tasks + i];
-        }
-    }
-    // case 2 - buffer
-    else if(tasks_offset_write >= *dd->EXPAND_THRESHOLD){
-        // copy offsets
-        // TODO - remove + 1 from within loop variable
-        for(uint64_t i = LANE_IDX + 1; i <= warp_tasks_count; i += WARP_SIZE){
-            dd->buffer_offset[tasks_offset_write + i - 2 - *dd->EXPAND_THRESHOLD + 
-                buffer_offset_start] = dd->wtasks_offset[write_tasks_offset + i] + tasks_write - 
-                tasks_end + buffer_start;
-        }
-        // copy vertices
-        for(uint64_t i = LANE_IDX; i < warp_tasks_size; i += WARP_SIZE){
-            dd->buffer_vertices[buffer_start + tasks_write + i - tasks_end] = 
-                dd->wtasks_vertices[write_tasks + i];
-        }
-    }
-    // case 3 - tasks and buffer
-    else{
-        // TODO - seperate for into two loops with one condition
-        // TODO - remove + 1 from within loop variable
-        // copy offsets
-        for(uint64_t i = LANE_IDX + 1; i <= warp_tasks_count; i += WARP_SIZE){
-            if (tasks_offset_write + i - 1 <= *dd->EXPAND_THRESHOLD) {
-                // to tasks
-                dd->tasks_offset[tasks_offset_write + i - 1] = 
-                    dd->wtasks_offset[write_tasks_offset + i] + tasks_write;
-            }
-            else {
-                // to buffer
-                dd->buffer_offset[tasks_offset_write + i - 2 - *dd->EXPAND_THRESHOLD + 
-                    buffer_offset_start] = dd->wtasks_offset[write_tasks_offset + i] + tasks_write - 
-                    tasks_end + buffer_start;
-            }
-        }
-        // copy vertices
-        for(uint64_t i = LANE_IDX; i < warp_tasks_size; i += WARP_SIZE){
-            if (tasks_write + i < tasks_end) {
-                // to tasks
-                dd->tasks_vertices[tasks_write + i] = dd->wtasks_vertices[write_tasks + i];
-            }
-            else {
-                // to buffer
-                dd->buffer_vertices[buffer_start + tasks_write + i - tasks_end] = 
-                    dd->wtasks_vertices[write_tasks + i];
-            }
-        }
-    }
-
-    // COPY CLIQUES DATA
-    // TODO - remove + 1 from loop variable
-    for (uint64_t i = LANE_IDX + 1; i <= warp_cliques_count; i += WARP_SIZE) {
-        dd->cliques_offset[cliques_offset_start + cliques_offset_write + i - 2] = 
-            dd->wcliques_offset[write_cliques_offset+ i] + cliques_start + cliques_write;
-    }
-    for (uint64_t i = LANE_IDX; i < warp_cliques_size; i += WARP_SIZE) {
-        dd->cliques_vertex[cliques_start + cliques_write + i] = 
-            dd->wcliques_vertex[write_cliques+ i];
-    }
-
-    // SET GLOBAL INFORMATION VARIABLES
-    if (IDX == 0) {
-        // reset level values
-        (*dd->current_level)++;
-        *dd->current_task = NUMBER_OF_WARPS;
-
-        // get counts to determine flush actions
-        *tasks_count = *dd->tasks_count;
-        *buffer_count = *dd->buffer_count;
-        *cliques_count = *dd->cliques_count;
-        *cliques_size = dd->cliques_offset[*cliques_count];
-    }
-}
-
-// DEBUG - rm
-// __global__ void debug_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* buffer_count, 
+// __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* buffer_count, 
 //                                    uint64_t* cliques_count, uint64_t* cliques_size)
 // {
-//     __shared__ uint64_t tasks_write[WARPS_PER_BLOCK];
-//     __shared__ int tasks_offset_write[WARPS_PER_BLOCK];
-//     __shared__ uint64_t cliques_write[WARPS_PER_BLOCK];
-//     __shared__ int cliques_offset_write[WARPS_PER_BLOCK];
-//     __shared__ int twarp;
-//     __shared__ int toffsetwrite;
-//     __shared__ int twrite;
-//     __shared__ int tasks_end;
-//     __shared__ uint64_t total_tasks;
-//     __shared__ uint64_t total_cliques;
-//     uint64_t t_tasks;
-//     uint64_t t_cliques;
-//     uint64_t buffer_offset_start;
-//     uint64_t buffer_start;
-//     uint64_t cliques_offset_start;
-//     uint64_t cliques_start;
+//     // TODO - these should be uin64_t or similar
+//     // write location for each warp in relation to current level
+//     int tasks_write;
+//     int tasks_offset_write;
+//     int cliques_write;
+//     int cliques_offset_write;
+//     // helpers to find tasks end
+//     int tasks_end;
+//     __shared__ int offset_helper[WARPS_PER_BLOCK];
+//     __shared__ int offset_helper2[WARPS_PER_BLOCK];
+//     int temp_offset;
+//     int temp_tasks;
+//     int helper;
+//     int helper2;
+//     bool bool_helper;
+//     int lane_helper;
+//     unsigned int mask;
+//     // total counts used to set data structure counts
+//     int total_tasks;
+//     int total_cliques;
+//     // start locations for writing to cliques and 
+//     int buffer_offset_start;
+//     int buffer_start;
+//     int cliques_offset_start;
+//     int cliques_start;
+//     // sizes of this warps data
+//     int warp_tasks_count;
+//     int warp_tasks_size;
+//     int warp_cliques_count;
+//     int warp_cliques_size;
+//     // helpers for scan operation
+//     int phelper1;
+//     int phelper2;
+
+//     printf("%i ", LANE_IDX);
+
+//     warp_tasks_count = dd->wtasks_count[WARP_IDX];
+//     warp_tasks_size = dd->wtasks_offset[warp_tasks_count];
+//     warp_cliques_count = dd->wcliques_count[WARP_IDX];
+//     warp_cliques_size = dd->wcliques_offset[warp_cliques_count];
 
 //     buffer_offset_start = *dd->buffer_count + 1;
 //     buffer_start = dd->buffer_offset[*dd->buffer_count];
 //     cliques_offset_start = *dd->cliques_count + 1;
 //     cliques_start = dd->cliques_offset[*dd->cliques_count];
 
-//     // point of this is to find how many vertices will be transfered to tasks, it is easy to 
-//     // know how many tasks as it will just be the expansion threshold, but to find how many 
-//     // vertices we must now the total size of all the tasks that will be copied.
-//     if (TIB_IDX == 0) {
-//         toffsetwrite = 0;
-//         twrite = 0;
+//     // GET WRITE LOCATIONS AND TASKS END
+//     // initialize values
+//     tasks_write = 0;
+//     tasks_offset_write = 0;
+//     cliques_write = 0;
+//     cliques_offset_write = 0;
 
-//         for (int i = 0; i < NUMBER_OF_WARPS; i++) {
-//             // if next warps count is more than expand threshold mark as such and break
-//             if (toffsetwrite + dd->wtasks_count[i] >= *dd->EXPAND_THRESHOLD) {
-//                 twarp = i;
-//                 break;
+//     // get warp offsets and find size of all vertices which will go into tasks
+//     offset_helper[WIB_IDX] = 0;
+//     for (int i = LANE_IDX; i < WARP_IDX; i += WARP_SIZE) {
+        
+//         // get next 32 warp counts
+//         tasks_offset_write += dd->wtasks_count[i];
+//         tasks_write += dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * i) + tasks_offset_write];
+
+//         // get partial sums
+//         cliques_offset_write += dd->wcliques_count[i];
+//         cliques_write += dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * i) + 
+//             dd->wcliques_count[i]];
+
+//         // if tasks end occurs while finding our warp offsets
+//         if(offset_helper[WIB_IDX] < *dd->EXPAND_THRESHOLD){
+//             // take inclusive scan of partial sums
+//             helper = tasks_offset_write;
+//             helper2 = tasks_write;
+//             for (int j = 1; j < WARP_SIZE; j *= 2) {
+//                 phelper1 += __shfl_up_sync(0xFFFFFFFF, tasks_offset_write, j);
+//                 phelper2 += __shfl_up_sync(0xFFFFFFFF, tasks_write, j);
+//                 if(LANE_IDX >= j){
+//                     tasks_offset_write += phelper1;
+//                     tasks_write += phelper2;
+//                 }
+//                 __syncwarp();
 //             }
-//             // else adds its size and count
-//             twrite += dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * i) + dd->wtasks_count[i]];
-//             toffsetwrite += dd->wtasks_count[i];
+//             tasks_offset_write += offset_helper[WIB_IDX];
+//             tasks_write += offset_helper2[WIB_IDX];
+
+//             // maintain partial sum
+//             __syncwarp();
+//             if(LANE_IDX == WARP_SIZE - 1){
+//                 offset_helper[WIB_IDX] = tasks_offset_write;
+//                 offset_helper2[WIB_IDX] = tasks_write;
+//             }
+//             __syncwarp();
+
+//             // we know this batch of sizes started below the expand threshold then exceeded it we
+//             // have to find out specifically which warp this occured at
+//             if(offset_helper[WIB_IDX] >= *dd->EXPAND_THRESHOLD){
+//                 bool_helper = false;
+//                 bool_helper = tasks_offset_write >= *dd->EXPAND_THRESHOLD;
+
+//                 mask = __ballot_sync(0xFFFFFFFF, bool_helper);
+//                 lane_helper = __ffs(mask) - 1;
+
+//                 // we know now the warp which breaks, use this to set tasks end
+//                 if(LANE_IDX == lane_helper){
+//                     // make scan exclusive and thus starting count for warp
+//                     tasks_offset_write -= helper;
+//                     tasks_write -= helper2;
+
+//                     tasks_end = tasks_write + dd->wtasks_offset[*dd->WTASKS_OFFSET_SIZE * i + 
+//                         *dd->EXPAND_THRESHOLD - tasks_offset_write];
+//                 }
+//             }
+
+//             tasks_offset_write = 0;
+//             tasks_write = 0;
 //         }
-//         // final size is the size of all tasks up until last warp and the remaining tasks in the 
-//         // last warp until expand threshold is satisfied
-//         tasks_end = twrite + dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * twarp) + 
-//             (*dd->EXPAND_THRESHOLD - toffsetwrite)];
 //     }
-//     __syncthreads();
 
-//     // warp level
 //     if (LANE_IDX == 0) {
-//         tasks_write[WIB_IDX] = 0;
-//         tasks_offset_write[WIB_IDX] = 1;
-//         cliques_write[WIB_IDX] = 0;
-//         cliques_offset_write[WIB_IDX] = 1;
+//         tasks_offset_write += 1 + offset_helper[WIB_IDX];
+//         tasks_write += offset_helper2[WIB_IDX];
+//         cliques_offset_write += 1;
+//     }
 
-//         for (int i = 0; i < WARP_IDX; i++) {
-//             tasks_offset_write[WIB_IDX] += dd->wtasks_count[i];
-//             tasks_write[WIB_IDX] += dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * i) + 
-//                 dd->wtasks_count[i]];
+//     // combine sums
+//     for (int i = 1; i < WARP_SIZE; i *= 2) {
+//         tasks_write += __shfl_xor_sync(0xFFFFFFFF, tasks_write, i);
+//         cliques_offset_write += __shfl_xor_sync(0xFFFFFFFF, cliques_offset_write, i);
+//         cliques_write += __shfl_xor_sync(0xFFFFFFFF, cliques_write, i);
+//     }
 
-//             cliques_offset_write[WIB_IDX] += dd->wcliques_count[i];
-//             cliques_write[WIB_IDX] += dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * i) + 
-//                 dd->wcliques_count[i]];
+//     // GET TOTAL COUNTS
+//     // last warp has summed all values
+//     if(WARP_IDX == NUMBER_OF_WARPS && LANE_IDX == 0){
+//         total_tasks = tasks_offset_write - 1 + dd->wtasks_count[WARP_IDX];
+//         total_cliques = cliques_offset_write - 1 + dd->wcliques_count[WARP_IDX];
+
+//         // handle tasks and buffer counts
+//         *dd->tasks_count = max(*dd->EXPAND_THRESHOLD, (uint64_t)total_tasks);
+//         *dd->buffer_count += max((uint64_t)0, (uint64_t)total_tasks - *dd->EXPAND_THRESHOLD);
+//         *dd->cliques_count += total_cliques;
+//     }
+
+//     // ENSURE FINDING OF TASKS END
+//     // if we haven't already found tasks end while finding offsets find it now
+//     temp_offset = 0;
+//     temp_tasks = 0;
+//     for(int i = WARP_IDX + LANE_IDX; i < NUMBER_OF_WARPS && offset_helper[WIB_IDX] < *dd->EXPAND_THRESHOLD; 
+//         i += WARP_SIZE){
+
+//         // get next 32 warp counts
+//         temp_offset += dd->wtasks_count[i];
+//         temp_tasks += dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * i) + temp_offset];
+
+//         // take inclusive scan of partial sums
+//         helper = temp_offset;
+//         helper2 = temp_tasks;
+//         for (int j = 1; j < WARP_SIZE; j *= 2) {
+//             phelper1 = __shfl_up_sync(0xFFFFFFFF, temp_offset, j);
+//             phelper2 = __shfl_up_sync(0xFFFFFFFF, temp_tasks, j);
+//             if(LANE_IDX >= j){
+//                 temp_offset += phelper1;
+//                 temp_tasks += phelper2;
+//             }
+//             __syncwarp();
+//         }
+//         temp_offset += offset_helper[WIB_IDX];
+//         temp_tasks += offset_helper2[WIB_IDX];
+
+//         // maintain partial sum
+//         __syncwarp();
+//         if(LANE_IDX == WARP_SIZE - 1){
+//             offset_helper[WIB_IDX] = temp_offset;
+//             offset_helper2[WIB_IDX] = temp_tasks;
+//         }
+//         __syncwarp();
+
+//         // we know this batch of sizes started below the expand threshold then exceeded it we
+//         // have to find out specifically which warp this occured at
+//         if(offset_helper[WIB_IDX] >= *dd->EXPAND_THRESHOLD){
+//             bool_helper = false;
+//             bool_helper = temp_offset >= *dd->EXPAND_THRESHOLD;
+
+//             mask = __ballot_sync(0xFFFFFFFF, bool_helper);
+//             lane_helper = __ffs(mask) - 1;
+
+//             // we know now the warp which breaks, use this to set tasks end
+//             if(LANE_IDX == lane_helper){
+//                 // make scan exclusive and thus starting count for warp
+//                 temp_offset -= helper;
+//                 temp_tasks -= helper2;
+
+//                 tasks_end = temp_tasks + dd->wtasks_offset[*dd->WTASKS_OFFSET_SIZE * i + 
+//                     *dd->EXPAND_THRESHOLD - temp_offset];
+//             }
+
+//             temp_offset = 0;
+//             temp_tasks = 0;
 //         }
 //     }
 //     __syncwarp();
-    
-//     // move to tasks and buffer
-//     for (uint64_t i = LANE_IDX + 1; i <= dd->wtasks_count[WARP_IDX]; i += WARP_SIZE) {
-//         if (tasks_offset_write[WIB_IDX] + i - 1 <= *dd->EXPAND_THRESHOLD) {
-//             // to tasks
-//             dd->tasks_offset[tasks_offset_write[WIB_IDX] + i - 1] = 
-//                 dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * WARP_IDX) + i] + tasks_write[WIB_IDX];
+
+//     // COPY TASKS DATA
+//     // there are 3 cases: First, warp will copy all data to tasks. Second, warp will copy all data 
+//     // to buffer. Third, warp will copy some data to tasks and some to buffer, only one warp will 
+//     // do this
+
+//     // case 1 - tasks
+//     if(tasks_offset_write + warp_tasks_count < *dd->EXPAND_THRESHOLD){
+//         // copy offsets
+//         // TODO - remove + 1 from within loop variable
+//         for(uint64_t i = LANE_IDX + 1; i <= warp_tasks_count; i += WARP_SIZE){
+//             dd->tasks_offset[tasks_offset_write + i - 1] = 
+//                 dd->wtasks_offset[WRITE_WARP_TASKS_OFFSET + i] + tasks_write;
 //         }
-//         else {
-//             // to buffer
-//             dd->buffer_offset[tasks_offset_write[WIB_IDX] + i - 2 - *dd->EXPAND_THRESHOLD + 
-//                 buffer_offset_start] = dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * WARP_IDX) + i] 
-//                 + tasks_write[WIB_IDX] - tasks_end + buffer_start;
+//         // copy vertices
+//         for(uint64_t i = LANE_IDX; i < warp_tasks_size; i += WARP_SIZE){
+//             dd->tasks_vertices[tasks_write + i] = dd->wtasks_vertices[WRITE_WARP_TASKS + i];
+//         }
+//     }
+//     // case 2 - buffer
+//     else if(tasks_offset_write >= *dd->EXPAND_THRESHOLD){
+//         // copy offsets
+//         // TODO - remove + 1 from within loop variable
+//         for(uint64_t i = LANE_IDX + 1; i <= warp_tasks_count; i += WARP_SIZE){
+//             dd->buffer_offset[tasks_offset_write + i - 2 - *dd->EXPAND_THRESHOLD + 
+//                 buffer_offset_start] = dd->wtasks_offset[WRITE_WARP_TASKS_OFFSET + i] + tasks_write - 
+//                 tasks_end + buffer_start;
+//         }
+//         // copy vertices
+//         for(uint64_t i = LANE_IDX; i < warp_tasks_size; i += WARP_SIZE){
+//             dd->buffer_vertices[buffer_start + tasks_write + i - tasks_end] = 
+//                 dd->wtasks_vertices[WRITE_WARP_TASKS + i];
+//         }
+//     }
+//     // case 3 - tasks and buffer
+//     else{
+//         // TODO - seperate for into two loops with one condition
+//         // TODO - remove + 1 from within loop variable
+//         // copy offsets
+//         for(uint64_t i = LANE_IDX + 1; i <= warp_tasks_count; i += WARP_SIZE){
+//             if (tasks_offset_write + i - 1 <= *dd->EXPAND_THRESHOLD) {
+//                 // to tasks
+//                 dd->tasks_offset[tasks_offset_write + i - 1] = 
+//                     dd->wtasks_offset[WRITE_WARP_TASKS_OFFSET + i] + tasks_write;
+//             }
+//             else {
+//                 // to buffer
+//                 dd->buffer_offset[tasks_offset_write + i - 2 - *dd->EXPAND_THRESHOLD + 
+//                     buffer_offset_start] = dd->wtasks_offset[WRITE_WARP_TASKS_OFFSET + i] + tasks_write - 
+//                     tasks_end + buffer_start;
+//             }
+//         }
+//         // copy vertices
+//         for(uint64_t i = LANE_IDX; i < warp_tasks_size; i += WARP_SIZE){
+//             if (tasks_write + i < tasks_end) {
+//                 // to tasks
+//                 dd->tasks_vertices[tasks_write + i] = dd->wtasks_vertices[WRITE_WARP_TASKS + i];
+//             }
+//             else {
+//                 // to buffer
+//                 dd->buffer_vertices[buffer_start + tasks_write + i - tasks_end] = 
+//                     dd->wtasks_vertices[WRITE_WARP_TASKS + i];
+//             }
 //         }
 //     }
 
-//     for (uint64_t i = LANE_IDX; i < dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * WARP_IDX) + 
-//          dd->wtasks_count[WARP_IDX]]; i += WARP_SIZE) {
-
-//         if (tasks_write[WIB_IDX] + i < tasks_end) {
-//             // to tasks
-//             dd->tasks_vertices[tasks_write[WIB_IDX] + i] = 
-//                 dd->wtasks_vertices[(*dd->WTASKS_SIZE * WARP_IDX) + i];
-//         }
-//         else {
-//             // to buffer
-//             dd->buffer_vertices[buffer_start + tasks_write[WIB_IDX] + i - tasks_end] = 
-//                 dd->wtasks_vertices[(*dd->WTASKS_SIZE * WARP_IDX) + i];
-//         }
+//     // COPY CLIQUES DATA
+//     // TODO - remove + 1 from loop variable
+//     for (uint64_t i = LANE_IDX + 1; i <= warp_cliques_count; i += WARP_SIZE) {
+//         dd->cliques_offset[cliques_offset_start + cliques_offset_write + i - 2] = 
+//             dd->wcliques_offset[WRITE_WARP_CLIQUES_OFFSET+ i] + cliques_start + cliques_write;
 //     }
-//     // NOTE - this sync is important for some reason, larger graphs/et dont work without it
-//     __syncthreads();
-
-//     //move to cliques
-//     for (uint64_t i = LANE_IDX + 1; i <= dd->wcliques_count[WARP_IDX]; i += WARP_SIZE) {
-//         dd->cliques_offset[cliques_offset_start + cliques_offset_write[WIB_IDX] + i - 2] = 
-//             dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + i] + cliques_start + 
-//             cliques_write[WIB_IDX];
-//     }
-//     for (uint64_t i = LANE_IDX; i < dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + 
-//          dd->wcliques_count[WARP_IDX]]; i += WARP_SIZE) {
-
-//         dd->cliques_vertex[cliques_start + cliques_write[WIB_IDX] + i] = 
-//             dd->wcliques_vertex[(*dd->WCLIQUES_SIZE * WARP_IDX) + i];
+//     for (uint64_t i = LANE_IDX; i < warp_cliques_size; i += WARP_SIZE) {
+//         dd->cliques_vertex[cliques_start + cliques_write + i] = 
+//             dd->wcliques_vertex[WRITE_WARP_CLQIUES+ i];
 //     }
 
-//     if (IDX == NUMBER_OF_DTHREADS - 1) {
-//         // handle tasks and buffer counts
-//         if (*dd->total_tasks <= *dd->EXPAND_THRESHOLD) {
-//             *dd->tasks_count = *dd->total_tasks;
-//         }
-//         else {
-//             *dd->tasks_count = *dd->EXPAND_THRESHOLD;
-//             *dd->buffer_count += *dd->total_tasks - *dd->EXPAND_THRESHOLD;
-//         }
-//         *dd->cliques_count += *dd->total_cliques;
-
-//         *dd->total_tasks = 0;
-//         *dd->total_cliques = 0;
+//     // SET GLOBAL INFORMATION VARIABLES
+//     if (IDX == 0) {
+//         // reset level values
 //         (*dd->current_level)++;
-
 //         *dd->current_task = NUMBER_OF_WARPS;
+
+//         // get counts to determine flush actions
 //         *tasks_count = *dd->tasks_count;
 //         *buffer_count = *dd->buffer_count;
 //         *cliques_count = *dd->cliques_count;
 //         *cliques_size = dd->cliques_offset[*cliques_count];
 //     }
 // }
+
+// DEBUG - rm
+__global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t* buffer_count, 
+                                   uint64_t* cliques_count, uint64_t* cliques_size)
+{
+    __shared__ uint64_t tasks_write[WARPS_PER_BLOCK];
+    __shared__ int tasks_offset_write[WARPS_PER_BLOCK];
+    __shared__ uint64_t cliques_write[WARPS_PER_BLOCK];
+    __shared__ int cliques_offset_write[WARPS_PER_BLOCK];
+    __shared__ int twarp;
+    __shared__ int toffsetwrite;
+    __shared__ int twrite;
+    __shared__ int tasks_end;
+    __shared__ uint64_t total_tasks;
+    __shared__ uint64_t total_cliques;
+    uint64_t t_tasks;
+    uint64_t t_cliques;
+    uint64_t buffer_offset_start;
+    uint64_t buffer_start;
+    uint64_t cliques_offset_start;
+    uint64_t cliques_start;
+
+    //printf("!!!");
+
+    buffer_offset_start = *dd->buffer_count + 1;
+    buffer_start = dd->buffer_offset[*dd->buffer_count];
+    cliques_offset_start = *dd->cliques_count + 1;
+    cliques_start = dd->cliques_offset[*dd->cliques_count];
+
+    // point of this is to find how many vertices will be transfered to tasks, it is easy to 
+    // know how many tasks as it will just be the expansion threshold, but to find how many 
+    // vertices we must now the total size of all the tasks that will be copied.
+    if (TIB_IDX == 0) {
+        toffsetwrite = 0;
+        twrite = 0;
+
+        for (int i = 0; i < NUMBER_OF_WARPS; i++) {
+            // if next warps count is more than expand threshold mark as such and break
+            if (toffsetwrite + dd->wtasks_count[i] >= *dd->EXPAND_THRESHOLD) {
+                twarp = i;
+                break;
+            }
+            // else adds its size and count
+            twrite += dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * i) + dd->wtasks_count[i]];
+            toffsetwrite += dd->wtasks_count[i];
+        }
+        // final size is the size of all tasks up until last warp and the remaining tasks in the 
+        // last warp until expand threshold is satisfied
+        tasks_end = twrite + dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * twarp) + 
+            (*dd->EXPAND_THRESHOLD - toffsetwrite)];
+    }
+    __syncthreads();
+
+    // warp level
+    if (LANE_IDX == 0) {
+        tasks_write[WIB_IDX] = 0;
+        tasks_offset_write[WIB_IDX] = 1;
+        cliques_write[WIB_IDX] = 0;
+        cliques_offset_write[WIB_IDX] = 1;
+
+        for (int i = 0; i < WARP_IDX; i++) {
+            tasks_offset_write[WIB_IDX] += dd->wtasks_count[i];
+            tasks_write[WIB_IDX] += dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * i) + 
+                dd->wtasks_count[i]];
+
+            cliques_offset_write[WIB_IDX] += dd->wcliques_count[i];
+            cliques_write[WIB_IDX] += dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * i) + 
+                dd->wcliques_count[i]];
+        }
+    }
+    __syncwarp();
+    
+    // move to tasks and buffer
+    for (uint64_t i = LANE_IDX + 1; i <= dd->wtasks_count[WARP_IDX]; i += WARP_SIZE) {
+        if (tasks_offset_write[WIB_IDX] + i - 1 <= *dd->EXPAND_THRESHOLD) {
+            // to tasks
+            dd->tasks_offset[tasks_offset_write[WIB_IDX] + i - 1] = 
+                dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * WARP_IDX) + i] + tasks_write[WIB_IDX];
+        }
+        else {
+            // to buffer
+            dd->buffer_offset[tasks_offset_write[WIB_IDX] + i - 2 - *dd->EXPAND_THRESHOLD + 
+                buffer_offset_start] = dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * WARP_IDX) + i] 
+                + tasks_write[WIB_IDX] - tasks_end + buffer_start;
+        }
+    }
+
+    for (uint64_t i = LANE_IDX; i < dd->wtasks_offset[(*dd->WTASKS_OFFSET_SIZE * WARP_IDX) + 
+         dd->wtasks_count[WARP_IDX]]; i += WARP_SIZE) {
+
+        if (tasks_write[WIB_IDX] + i < tasks_end) {
+            // to tasks
+            dd->tasks_vertices[tasks_write[WIB_IDX] + i] = 
+                dd->wtasks_vertices[(*dd->WTASKS_SIZE * WARP_IDX) + i];
+        }
+        else {
+            // to buffer
+            dd->buffer_vertices[buffer_start + tasks_write[WIB_IDX] + i - tasks_end] = 
+                dd->wtasks_vertices[(*dd->WTASKS_SIZE * WARP_IDX) + i];
+        }
+    }
+    // NOTE - this sync is important for some reason, larger graphs/et dont work without it
+    __syncthreads();
+
+    //move to cliques
+    for (uint64_t i = LANE_IDX + 1; i <= dd->wcliques_count[WARP_IDX]; i += WARP_SIZE) {
+        dd->cliques_offset[cliques_offset_start + cliques_offset_write[WIB_IDX] + i - 2] = 
+            dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + i] + cliques_start + 
+            cliques_write[WIB_IDX];
+    }
+    for (uint64_t i = LANE_IDX; i < dd->wcliques_offset[(*dd->WCLIQUES_OFFSET_SIZE * WARP_IDX) + 
+         dd->wcliques_count[WARP_IDX]]; i += WARP_SIZE) {
+
+        dd->cliques_vertex[cliques_start + cliques_write[WIB_IDX] + i] = 
+            dd->wcliques_vertex[(*dd->WCLIQUES_SIZE * WARP_IDX) + i];
+    }
+
+    if (IDX == NUMBER_OF_DTHREADS - 1) {
+        // handle tasks and buffer counts
+        if (*dd->total_tasks <= *dd->EXPAND_THRESHOLD) {
+            *dd->tasks_count = *dd->total_tasks;
+        }
+        else {
+            *dd->tasks_count = *dd->EXPAND_THRESHOLD;
+            *dd->buffer_count += *dd->total_tasks - *dd->EXPAND_THRESHOLD;
+        }
+        *dd->cliques_count += *dd->total_cliques;
+
+        *dd->total_tasks = 0;
+        *dd->total_cliques = 0;
+        (*dd->current_level)++;
+
+        *dd->current_task = NUMBER_OF_WARPS;
+        *tasks_count = *dd->tasks_count;
+        *buffer_count = *dd->buffer_count;
+        *cliques_count = *dd->cliques_count;
+        *cliques_size = dd->cliques_offset[*cliques_count];
+    }
+}
 
 __global__ void d_fill_from_buffer(GPU_Data* dd, uint64_t* tasks_count, uint64_t* buffer_count)
 {
