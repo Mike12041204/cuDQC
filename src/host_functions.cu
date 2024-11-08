@@ -406,8 +406,6 @@ void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Si
     chkerr(cudaMemcpy(h_dd.minimum_in_degree_ratio, &minimum_in_degree_ratio, sizeof(double), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.minimum_in_degrees, minimum_in_degrees, sizeof(int) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(h_dd.minimum_clique_size, &minimum_clique_size, sizeof(int), cudaMemcpyHostToDevice));
-    chkerr(cudaMalloc((void**)&h_dd.total_tasks, sizeof(int)));
-    chkerr(cudaMemset(h_dd.total_tasks, 0, sizeof(int)));
     chkerr(cudaMalloc((void**)&h_dd.vertex_order_map, (sizeof(int) * dss.WVERTICES_SIZE) * NUMBER_OF_WARPS));
     int* vertex_order_map = new int[dss.WVERTICES_SIZE * NUMBER_OF_WARPS];
     memset(vertex_order_map, -1, sizeof(int) * dss.WVERTICES_SIZE * NUMBER_OF_WARPS);
@@ -422,8 +420,6 @@ void h_allocate_device_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Graph& hg, DS_Si
     chkerr(cudaMalloc((void**)&h_dd.wcliques_offset, (sizeof(uint64_t) * dss.WCLIQUES_OFFSET_SIZE) * NUMBER_OF_WARPS));
     chkerr(cudaMalloc((void**)&h_dd.wcliques_vertex, (sizeof(int) * dss.WCLIQUES_SIZE) * NUMBER_OF_WARPS));
     chkerr(cudaMemset(h_dd.wcliques_offset, 0, (sizeof(uint64_t) * dss.WCLIQUES_OFFSET_SIZE) * NUMBER_OF_WARPS));
-    chkerr(cudaMalloc((void**)&h_dd.total_cliques, sizeof(int)));
-    chkerr(cudaMemset(h_dd.total_cliques, 0, sizeof(int)));
     chkerr(cudaMalloc((void**)&h_dd.current_task, sizeof(int)));
     int current = NUMBER_OF_WARPS;
     int* pcurrent = &current;
@@ -1291,7 +1287,6 @@ void h_free_memory(CPU_Data& hd, GPU_Data& h_dd, CPU_Cliques& hc)
     chkerr(cudaFree(h_dd.minimum_in_degree_ratio));
     chkerr(cudaFree(h_dd.minimum_in_degrees));
     chkerr(cudaFree(h_dd.minimum_clique_size));
-    chkerr(cudaFree(h_dd.total_tasks));
     chkerr(cudaFree(h_dd.current_task));
     chkerr(cudaFree(h_dd.vertex_order_map));
     // GPU CLIQUES

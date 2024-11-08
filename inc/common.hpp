@@ -33,7 +33,7 @@ using namespace std;
 #define NUMBER_OF_HTHREADS 16
 
 // GPU KERNEL LAUNCH
-#define BLOCK_SIZE 512
+#define BLOCK_SIZE 1024
 #define NUMBER_OF_BLOCKS 216
 #define WARP_SIZE 32
 
@@ -176,9 +176,6 @@ struct GPU_Data
     // expansion helpers
     uint64_t* current_level;
     int* current_task;
-    // count
-    int* total_tasks;
-    int* total_cliques;
     // EXPANSION HELPERS
     Vertex* temp_vertex_array;
     int* vertex_order_map;
