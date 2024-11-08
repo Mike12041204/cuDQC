@@ -11,8 +11,8 @@ int grank;
 char msg_buffer[NUMBER_OF_PROCESSESS][100];
 // array of handles for messages with all other thread, allows for asynchronous messaging, 
 // handles say whether message is complete
-MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];
-MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
+//MPI_Request rq_send_msg[NUMBER_OF_PROCESSESS];
+//MPI_Request rq_recv_msg[NUMBER_OF_PROCESSESS];
 bool global_free_list[NUMBER_OF_PROCESSESS];
 
 CPU_Graph::CPU_Graph(ifstream& graph_stream)

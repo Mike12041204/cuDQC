@@ -197,7 +197,7 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
     uint64_t t_cliques;
     uint64_t buffer_offset_start;
     uint64_t buffer_start;
-    uint64_t cliques_offset_start;
+    int cliques_offset_start;
     uint64_t cliques_start;
 
     buffer_offset_start = *dd->buffer_count + 1;
