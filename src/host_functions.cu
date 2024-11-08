@@ -2,7 +2,7 @@
 #include "../inc/host_functions.hpp"
 #include "../inc/host_debug.h"
 #include "../inc/device_kernels.hpp"
-//#include "../inc/cuTS_MPI.h"
+#include "../inc/cuTS_MPI.h"
 
 // --- PRIMARY FUNCTIONS ---
 // initializes minimum degrees array 
@@ -43,13 +43,13 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     }
 
     // MPI
-    // mpiSizeBuffer = new uint64_t[MAX_MESSAGE];
-    // mpiVertexBuffer = new Vertex[MAX_MESSAGE];
-    // // open communication channels
-    // mpi_irecv_all(grank);
-    // for (int i = 0; i < wsize; ++i) {
-    //     global_free_list[i] = false;
-    // }
+    mpiSizeBuffer = new uint64_t[MAX_MESSAGE];
+    mpiVertexBuffer = new Vertex[MAX_MESSAGE];
+    // open communication channels
+    mpi_irecv_all(grank);
+    for (int i = 0; i < wsize; ++i) {
+        global_free_list[i] = false;
+    }
 
     // HANDLE MEMORY
     h_allocate_host_memory(hd, h_dd, hc, hg, dss, minimum_out_degrees, minimum_in_degrees, 
@@ -176,25 +176,25 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
 
     // wait after all work in process has been completed, loop if work has been given from another 
     // process, break if all process complete work
-    //do{
+    do{
 
         // HELP OTHER PROCESS
         // only way this variable is true is if this process got finished all of its work broke out
         // of inner loop and returned here
-        // if(help_others){
-        //     // decode buffer
-        //     decode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer);
-        //     // populate tasks from buffer
-        //     d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count);
-        //     cudaDeviceSynchronize();
-        //     *hd.maximal_expansion = false;
+        if(help_others){
+            // decode buffer
+            decode_com_buffer(h_dd, mpiSizeBuffer, mpiVertexBuffer);
+            // populate tasks from buffer
+            d_fill_from_buffer<<<NUMBER_OF_BLOCKS, BLOCK_SIZE>>>(dd, tasks_count, buffer_count);
+            cudaDeviceSynchronize();
+            *hd.maximal_expansion = false;
 
-        //     // DEBUG
-        //     if (dss.DEBUG_TOGGLE) {
-        //         output_file << "RECIEVING WORK FROM PROCESS " << from << endl;
-        //         print_D_Data_Sizes(h_dd, dss);
-        //     }
-        // }
+            // DEBUG
+            if (dss.DEBUG_TOGGLE) {
+                output_file << "RECIEVING WORK FROM PROCESS " << from << endl;
+                print_D_Data_Sizes(h_dd, dss);
+            }
+        }
 
         // HANDLE LOCAL WORK
         // loop while not all work has been completed
@@ -249,28 +249,28 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
             }
 
             // GET HELP FROM OTHER PROCESS
-            // if(*buffer_count > HELP_THRESHOLD){
+            if(*buffer_count > HELP_THRESHOLD){
 
-            //     // return whether work was successfully given
-            //     divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, 
-            //                                      h_dd, *buffer_count, dss);
+                // return whether work was successfully given
+                divided_work = give_work_wrapper(grank, taker, mpiSizeBuffer, mpiVertexBuffer, 
+                                                 h_dd, *buffer_count, dss);
 
-            //     // update buffer count if work was given
-            //     if(divided_work){
-            //         *buffer_count -= (*buffer_count > dss.EXPAND_THRESHOLD) ? dss.EXPAND_THRESHOLD 
-            //         + ((*buffer_count - dss.EXPAND_THRESHOLD) * ((100 - HELP_PERCENT) / 100.0)) : 
-            //         *buffer_count;
+                // update buffer count if work was given
+                if(divided_work){
+                    *buffer_count -= (*buffer_count > dss.EXPAND_THRESHOLD) ? dss.EXPAND_THRESHOLD 
+                    + ((*buffer_count - dss.EXPAND_THRESHOLD) * ((100 - HELP_PERCENT) / 100.0)) : 
+                    *buffer_count;
 
-            //         chkerr(cudaMemcpy(h_dd.buffer_count, buffer_count, sizeof(uint64_t), 
-            //                           cudaMemcpyHostToDevice));
+                    chkerr(cudaMemcpy(h_dd.buffer_count, buffer_count, sizeof(uint64_t), 
+                                      cudaMemcpyHostToDevice));
 
-            //         // DEBUG
-            //         if (dss.DEBUG_TOGGLE) {
-            //             output_file << "SENDING WORK TO PROCESS " << taker << endl;
-            //             print_D_Data_Sizes(h_dd, dss);
-            //         }
-            //     }
-            // }
+                    // DEBUG
+                    if (dss.DEBUG_TOGGLE) {
+                        output_file << "SENDING WORK TO PROCESS " << taker << endl;
+                        print_D_Data_Sizes(h_dd, dss);
+                    }
+                }
+            }
         }
 
         // we have finished all our work, so if we get to the top of the loop again it is because 
@@ -280,7 +280,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     // INITIATE HELP FOR OTHER PROCESS
     // each process will block here until they have found another process to recieve work from and
     // then help or all processes are done and the program can complete
-    //}while(wsize != take_work_wrap(grank, mpiSizeBuffer, mpiVertexBuffer, from));
+    }while(wsize != take_work_wrap(grank, mpiSizeBuffer, mpiVertexBuffer, from));
 
     h_dump_cliques(hc, h_dd, temp_results, dss);
 

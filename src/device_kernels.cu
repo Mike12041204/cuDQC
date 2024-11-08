@@ -177,17 +177,17 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
 {
     // write location for each warp in relation to current level
     uint64_t tasks_write;
-    int tasks_offset_write;
+    uint64_t tasks_offset_write;
     uint64_t cliques_write;
-    int cliques_offset_write;
+    uint64_t cliques_offset_write;
     // helpers to find tasks end
     uint64_t tasks_end;
     uint64_t offset_helper;
     uint64_t offset_helper2;
-    int temp_offset;
+    uint64_t temp_offset;
     uint64_t temp_tasks;
-    int helper;
-    int helper2;
+    uint64_t helper;
+    uint64_t helper2;
     bool bool_helper;
     int lane_helper;
     unsigned int mask;
@@ -195,20 +195,20 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
     uint64_t total_tasks;
     uint64_t total_cliques;
     // start locations for writing to cliques and 
-    int buffer_offset_start;
+    uint64_t buffer_offset_start;
     uint64_t buffer_start;
-    int cliques_offset_start;
+    uint64_t cliques_offset_start;
     uint64_t cliques_start;
     // sizes of this warps data
-    int warp_tasks_count;
+    uint64_t warp_tasks_count;
     uint64_t warp_tasks_size;
-    int warp_cliques_count;
+    uint64_t warp_cliques_count;
     uint64_t warp_cliques_size;
     // write locations for this warp
     uint64_t write_tasks;
-    int write_tasks_offset;
+    uint64_t write_tasks_offset;
     uint64_t write_cliques;
-    int write_cliques_offset;
+    uint64_t write_cliques_offset;
 
     // INITIALIZATION
     write_tasks = *dd->WTASKS_SIZE * WARP_IDX;
