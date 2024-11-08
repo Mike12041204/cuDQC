@@ -22,10 +22,7 @@ __global__ void d_expand_level(GPU_Data* dd)
     // initialize i for each warp
     int i = WARP_IDX;
     
-    // DEBUG - rm and uncomment
-    // while (i < *dd->tasks_count) 
-    // {
-    for(int i = WARP_IDX; i < *dd->tasks_count; i += NUMBER_OF_WARPS){
+    while (i < *dd->tasks_count) {
 
         // INITIALIZE OLD VERTICES
         // get information on vertices being handled within tasks
@@ -167,12 +164,11 @@ __global__ void d_expand_level(GPU_Data* dd)
             }
         }
 
-        // DEBUG - uncomment
-        // // schedule warps next task
-        // if (LANE_IDX == 0) {
-        //     i = atomicAdd(dd->current_task, 1);
-        // }
-        // i = __shfl_sync(0xFFFFFFFF, i, 0);
+        // schedule warps next task
+        if (LANE_IDX == 0) {
+            i = atomicAdd(dd->current_task, 1);
+        }
+        i = __shfl_sync(0xFFFFFFFF, i, 0);
     }
 }
 
