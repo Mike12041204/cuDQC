@@ -515,7 +515,6 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     uint64_t pneighbors_end;
     int min_out_deg;
     int min_in_deg;
-    uint64_t warp_write;
 
     // remove the last candidate in vertices
     if (LANE_IDX == 0) {
@@ -532,8 +531,6 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         return;
     }
 
-    warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
-
     min_out_deg = d_get_mindeg(wd.num_mem[WIB_IDX] + 1, dd->minimum_out_degrees, 
                                *dd->minimum_clique_size);
     min_in_deg = d_get_mindeg(wd.num_mem[WIB_IDX] + 1, dd->minimum_in_degrees, 
@@ -541,7 +538,7 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     // initialize vertex order map
     for(int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE){
-        dd->vertex_order_map[warp_write + dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid] = i;
+        dd->vertex_order_map[WRITE_WARP_VERTICES + dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid] = i;
     }
     __syncwarp();
 
@@ -554,7 +551,7 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     for (uint64_t i = pneighbors_start + LANE_IDX; i < pneighbors_end && wd.success[WIB_IDX]; i += 
          WARP_SIZE) {
 
-        phelper1 = dd->vertex_order_map[warp_write + dd->out_neighbors[i]];
+        phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->out_neighbors[i]];
 
         if (phelper1 > -1) {
             dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].in_can_deg--;
@@ -578,7 +575,7 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     if (!wd.success[WIB_IDX]) {
         // reset vertex order map
         for(int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE){
-            dd->vertex_order_map[warp_write + dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid] = -1;
+            dd->vertex_order_map[WRITE_WARP_VERTICES + dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid] = -1;
         }
 
         return;
@@ -590,7 +587,7 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     for (uint64_t i = pneighbors_start + LANE_IDX; i < pneighbors_end && wd.success[WIB_IDX]; i += 
          WARP_SIZE) {
 
-        phelper1 = dd->vertex_order_map[warp_write + dd->in_neighbors[i]];
+        phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->in_neighbors[i]];
 
         if (phelper1 > -1) {
             dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].out_can_deg--;
@@ -614,7 +611,7 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     if (!wd.success[WIB_IDX]) {
         // reset vertex order map
         for(int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE){
-            dd->vertex_order_map[warp_write + dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid] = -1;
+            dd->vertex_order_map[WRITE_WARP_VERTICES + dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid] = -1;
         }
 
         return;
@@ -626,7 +623,7 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     for (uint64_t i = pneighbors_start + LANE_IDX; i < pneighbors_end; i += 
          WARP_SIZE) {
 
-        phelper1 = dd->vertex_order_map[warp_write + dd->twohop_neighbors[i]];
+        phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->twohop_neighbors[i]];
 
         if (phelper1 >= wd.num_mem[WIB_IDX]) {
             dd->tasks_vertices[wd.start[WIB_IDX] + phelper1].lvl2adj--;
@@ -635,7 +632,7 @@ __device__ void d_remove_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     // reset vertex order map
     for(int i = LANE_IDX; i < wd.tot_vert[WIB_IDX]; i += WARP_SIZE){
-        dd->vertex_order_map[warp_write + dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid] = -1;
+        dd->vertex_order_map[WRITE_WARP_VERTICES + dd->tasks_vertices[wd.start[WIB_IDX] + i].vertexid] = -1;
     }
     __syncwarp();
 }
@@ -649,9 +646,6 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     uint64_t pneighbors_end;
     int min_out_deg;
     int min_in_deg;
-    uint64_t warp_write;
-
-    warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
 
     // minimum degrees for candidates, plus two for vertex that will be added and candidates itself
     // will need to be added as well
@@ -662,7 +656,7 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     // initialize vertex order map
     for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
-        dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = i;
+        dd->vertex_order_map[WRITE_WARP_VERTICES + ld.vertices[i].vertexid] = i;
     }
     __syncwarp();
 
@@ -681,7 +675,7 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     for (uint64_t i = pneighbors_start + LANE_IDX; i < pneighbors_end; i += WARP_SIZE) {
 
-        phelper1 = dd->vertex_order_map[warp_write + dd->out_neighbors[i]];
+        phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->out_neighbors[i]];
 
         if (phelper1 > -1) {
             ld.vertices[phelper1].in_mem_deg++;
@@ -694,7 +688,7 @@ __device__ void d_add_one_vertex(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     for (uint64_t i = pneighbors_start + LANE_IDX; i < pneighbors_end; i += WARP_SIZE) {
 
-        phelper1 = dd->vertex_order_map[warp_write + dd->in_neighbors[i]];
+        phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->in_neighbors[i]];
 
         if (phelper1 > -1) {
             ld.vertices[phelper1].out_mem_deg++;
@@ -716,16 +710,13 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
 {
     int phelper1;                   // intersection
     int number_of_crit;         // pruning
-    uint64_t warp_write;
     int pvertexid;                  // intersection
     uint64_t pneighbors_start;
     uint64_t pneighbors_end;
 
-    warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
-
     // initialize vertex order map
     for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
-        dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = i;
+        dd->vertex_order_map[WRITE_WARP_VERTICES + ld.vertices[i].vertexid] = i;
     }
     __syncwarp();
 
@@ -746,7 +737,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
 
             for (uint64_t j = pneighbors_start + LANE_IDX; j < pneighbors_end; j += WARP_SIZE) {
 
-                phelper1 = dd->vertex_order_map[warp_write + dd->out_neighbors[j]];
+                phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->out_neighbors[j]];
 
                 // if neighbor is cand
                 if (phelper1 >= wd.number_of_members[WIB_IDX]) {
@@ -766,7 +757,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
 
             for (uint64_t j = pneighbors_start + LANE_IDX; j < pneighbors_end; j += WARP_SIZE) {
 
-                phelper1 = dd->vertex_order_map[warp_write + dd->in_neighbors[j]];
+                phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->in_neighbors[j]];
 
                 // if neighbor is cand
                 if (phelper1 >= wd.number_of_members[WIB_IDX]) {
@@ -779,7 +770,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
 
     // reset vertex order map
     for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
-        dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
+        dd->vertex_order_map[WRITE_WARP_VERTICES + ld.vertices[i].vertexid] = -1;
     }
     __syncwarp();
 
@@ -813,8 +804,8 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
     // initialize vertex order map and reset adjacencies
     // temp_int_array_3[4] = 10, means vertex at position 4 in vertices is adjacent to 10 cv
     for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
-        dd->temp_int_array_3[warp_write + i] = 0;
-        dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = i;
+        dd->temp_int_array_3[WRITE_WARP_VERTICES + i] = 0;
+        dd->vertex_order_map[WRITE_WARP_VERTICES + ld.vertices[i].vertexid] = i;
     }
     __syncwarp();
 
@@ -830,10 +821,10 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
 
         for (uint64_t j = pneighbors_start + LANE_IDX; j < pneighbors_end; j += WARP_SIZE) {
 
-            phelper1 = dd->vertex_order_map[warp_write + dd->twohop_neighbors[j]];
+            phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->twohop_neighbors[j]];
 
             if (phelper1 > -1) {
-                dd->temp_int_array_3[warp_write + phelper1]++;
+                dd->temp_int_array_3[WRITE_WARP_VERTICES + phelper1]++;
             }
         }
         __syncwarp();
@@ -845,7 +836,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
     for (int i = LANE_IDX; i < wd.number_of_members[WIB_IDX] && wd.success[WIB_IDX] == 1; i += 
         WARP_SIZE) {
         
-        if (dd->temp_int_array_3[warp_write + i] != number_of_crit) {
+        if (dd->temp_int_array_3[WRITE_WARP_VERTICES + i] != number_of_crit) {
             wd.success[WIB_IDX] = 2;
             break;
         }
@@ -855,7 +846,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
     if (wd.success[WIB_IDX] == 2) {
         // reset vertex order map
         for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
-            dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
+            dd->vertex_order_map[WRITE_WARP_VERTICES + ld.vertices[i].vertexid] = -1;
         }
         return;
     }
@@ -864,7 +855,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
     for (int i = wd.number_of_members[WIB_IDX] + LANE_IDX; i < wd.number_of_members[WIB_IDX] + 
         number_of_crit && wd.success[WIB_IDX] == 1; i += WARP_SIZE) {
 
-        if (dd->temp_int_array_3[warp_write + i] < number_of_crit - 1) {
+        if (dd->temp_int_array_3[WRITE_WARP_VERTICES + i] < number_of_crit - 1) {
             wd.success[WIB_IDX] = 2;
             break;
         }
@@ -874,7 +865,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
     if (wd.success[WIB_IDX] == 2) {
         // reset vertex order map
         for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
-            dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
+            dd->vertex_order_map[WRITE_WARP_VERTICES + ld.vertices[i].vertexid] = -1;
         }
         return;
     }
@@ -891,7 +882,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
 
         for (uint64_t j = pneighbors_start + LANE_IDX; j < pneighbors_end; j += WARP_SIZE) {
 
-            phelper1 = dd->vertex_order_map[warp_write + dd->out_neighbors[j]];
+            phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->out_neighbors[j]];
 
             if (phelper1 > -1) {
                 ld.vertices[phelper1].in_mem_deg++;
@@ -904,7 +895,7 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
 
         for (uint64_t j = pneighbors_start + LANE_IDX; j < pneighbors_end; j += WARP_SIZE) {
 
-            phelper1 = dd->vertex_order_map[warp_write + dd->in_neighbors[j]];
+            phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->in_neighbors[j]];
 
             if (phelper1 > -1) {
                 ld.vertices[phelper1].out_mem_deg++;
@@ -940,16 +931,11 @@ __device__ void d_critical_vertex_pruning(GPU_Data* dd, Warp_Data& wd, Local_Dat
 __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, int pvertexid, 
                                    int min_out_deg, int min_in_deg)
 {
-    uint64_t lane_write;
     int phelper1;                       // intersection
     int phelper2;
     int lane_remaining_count;           // vertex iteration
     uint64_t pneighbors_start;
     uint64_t pneighbors_end;
-    uint64_t warp_write;
-
-    warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
-    lane_write = warp_write + ((*dd->WVERTICES_SIZE / WARP_SIZE) * LANE_IDX);
 
     lane_remaining_count = 0;
 
@@ -967,7 +953,7 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
 
     for (uint64_t i = pneighbors_start + LANE_IDX; i < pneighbors_end; i += WARP_SIZE) {
 
-        phelper1 = dd->vertex_order_map[warp_write + dd->twohop_neighbors[i]];
+        phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->twohop_neighbors[i]];
 
         if (phelper1 >= wd.number_of_members[WIB_IDX]) {
 
@@ -978,9 +964,9 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
 
                 ld.vertices[phelper1].label = 0;
                 
-                dd->temp_int_array_1[lane_write + lane_remaining_count] = 
+                dd->temp_int_array_1[WRITE_LANE_VERTICES + lane_remaining_count] = 
                     ld.vertices[phelper1].out_mem_deg;
-                dd->temp_int_array_2[lane_write + lane_remaining_count] = 
+                dd->temp_int_array_2[WRITE_LANE_VERTICES + lane_remaining_count] = 
                     ld.vertices[phelper1].in_mem_deg;
                 lane_remaining_count++;
             }
@@ -1007,10 +993,10 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
 
     // parallel write lane arrays to warp array
     for (int i = 0; i < phelper2; i++) {
-        dd->temp_int_array_4[warp_write + lane_remaining_count + i] = 
-            dd->temp_int_array_1[lane_write + i];
-        dd->temp_int_array_5[warp_write + lane_remaining_count + i] = 
-            dd->temp_int_array_2[lane_write + i];
+        dd->temp_int_array_4[WRITE_WARP_VERTICES + lane_remaining_count + i] = 
+            dd->temp_int_array_1[WRITE_LANE_VERTICES + i];
+        dd->temp_int_array_5[WRITE_WARP_VERTICES + lane_remaining_count + i] = 
+            dd->temp_int_array_2[WRITE_LANE_VERTICES + i];
     }
     __syncwarp();
 }
@@ -1018,25 +1004,21 @@ __device__ void d_diameter_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
 __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& ld, 
                                       int number_of_crit)
 {
-    uint64_t lane_write;
     int lane_remaining_count;           // vertex iteration
     int phelper1;                       // intersection
     int phelper2;
-    uint64_t warp_write;
 
-    warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
-    lane_write = warp_write + (*dd->WVERTICES_SIZE / WARP_SIZE) * LANE_IDX;
     lane_remaining_count = 0;
 
     // remove all cands who are not within 2hops of all newly added cands
     for (int i = wd.number_of_members[WIB_IDX] + LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += 
          WARP_SIZE) {
 
-        if (dd->temp_int_array_3[warp_write + i] == number_of_crit) {
+        if (dd->temp_int_array_3[WRITE_WARP_VERTICES + i] == number_of_crit) {
 
-            dd->temp_int_array_1[lane_write + lane_remaining_count] = 
+            dd->temp_int_array_1[WRITE_LANE_VERTICES + lane_remaining_count] = 
                 ld.vertices[i].out_mem_deg;
-            dd->temp_int_array_2[lane_write + lane_remaining_count] = 
+            dd->temp_int_array_2[WRITE_LANE_VERTICES + lane_remaining_count] = 
                 ld.vertices[i].in_mem_deg;
             lane_remaining_count++;
         }
@@ -1063,10 +1045,10 @@ __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& l
 
     // parallel write lane arrays to warp array
     for (int i = 0; i < phelper2; i++) {
-        dd->temp_int_array_4[warp_write + lane_remaining_count + i] = 
-            dd->temp_int_array_1[lane_write + i];
-        dd->temp_int_array_5[warp_write + lane_remaining_count + i] = 
-            dd->temp_int_array_2[lane_write + i];
+        dd->temp_int_array_4[WRITE_WARP_VERTICES + lane_remaining_count + i] = 
+            dd->temp_int_array_1[WRITE_LANE_VERTICES + i];
+        dd->temp_int_array_5[WRITE_WARP_VERTICES + lane_remaining_count + i] = 
+            dd->temp_int_array_2[WRITE_LANE_VERTICES + i];
     }
     __syncwarp();
 }
@@ -1074,7 +1056,6 @@ __device__ void d_diameter_pruning_cv(GPU_Data* dd, Warp_Data& wd, Local_Data& l
 // sets success to false if failed or invalid bounds found else leaves as true
 __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 {
-    uint64_t lane_write;                 // place each lane will write in warp array
     int pvertexid;                  // helper variables
     int phelper1;
     int phelper2;
@@ -1083,15 +1064,11 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     uint64_t pneighbors_end;
     int lane_remaining_count;       // counter for lane intersection results
     int lane_removed_count;
-    uint64_t warp_write;
-
-    warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
-    lane_write = warp_write + ((*dd->WVERTICES_SIZE / WARP_SIZE) * LANE_IDX);
 
     // used for bound calculation
-    d_oe_sort_int(dd->temp_int_array_4 + warp_write, wd.remaining_count[WIB_IDX], 
+    d_oe_sort_int(dd->temp_int_array_4 + WRITE_WARP_VERTICES, wd.remaining_count[WIB_IDX], 
                   d_comp_int_desc);
-    d_oe_sort_int(dd->temp_int_array_5 + warp_write, wd.remaining_count[WIB_IDX], 
+    d_oe_sort_int(dd->temp_int_array_5 + WRITE_WARP_VERTICES, wd.remaining_count[WIB_IDX], 
                   d_comp_int_desc);
 
     //set bounds and min ext degs
@@ -1102,7 +1079,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     if(!wd.success[WIB_IDX]){
         // reset vertex order map
         for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
-            dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
+            dd->vertex_order_map[WRITE_WARP_VERTICES + ld.vertices[i].vertexid] = -1;
         }
         return;
     }
@@ -1121,7 +1098,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
     // reset vertex order map
     if(!wd.success[WIB_IDX]){
         for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
-            dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
+            dd->vertex_order_map[WRITE_WARP_VERTICES + ld.vertices[i].vertexid] = -1;
         }
         return;
     }   
@@ -1138,10 +1115,10 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
          WARP_SIZE) {
         
         if (ld.vertices[i].label == 0 && d_cand_isvalid(ld.vertices[i], dd, wd, ld)) {
-            dd->temp_int_array_1[lane_write + lane_remaining_count++] = i;
+            dd->temp_int_array_1[WRITE_LANE_VERTICES + lane_remaining_count++] = i;
         }
         else {
-            dd->temp_int_array_2[lane_write + lane_removed_count++] = i;
+            dd->temp_int_array_2[WRITE_LANE_VERTICES + lane_removed_count++] = i;
         }
     }
     __syncwarp();
@@ -1170,13 +1147,13 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     // parallel write lane arrays to warp array
     for (int i = 0; i < phelper2; i++) {
-        dd->temp_int_array_3[warp_write + lane_remaining_count + i] = 
-            dd->temp_int_array_1[lane_write + i];
+        dd->temp_int_array_3[WRITE_WARP_VERTICES + lane_remaining_count + i] = 
+            dd->temp_int_array_1[WRITE_LANE_VERTICES + i];
     }
     if (wd.remaining_count[WIB_IDX] >= wd.removed_count[WIB_IDX]){
         for (int i = 0; i < pvertexid; i++) {
-            dd->temp_int_array_4[warp_write + lane_removed_count + i] = 
-                dd->temp_int_array_2[lane_write + i];
+            dd->temp_int_array_4[WRITE_WARP_VERTICES + lane_removed_count + i] = 
+                dd->temp_int_array_2[WRITE_LANE_VERTICES + i];
         }
     }
     __syncwarp();
@@ -1195,7 +1172,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
             for(int i = 0; i < wd.remaining_count[WIB_IDX]; i++){
 
-                pvertexid = ld.vertices[dd->temp_int_array_3[warp_write + i]].vertexid;
+                pvertexid = ld.vertices[dd->temp_int_array_3[WRITE_WARP_VERTICES + i]].vertexid;
 
                 // update degrees of remaining adjacent vertices
                 pneighbors_start = dd->out_offsets[pvertexid];
@@ -1203,7 +1180,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
                 for (uint64_t j = pneighbors_start + LANE_IDX; j < pneighbors_end; j += WARP_SIZE) {
 
-                    phelper1 = dd->vertex_order_map[warp_write + dd->out_neighbors[j]];
+                    phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->out_neighbors[j]];
 
                     if (phelper1 > -1) {
                         ld.vertices[phelper1].in_can_deg++;
@@ -1215,7 +1192,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
                 for (uint64_t j = pneighbors_start + LANE_IDX; j < pneighbors_end; j += WARP_SIZE) {
 
-                    phelper1 = dd->vertex_order_map[warp_write + dd->in_neighbors[j]];
+                    phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->in_neighbors[j]];
 
                     if (phelper1 > -1) {
                         ld.vertices[phelper1].out_can_deg++;
@@ -1228,7 +1205,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
             
             for(int i = 0; i < wd.removed_count[WIB_IDX]; i++){
 
-                pvertexid = ld.vertices[dd->temp_int_array_4[warp_write + i]].vertexid;
+                pvertexid = ld.vertices[dd->temp_int_array_4[WRITE_WARP_VERTICES + i]].vertexid;
 
                 // update degrees of remaining adjacent vertices
                 pneighbors_start = dd->out_offsets[pvertexid];
@@ -1236,7 +1213,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
                 for (uint64_t j = pneighbors_start + LANE_IDX; j < pneighbors_end; j += WARP_SIZE) {
 
-                    phelper1 = dd->vertex_order_map[warp_write + dd->out_neighbors[j]];
+                    phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->out_neighbors[j]];
 
                     if (phelper1 > -1) {
                         ld.vertices[phelper1].in_can_deg--;
@@ -1248,7 +1225,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
                 for (uint64_t j = pneighbors_start + LANE_IDX; j < pneighbors_end; j += WARP_SIZE) {
 
-                    phelper1 = dd->vertex_order_map[warp_write + dd->in_neighbors[j]];
+                    phelper1 = dd->vertex_order_map[WRITE_WARP_VERTICES + dd->in_neighbors[j]];
 
                     if (phelper1 > -1) {
                         ld.vertices[phelper1].out_can_deg--;
@@ -1261,12 +1238,12 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         lane_remaining_count = 0;
 
         for (int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE) {
-            if (d_cand_isvalid(ld.vertices[dd->temp_int_array_3[warp_write + i]], dd, wd, ld)) {
+            if (d_cand_isvalid(ld.vertices[dd->temp_int_array_3[WRITE_WARP_VERTICES + i]], dd, wd, ld)) {
                 
-                dd->temp_int_array_1[lane_write + lane_remaining_count] = 
-                    ld.vertices[dd->temp_int_array_3[warp_write + i]].out_mem_deg;
-                dd->temp_int_array_2[lane_write + lane_remaining_count] = 
-                    ld.vertices[dd->temp_int_array_3[warp_write + i]].in_mem_deg;
+                dd->temp_int_array_1[WRITE_LANE_VERTICES + lane_remaining_count] = 
+                    ld.vertices[dd->temp_int_array_3[WRITE_WARP_VERTICES + i]].out_mem_deg;
+                dd->temp_int_array_2[WRITE_LANE_VERTICES + lane_remaining_count] = 
+                    ld.vertices[dd->temp_int_array_3[WRITE_WARP_VERTICES + i]].in_mem_deg;
                 lane_remaining_count++;
             }
         }
@@ -1290,16 +1267,16 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
         // parallel write lane arrays to warp array
         for (int i = 0; i < phelper2; i++) {
-            dd->temp_int_array_4[warp_write + lane_remaining_count + i] = 
-                dd->temp_int_array_1[lane_write + i];
-            dd->temp_int_array_5[warp_write + lane_remaining_count + i] = 
-                dd->temp_int_array_2[lane_write + i];
+            dd->temp_int_array_4[WRITE_WARP_VERTICES + lane_remaining_count + i] = 
+                dd->temp_int_array_1[WRITE_LANE_VERTICES + i];
+            dd->temp_int_array_5[WRITE_WARP_VERTICES + lane_remaining_count + i] = 
+                dd->temp_int_array_2[WRITE_LANE_VERTICES + i];
         }
         __syncwarp();
 
-        d_oe_sort_int(dd->temp_int_array_4 + warp_write, wd.num_val_cands[WIB_IDX], 
+        d_oe_sort_int(dd->temp_int_array_4 + WRITE_WARP_VERTICES, wd.num_val_cands[WIB_IDX], 
                       d_comp_int_desc);
-        d_oe_sort_int(dd->temp_int_array_5 + warp_write, wd.num_val_cands[WIB_IDX], 
+        d_oe_sort_int(dd->temp_int_array_5 + WRITE_WARP_VERTICES, wd.num_val_cands[WIB_IDX], 
                       d_comp_int_desc);
 
         // set bounds and min ext degs
@@ -1310,7 +1287,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         if(!wd.success[WIB_IDX]){
             // reset vertex order map
             for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
-                dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
+                dd->vertex_order_map[WRITE_WARP_VERTICES + ld.vertices[i].vertexid] = -1;
             }
             return;
         }
@@ -1329,7 +1306,7 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
         // reset vertex order map
         if(!wd.success[WIB_IDX]){
             for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
-                dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
+                dd->vertex_order_map[WRITE_WARP_VERTICES + ld.vertices[i].vertexid] = -1;
             }
             return;
         }   
@@ -1339,13 +1316,13 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
         // check for failed candidates
         for (int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE) {
-            if (d_cand_isvalid(ld.vertices[dd->temp_int_array_3[warp_write + i]], dd, wd, ld)) {
-                dd->temp_int_array_1[lane_write + lane_remaining_count++] = 
-                    dd->temp_int_array_3[warp_write + i];
+            if (d_cand_isvalid(ld.vertices[dd->temp_int_array_3[WRITE_WARP_VERTICES + i]], dd, wd, ld)) {
+                dd->temp_int_array_1[WRITE_LANE_VERTICES + lane_remaining_count++] = 
+                    dd->temp_int_array_3[WRITE_WARP_VERTICES + i];
             }
             else {
-                dd->temp_int_array_2[lane_write + lane_removed_count++] = 
-                    dd->temp_int_array_3[warp_write + i];
+                dd->temp_int_array_2[WRITE_LANE_VERTICES + lane_removed_count++] = 
+                    dd->temp_int_array_3[WRITE_WARP_VERTICES + i];
             }
         }
         __syncwarp();
@@ -1374,13 +1351,13 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
         // parallel write lane arrays to warp array
         for (int i = 0; i < phelper2; i++) {
-            dd->temp_int_array_3[warp_write + lane_remaining_count + i] = 
-                dd->temp_int_array_1[lane_write + i];
+            dd->temp_int_array_3[WRITE_WARP_VERTICES + lane_remaining_count + i] = 
+                dd->temp_int_array_1[WRITE_LANE_VERTICES + i];
         }
         if (wd.num_val_cands[WIB_IDX] >= wd.removed_count[WIB_IDX]){
             for (int i = 0; i < pvertexid; i++) {
-                dd->temp_int_array_4[warp_write + lane_removed_count + i] = 
-                    dd->temp_int_array_2[lane_write + i];
+                dd->temp_int_array_4[WRITE_WARP_VERTICES + lane_removed_count + i] = 
+                    dd->temp_int_array_2[WRITE_LANE_VERTICES + i];
             }
         }
 
@@ -1392,17 +1369,17 @@ __device__ void d_degree_pruning(GPU_Data* dd, Warp_Data& wd, Local_Data& ld)
 
     // reset vertex order map before condensing
     for(int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE){
-        dd->vertex_order_map[warp_write + ld.vertices[i].vertexid] = -1;
+        dd->vertex_order_map[WRITE_WARP_VERTICES + ld.vertices[i].vertexid] = -1;
     }
 
     // condense vertices out of place
     for(int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE){
-        dd->temp_vertex_array[warp_write + i] = 
-            ld.vertices[dd->temp_int_array_3[warp_write + i]];
+        dd->temp_vertex_array[WRITE_WARP_VERTICES + i] = 
+            ld.vertices[dd->temp_int_array_3[WRITE_WARP_VERTICES + i]];
     }
     __syncwarp();
     for(int i = LANE_IDX; i < wd.remaining_count[WIB_IDX]; i += WARP_SIZE){
-        ld.vertices[wd.number_of_members[WIB_IDX] + i] = dd->temp_vertex_array[warp_write + i];
+        ld.vertices[wd.number_of_members[WIB_IDX] + i] = dd->temp_vertex_array[WRITE_WARP_VERTICES + i];
     }
 
     if (LANE_IDX == 0) {
@@ -1421,9 +1398,6 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
         //lower & upper bound are initialized using the degree of vertex in S
         //and tighten using the degree of vertex in ext_S
         int i, ntightened_max_cands;
-        uint64_t warp_write;
-
-        warp_write = WARP_IDX * *dd->WVERTICES_SIZE;
 
         //clq_clqdeg means: v in S (clq) 's indegree (clqdeg)
         wd.nmin_clq_clqdeg_o[WIB_IDX] = ld.vertices[0].out_mem_deg;
@@ -1524,16 +1498,16 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
 
                 for(i=0;i<wd.lower_bound[WIB_IDX];i++)
                 {
-                    wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->temp_int_array_4[warp_write + i];
-                    wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->temp_int_array_5[warp_write + i];
+                    wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->temp_int_array_4[WRITE_WARP_VERTICES + i];
+                    wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->temp_int_array_5[WRITE_WARP_VERTICES + i];
                 }
 
                 while(i<wd.upper_bound[WIB_IDX]
                         && wd.nclq_clqdeg_sum_o[WIB_IDX]+wd.ncand_clqdeg_sum_i[WIB_IDX]<wd.number_of_members[WIB_IDX]*dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+i]
                         && wd.nclq_clqdeg_sum_i[WIB_IDX]+wd.ncand_clqdeg_sum_o[WIB_IDX]<wd.number_of_members[WIB_IDX]*dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+i])
                 {
-                    wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->temp_int_array_4[warp_write + i];
-                    wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->temp_int_array_5[warp_write + i];
+                    wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->temp_int_array_4[WRITE_WARP_VERTICES + i];
+                    wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->temp_int_array_5[WRITE_WARP_VERTICES + i];
                     i++;
                 }
 
@@ -1549,8 +1523,8 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
                     ntightened_max_cands = i;
                     while(i<wd.upper_bound[WIB_IDX])
                     {
-                        wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->temp_int_array_4[warp_write + i];
-                        wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->temp_int_array_5[warp_write + i];
+                        wd.ncand_clqdeg_sum_o[WIB_IDX] += dd->temp_int_array_4[WRITE_WARP_VERTICES + i];
+                        wd.ncand_clqdeg_sum_i[WIB_IDX] += dd->temp_int_array_5[WRITE_WARP_VERTICES + i];
                         i++;
                         if(wd.nclq_clqdeg_sum_o[WIB_IDX]+wd.ncand_clqdeg_sum_i[WIB_IDX]>=wd.number_of_members[WIB_IDX]*dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+i]
                             && wd.nclq_clqdeg_sum_i[WIB_IDX]+wd.ncand_clqdeg_sum_o[WIB_IDX]>=wd.number_of_members[WIB_IDX]*dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+i]){
