@@ -228,6 +228,14 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
                 cudaDeviceSynchronize();
             }
 
+            // // DEBUG - rm
+            // uint64_t* current_level = new uint64_t;
+            // chkerr(cudaMemcpy(current_level, h_dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+            // if (*current_level == 3) {
+            //     print_GPU_Data(h_dd, dss);
+            //     //print_All_Warp_Data_Sizes(h_dd, dss);
+            // }
+
             // FINISH LEVEL
             // determine whether maximal expansion has been accomplished, variables changed in 
             // kernel

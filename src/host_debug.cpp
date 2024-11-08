@@ -477,34 +477,34 @@ void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss)
     delete buffer_vertices;
 }
 
-// void print_All_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
-// {
-//     uint64_t* tasks_counts = new uint64_t[NUMBER_OF_WARPS];
-//     uint64_t* TASKS_SIZEs = new uint64_t[NUMBER_OF_WARPS];
-//     uint64_t* cliques_counts = new uint64_t[NUMBER_OF_WARPS];
-//     uint64_t* CLIQUES_SIZEs = new uint64_t[NUMBER_OF_WARPS];
+void print_All_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss)
+{
+    uint64_t* tasks_counts = new uint64_t[NUMBER_OF_WARPS];
+    uint64_t* TASKS_SIZEs = new uint64_t[NUMBER_OF_WARPS];
+    uint64_t* cliques_counts = new uint64_t[NUMBER_OF_WARPS];
+    uint64_t* CLIQUES_SIZEs = new uint64_t[NUMBER_OF_WARPS];
 
-//     chkerr(cudaMemcpy(tasks_counts, h_dd.wtasks_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
-//     chkerr(cudaMemcpy(cliques_counts, h_dd.wcliques_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
-//     for (int i = 0; i < NUMBER_OF_WARPS; i++) {
-//         chkerr(cudaMemcpy(TASKS_SIZEs + i, h_dd.wtasks_offset + (i * dss.WTASKS_OFFSET_SIZE) + tasks_counts[i], sizeof(uint64_t), cudaMemcpyDeviceToHost));
-//         chkerr(cudaMemcpy(CLIQUES_SIZEs + i, h_dd.wcliques_offset + (i * dss.WCLIQUES_OFFSET_SIZE) + cliques_counts[i], sizeof(uint64_t), cudaMemcpyDeviceToHost));
-//     }
+    chkerr(cudaMemcpy(tasks_counts, h_dd.wtasks_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(cliques_counts, h_dd.wcliques_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
+    for (int i = 0; i < NUMBER_OF_WARPS; i++) {
+        chkerr(cudaMemcpy(TASKS_SIZEs + i, h_dd.wtasks_offset + (i * dss.WTASKS_OFFSET_SIZE) + tasks_counts[i], sizeof(uint64_t), cudaMemcpyDeviceToHost));
+        chkerr(cudaMemcpy(CLIQUES_SIZEs + i, h_dd.wcliques_offset + (i * dss.WCLIQUES_OFFSET_SIZE) + cliques_counts[i], sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    }
 
-//     cout << "WTasks Sizes: " << flush;
-//     for (int i = 0; i < NUMBER_OF_WARPS; i++) {
-//         cout << i << ":" << tasks_counts[i] << " " << TASKS_SIZEs[i] << " " << flush;
-//     }
-//     cout << "\nWCliques Sizez: " << flush;
-//     for (int i = 0; i < NUMBER_OF_WARPS; i++) {
-//         cout << i << ":" << cliques_counts[i] << " " << CLIQUES_SIZEs[i] << " " << flush;
-//     }
+    cout << "WTasks Sizes: " << flush;
+    for (int i = 0; i < NUMBER_OF_WARPS; i++) {
+        cout << i << ":" << tasks_counts[i] << " " << TASKS_SIZEs[i] << " " << flush;
+    }
+    cout << "\nWCliques Sizez: " << flush;
+    for (int i = 0; i < NUMBER_OF_WARPS; i++) {
+        cout << i << ":" << cliques_counts[i] << " " << CLIQUES_SIZEs[i] << " " << flush;
+    }
 
-//     delete tasks_counts;
-//     delete TASKS_SIZEs;
-//     delete cliques_counts;
-//     delete CLIQUES_SIZEs;
-// }
+    delete tasks_counts;
+    delete TASKS_SIZEs;
+    delete cliques_counts;
+    delete CLIQUES_SIZEs;
+}
 
 // bool print_Warp_Data_Sizes_Every(GPU_Data& h_dd, int every, DS_Sizes& dss)
 // {

@@ -4,8 +4,8 @@ NVCC = nvcc
 
 # Compiler flags
 # NOTE - -O optimization flags cause bugs, don't use them
-NVCCFLAGS = -gencode arch=compute_80,code=sm_80 -std=c++11 -Xcompiler "-fopenmp"
-CXXFLAGS = -std=c++11 -fopenmp
+NVCCFLAGS = -gencode arch=compute_80,code=sm_80 -std=c++11 -Xcompiler "-fopenmp" -O0
+CXXFLAGS = -std=c++11 -fopenmp -O0
 NVCCLDFLAGS := -lmpi -Xcompiler "-fopenmp"
 CXXLDFLAGS := -lmpi -fopenmp
 INCLUDES = -Iinc

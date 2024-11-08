@@ -19,7 +19,7 @@ void print_GPU_Data(GPU_Data& h_dd, DS_Sizes& dss);
 // void print_CPU_Cliques(CPU_Cliques& hc);
 void print_vertices(Vertex* vertices, int size);
 // bool print_Data_Sizes_Every(GPU_Data& h_dd, int every, DS_Sizes& dss);
-// void print_All_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss);
+void print_All_Warp_Data_Sizes(GPU_Data& h_dd, DS_Sizes& dss);
 // bool print_Warp_Data_Sizes_Every(GPU_Data& h_dd, int every, DS_Sizes& dss);
 // void print_All_Warp_Data_Sizes_Every(GPU_Data& h_dd, int every, DS_Sizes& dss);
 
