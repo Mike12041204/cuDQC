@@ -1413,7 +1413,7 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
     uint32_t ncand_clqdeg_sum_i = 0;
     //lower & upper bound are initialized using the degree of vertex in S
     //and tighten using the degree of vertex in ext_S
-    int i;
+    int index;
     int ntightened_max_cands;
     uint32_t phelper1;
     uint32_t phelper2;
@@ -1426,7 +1426,7 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
     }
 
     // each lane gets partial results
-    for(i = LANE_IDX; i < wd.number_of_members[WIB_IDX]; i += WARP_SIZE) {
+    for(int i = LANE_IDX; i < wd.number_of_members[WIB_IDX]; i += WARP_SIZE) {
 
         // out direction
         nclq_clqdeg_sum_o += ld.vertices[i].out_mem_deg;
@@ -1501,37 +1501,37 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
             }
         }
     }
+    __syncwarp();
     
-    if(LANE_IDX == 0){
+    if(nmin_clq_clqdeg_o<dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]] || nmin_clq_clqdeg_i<dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]])//check the requirment of bound pruning rule
+    {
+        // ==== calculate L_min and U_min ====
+        //initialize lower bound
+        int nmin_cands = max((d_get_mindeg(wd.number_of_members[WIB_IDX], dd->minimum_out_degrees, (*dd->minimum_clique_size))-nmin_clq_clqdeg_o),
+                (d_get_mindeg(wd.number_of_members[WIB_IDX], dd->minimum_in_degrees, (*dd->minimum_clique_size))-nmin_clq_clqdeg_i));
+        int nmin_cands_o = nmin_cands;
 
-        if(nmin_clq_clqdeg_o<dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]] || nmin_clq_clqdeg_i<dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]])//check the requirment of bound pruning rule
-        {
-            // ==== calculate L_min and U_min ====
-            //initialize lower bound
-            int nmin_cands = max((d_get_mindeg(wd.number_of_members[WIB_IDX], dd->minimum_out_degrees, (*dd->minimum_clique_size))-nmin_clq_clqdeg_o),
-                    (d_get_mindeg(wd.number_of_members[WIB_IDX], dd->minimum_in_degrees, (*dd->minimum_clique_size))-nmin_clq_clqdeg_i));
-            int nmin_cands_o = nmin_cands;
+        while(nmin_cands_o<=nminclqdeg_candeg_o && nmin_clq_clqdeg_o+nmin_cands_o<dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+nmin_cands_o]){
+            nmin_cands_o++;
+        }
 
-            while(nmin_cands_o<=nminclqdeg_candeg_o && nmin_clq_clqdeg_o+nmin_cands_o<dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+nmin_cands_o]){
-                nmin_cands_o++;
-            }
+        if(nmin_clq_clqdeg_o+nmin_cands_o<dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+nmin_cands_o]){
+            wd.success[WIB_IDX] = false;
+            return;
+        }
 
-            if(nmin_clq_clqdeg_o+nmin_cands_o<dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+nmin_cands_o]){
-                wd.success[WIB_IDX] = false;
-                return;
-            }
+        int nmin_cands_i = nmin_cands;
 
-            int nmin_cands_i = nmin_cands;
+        while(nmin_cands_i<=nminclqdeg_candeg_i && nmin_clq_clqdeg_i+nmin_cands_i<dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+nmin_cands_i]){
+            nmin_cands_i++;
+        }
 
-            while(nmin_cands_i<=nminclqdeg_candeg_i && nmin_clq_clqdeg_i+nmin_cands_i<dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+nmin_cands_i]){
-                nmin_cands_i++;
-            }
+        if(nmin_clq_clqdeg_i+nmin_cands_i<dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+nmin_cands_i]){
+            wd.success[WIB_IDX] = false;
+            return;
+        }
 
-            if(nmin_clq_clqdeg_i+nmin_cands_i<dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+nmin_cands_i]){
-                wd.success[WIB_IDX] = false;
-                return;
-            }
-
+        if(LANE_IDX == 0){
             wd.lower_bound[WIB_IDX] = max(nmin_cands_o, nmin_cands_i);
 
             //initialize upper bound
@@ -1541,79 +1541,90 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
             if(wd.upper_bound[WIB_IDX]>number_of_candidates){
                 wd.upper_bound[WIB_IDX] = number_of_candidates;
             }
+        }
+        __syncwarp();
 
-            // ==== tighten lower bound and upper bound based on the clique degree of candidates ====
-            if(wd.lower_bound[WIB_IDX]<wd.upper_bound[WIB_IDX])
+        // ==== tighten lower bound and upper bound based on the clique degree of candidates ====
+        if(wd.lower_bound[WIB_IDX]<wd.upper_bound[WIB_IDX])
+        {
+            for(int i = LANE_IDX; i < wd.lower_bound[WIB_IDX]; i += WARP_SIZE)
             {
-                for(i=0;i<wd.lower_bound[WIB_IDX];i++)
+                ncand_clqdeg_sum_o += dd->temp_int_array_4[WRITE_WARP_VERTICES + i];
+                ncand_clqdeg_sum_i += dd->temp_int_array_5[WRITE_WARP_VERTICES + i];
+            }
+            for (int i = 1; i < 32; i *= 2) {
+                ncand_clqdeg_sum_o += __shfl_xor_sync(FULL_WARP, ncand_clqdeg_sum_o, i);
+                ncand_clqdeg_sum_i += __shfl_xor_sync(FULL_WARP, ncand_clqdeg_sum_i, i);
+            }
+
+            // no further purpose for multiple lanes so have them return early to prevent races
+            if(LANE_IDX != 0){
+                return;
+            }
+
+            index = wd.lower_bound[WIB_IDX];
+            while(index<wd.upper_bound[WIB_IDX]
+                    && nclq_clqdeg_sum_o+ncand_clqdeg_sum_i<wd.number_of_members[WIB_IDX]*dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+index]
+                    && nclq_clqdeg_sum_i+ncand_clqdeg_sum_o<wd.number_of_members[WIB_IDX]*dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+index])
+            {
+                ncand_clqdeg_sum_o += dd->temp_int_array_4[WRITE_WARP_VERTICES + index];
+                ncand_clqdeg_sum_i += dd->temp_int_array_5[WRITE_WARP_VERTICES + index];
+                index++;
+            }
+
+            if(nclq_clqdeg_sum_o+ncand_clqdeg_sum_o<wd.number_of_members[WIB_IDX]*dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+index]
+                && nclq_clqdeg_sum_i+ncand_clqdeg_sum_i<wd.number_of_members[WIB_IDX]*dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+index]){
+                wd.success[WIB_IDX] = false;
+                return;
+            }
+            else //tighten upper bound
+            {
+                wd.lower_bound[WIB_IDX] = index;
+
+                ntightened_max_cands = index;
+                while(index<wd.upper_bound[WIB_IDX])
                 {
-                    ncand_clqdeg_sum_o += dd->temp_int_array_4[WRITE_WARP_VERTICES + i];
-                    ncand_clqdeg_sum_i += dd->temp_int_array_5[WRITE_WARP_VERTICES + i];
+                    ncand_clqdeg_sum_o += dd->temp_int_array_4[WRITE_WARP_VERTICES + index];
+                    ncand_clqdeg_sum_i += dd->temp_int_array_5[WRITE_WARP_VERTICES + index];
+                    index++;
+                    if(nclq_clqdeg_sum_o+ncand_clqdeg_sum_i>=wd.number_of_members[WIB_IDX]*dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+index]
+                        && nclq_clqdeg_sum_i+ncand_clqdeg_sum_o>=wd.number_of_members[WIB_IDX]*dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+index]){
+                        ntightened_max_cands = index;
+                    }
+                }
+                if(wd.upper_bound[WIB_IDX]>ntightened_max_cands){
+                    wd.upper_bound[WIB_IDX] = ntightened_max_cands;
                 }
 
-                while(i<wd.upper_bound[WIB_IDX]
-                        && nclq_clqdeg_sum_o+ncand_clqdeg_sum_i<wd.number_of_members[WIB_IDX]*dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+i]
-                        && nclq_clqdeg_sum_i+ncand_clqdeg_sum_o<wd.number_of_members[WIB_IDX]*dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+i])
+                if(wd.lower_bound[WIB_IDX]>1)
                 {
-                    ncand_clqdeg_sum_o += dd->temp_int_array_4[WRITE_WARP_VERTICES + i];
-                    ncand_clqdeg_sum_i += dd->temp_int_array_5[WRITE_WARP_VERTICES + i];
-                    i++;
-                }
-
-                if(nclq_clqdeg_sum_o+ncand_clqdeg_sum_o<wd.number_of_members[WIB_IDX]*dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+i]
-                    && nclq_clqdeg_sum_i+ncand_clqdeg_sum_i<wd.number_of_members[WIB_IDX]*dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+i]){
-                    wd.success[WIB_IDX] = false;
-                    return;
-                }
-                else //tighten upper bound
-                {
-                    wd.lower_bound[WIB_IDX] = i;
-
-                    ntightened_max_cands = i;
-                    while(i<wd.upper_bound[WIB_IDX])
-                    {
-                        ncand_clqdeg_sum_o += dd->temp_int_array_4[WRITE_WARP_VERTICES + i];
-                        ncand_clqdeg_sum_i += dd->temp_int_array_5[WRITE_WARP_VERTICES + i];
-                        i++;
-                        if(nclq_clqdeg_sum_o+ncand_clqdeg_sum_i>=wd.number_of_members[WIB_IDX]*dd->minimum_out_degrees[wd.number_of_members[WIB_IDX]+i]
-                            && nclq_clqdeg_sum_i+ncand_clqdeg_sum_o>=wd.number_of_members[WIB_IDX]*dd->minimum_in_degrees[wd.number_of_members[WIB_IDX]+i]){
-                            ntightened_max_cands = i;
-                        }
-                    }
-                    if(wd.upper_bound[WIB_IDX]>ntightened_max_cands){
-                        wd.upper_bound[WIB_IDX] = ntightened_max_cands;
-                    }
-
-                    if(wd.lower_bound[WIB_IDX]>1)
-                    {
-                        wd.min_ext_out_deg[WIB_IDX] = d_get_mindeg(wd.number_of_members[WIB_IDX]+wd.lower_bound[WIB_IDX], dd->minimum_out_degrees, (*dd->minimum_clique_size));
-                        wd.min_ext_in_deg[WIB_IDX] = d_get_mindeg(wd.number_of_members[WIB_IDX]+wd.lower_bound[WIB_IDX], dd->minimum_in_degrees, (*dd->minimum_clique_size));
-                    }
+                    wd.min_ext_out_deg[WIB_IDX] = d_get_mindeg(wd.number_of_members[WIB_IDX]+wd.lower_bound[WIB_IDX], dd->minimum_out_degrees, (*dd->minimum_clique_size));
+                    wd.min_ext_in_deg[WIB_IDX] = d_get_mindeg(wd.number_of_members[WIB_IDX]+wd.lower_bound[WIB_IDX], dd->minimum_in_degrees, (*dd->minimum_clique_size));
                 }
             }
         }
-        else
-        {
-            wd.upper_bound[WIB_IDX] = number_of_candidates;
+    }
+    else
+    {
+        wd.upper_bound[WIB_IDX] = number_of_candidates;
 
-            if(wd.number_of_members[WIB_IDX]<(*dd->minimum_clique_size)){
-                wd.lower_bound[WIB_IDX] = (*dd->minimum_clique_size)-wd.number_of_members[WIB_IDX];
-            }
-            else{
-                wd.lower_bound[WIB_IDX] = 0;
-            }
+        if(wd.number_of_members[WIB_IDX]<(*dd->minimum_clique_size)){
+            wd.lower_bound[WIB_IDX] = (*dd->minimum_clique_size)-wd.number_of_members[WIB_IDX];
         }
+        else{
+            wd.lower_bound[WIB_IDX] = 0;
+        }
+    }
 
-        if(wd.number_of_members[WIB_IDX]+wd.upper_bound[WIB_IDX]<(*dd->minimum_clique_size)){
-            wd.success[WIB_IDX] = false;
-            return;
-        }
+    if(wd.number_of_members[WIB_IDX]+wd.upper_bound[WIB_IDX]<(*dd->minimum_clique_size)){
+        wd.success[WIB_IDX] = false;
+        return;
+    }
 
-        if(wd.upper_bound[WIB_IDX] < 0 || wd.upper_bound[WIB_IDX] < wd.lower_bound[WIB_IDX])
-        {
-            wd.success[WIB_IDX] = false;
-            return;
-        }
+    if(wd.upper_bound[WIB_IDX] < 0 || wd.upper_bound[WIB_IDX] < wd.lower_bound[WIB_IDX])
+    {
+        wd.success[WIB_IDX] = false;
+        return;
     }
 }
 
