@@ -1409,6 +1409,8 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
     //and tighten using the degree of vertex in ext_S
     int i;
     int ntightened_max_cands;
+    uint32_t phelper1;
+    uint32_t phelper2;
 
     if(LANE_IDX == 0){
         wd.min_ext_out_deg[WIB_IDX] = d_get_mindeg(wd.number_of_members[WIB_IDX] + 1, 
@@ -1417,7 +1419,8 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
             dd->minimum_in_degrees, (*dd->minimum_clique_size));
     }
 
-    for(i = 1; i < wd.number_of_members[WIB_IDX]; i++) {
+    // each lane gets partial results
+    for(i = LANE_IDX; i < wd.number_of_members[WIB_IDX]; i += WARP_SIZE) {
 
         // out direction
         nclq_clqdeg_sum_o += ld.vertices[i].out_mem_deg;
@@ -1455,6 +1458,41 @@ __device__ void d_calculate_LU_bounds(GPU_Data* dd, Warp_Data& wd, Local_Data& l
 
         if(nmin_clq_totaldeg_i > ld.vertices[i].in_mem_deg + ld.vertices[i].in_can_deg){
             nmin_clq_totaldeg_i = ld.vertices[i].in_mem_deg + ld.vertices[i].in_can_deg;
+        }
+    }
+
+    // lanes then combine results
+    for (int i = 1; i < 32; i *= 2) {
+        nclq_clqdeg_sum_o += __shfl_xor_sync(FULL_WARP, nclq_clqdeg_sum_o, i);
+        phelper1 = __shfl_xor_sync(FULL_WARP, nmin_clq_clqdeg_o, i);
+        phelper2 = __shfl_xor_sync(FULL_WARP, nminclqdeg_candeg_o, i);
+
+        if(nmin_clq_clqdeg_o > phelper1)
+        {
+            nmin_clq_clqdeg_o = phelper1;
+            nminclqdeg_candeg_o = phelper2;
+        }
+        else if(nmin_clq_clqdeg_o == phelper1)
+        {
+            if(nminclqdeg_candeg_o > phelper2){
+                nminclqdeg_candeg_o = phelper2;
+            }
+        }
+
+        nclq_clqdeg_sum_i += __shfl_xor_sync(FULL_WARP, nclq_clqdeg_sum_i, i);
+        phelper1 = __shfl_xor_sync(FULL_WARP, nmin_clq_clqdeg_i, i);
+        phelper2 = __shfl_xor_sync(FULL_WARP, nminclqdeg_candeg_i, i);
+
+        if(nmin_clq_clqdeg_i > phelper1)
+        {
+            nmin_clq_clqdeg_i = phelper1;
+            nminclqdeg_candeg_i = phelper2;
+        }
+        else if(nmin_clq_clqdeg_i == phelper1)
+        {
+            if(nminclqdeg_candeg_i > phelper2){
+                nminclqdeg_candeg_i = phelper2;
+            }
         }
     }
     
