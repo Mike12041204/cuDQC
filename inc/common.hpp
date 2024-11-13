@@ -231,17 +231,6 @@ struct Warp_Data
     int min_ext_in_deg[WARPS_PER_BLOCK];
     int lower_bound[WARPS_PER_BLOCK];
     int upper_bound[WARPS_PER_BLOCK];
-    // bound helpers
-    int nmin_clq_clqdeg_o[WARPS_PER_BLOCK];
-    int nminclqdeg_candeg_o[WARPS_PER_BLOCK];
-    int nmin_clq_totaldeg_o[WARPS_PER_BLOCK];
-    int nclq_clqdeg_sum_o[WARPS_PER_BLOCK];
-    int ncand_clqdeg_sum_o[WARPS_PER_BLOCK];
-    int nmin_clq_clqdeg_i[WARPS_PER_BLOCK];
-    int nminclqdeg_candeg_i[WARPS_PER_BLOCK];
-    int nmin_clq_totaldeg_i[WARPS_PER_BLOCK];
-    int nclq_clqdeg_sum_i[WARPS_PER_BLOCK];
-    int ncand_clqdeg_sum_i[WARPS_PER_BLOCK];
 };
 
 // LOCAL DATA
