@@ -89,17 +89,17 @@ class CPU_Graph
 {
     public:
 
-    int number_of_vertices;
-    int number_of_edges;
+    uint32_t number_of_vertices;
+    uint32_t number_of_edges;
     uint64_t number_of_lvl2adj;
     // one dimentional arrays of 1hop and 2hop neighbors and the offsets for each vertex 
-    int* out_neighbors;
-    uint64_t* out_offsets;
-    int* in_neighbors;
-    uint64_t* in_offsets;
-    int* twohop_neighbors;
+    uint32_t* out_neighbors;
+    uint32_t* out_offsets;
+    uint32_t* in_neighbors;
+    uint32_t* in_offsets;
+    uint32_t* twohop_neighbors;
     uint64_t* twohop_offsets;
-    int* original_id_map;
+    uint32_t* original_id_map;
 
     CPU_Graph(ifstream& graph_stream);
     ~CPU_Graph();

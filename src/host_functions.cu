@@ -677,8 +677,11 @@ void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_
 {
     uint64_t pneighbors_start;          // start of neighbors for pruning
     uint64_t pneighbors_end;
-    int i, j, nvertex_no, norder;
-    int* index2id;
+    int i;
+    int j;
+    uint32_t nvertex_no;
+    int norder;
+    uint32_t* index2id;
     int number_of_edges = 0;
     int number_of_lvl2adj = 0;
 	
@@ -701,7 +704,7 @@ void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_
 	map<int, int> id2index_map;
 
 	// index2id[i] = j, means that vertex at position i of vertices has id k
-	index2id = new int[number_of_candidates];
+	index2id = new uint32_t[number_of_candidates];
 
 	// for all vertices
 	for(i=0;i<number_of_candidates;i++)

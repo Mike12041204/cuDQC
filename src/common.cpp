@@ -34,8 +34,8 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
     
     out_nei = new vector<int>[number_of_vertices];
     in_nei = new vector<int>[number_of_vertices];
-    out_offsets = new uint64_t[number_of_vertices + 1];
-    in_offsets = new uint64_t[number_of_vertices + 1];
+    out_offsets = new uint32_t[number_of_vertices + 1];
+    in_offsets = new uint32_t[number_of_vertices + 1];
 	twohop_offsets = new uint64_t[number_of_vertices + 1];
 
 	out_offsets[0] = 0;
@@ -82,8 +82,8 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
 	}
 
 	// write to CSR arrays
-    out_neighbors = new int[number_of_edges];
-    in_neighbors = new int[number_of_edges];
+    out_neighbors = new uint32_t[number_of_edges];
+    in_neighbors = new uint32_t[number_of_edges];
 
     for(int i = 0; i < number_of_vertices; i++){
         out_size = out_nei[i].size();
@@ -483,7 +483,7 @@ void CPU_Graph::GenLevel2NBs()
 
 	number_of_lvl2adj = twohop_offsets[number_of_vertices];
 
-	twohop_neighbors = new int[number_of_lvl2adj];
+	twohop_neighbors = new uint32_t[number_of_lvl2adj];
 	
 	// transfer twohop neighbors
 	for(int i = 0; i < number_of_vertices; i++){
