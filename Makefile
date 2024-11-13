@@ -4,9 +4,9 @@ NVCC = nvcc
 
 # Compiler flags
 # NOTE - -O optimization flags cause bugs, don't use them
-NVCCFLAGS = -gencode arch=compute_80,code=sm_80 -std=c++11 -Xcompiler "-fopenmp" -O0
-CXXFLAGS = -std=c++11 -fopenmp -O0
-NVCCLDFLAGS := -lmpi -Xcompiler "-fopenmp"
+NVCCFLAGS = -gencode arch=compute_80,code=sm_80 -std=c++11 -Xcompiler "-fopenmp" -dc -c
+CXXFLAGS = -std=c++11 -fopenmp -c
+NVCCLDFLAGS := -lmpi -Xcompiler "-fopenmp" -rdc=true -lcudadevrt -arch=sm_80 -std=c++11
 CXXLDFLAGS := -lmpi -fopenmp
 INCLUDES = -Iinc
 
@@ -23,25 +23,25 @@ $(TARGET): $(OBJECTS)
 	$(NVCC) $^ -o $@ $(NVCCLDFLAGS)
 
 program.o: program.cu inc/common.hpp inc/host_functions.hpp inc/Quick_rmnonmax.h inc/host_debug.h
-	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) $< -o $@
 
 src/common.o: src/common.cpp inc/common.hpp
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) $< -o $@
 
 src/host_functions.o: src/host_functions.cu inc/common.hpp inc/host_functions.hpp inc/host_debug.h inc/device_kernels.hpp inc/cuTS_MPI.h
-	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) $< -o $@
 
 src/host_debug.o: src/host_debug.cpp inc/common.hpp inc/host_debug.h
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) $< -o $@
 
 src/device_kernels.o: src/device_kernels.cu inc/common.hpp inc/device_kernels.hpp
-	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) $< -o $@
 
 src/Quick_rmnonmax.o: src/Quick_rmnonmax.cpp inc/common.hpp inc/Quick_rmnonmax.h
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) $< -o $@
 
 src/cuTS_MPI.o: src/cuTS_MPI.cpp inc/common.hpp inc/cuTS_MPI.h
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) $< -o $@
 
 # various clean and print shortcuts
 .PHONY: c
