@@ -114,35 +114,54 @@ CPU_Graph::CPU_Graph(ifstream& graph_stream)
 void CPU_Graph::GenLevel2NBs()
 {
 	// each thread has arrays to work with
-	int* set_out_single, *set_in_single, *temp_array, *temp_array2, *pnb_list;
-	bool* pbflags;
+	int** set_out_single, **set_in_single, **temp_array, **temp_array2, **pnb_list;
+	bool** pbflags;
+	set_out_single = new int*[NUMBER_OF_HTHREADS];
+	set_in_single = new int*[NUMBER_OF_HTHREADS];
+	temp_array = new int*[NUMBER_OF_HTHREADS];
+	temp_array2 = new int*[NUMBER_OF_HTHREADS];
+	pnb_list = new int*[NUMBER_OF_HTHREADS];
+	pbflags = new bool*[NUMBER_OF_HTHREADS];
 
-	// these are all used as DIA arrays based on vertexids
-	set_out_single = new int[number_of_vertices];
-	set_in_single = new int[number_of_vertices];
-	temp_array = new int[number_of_vertices];
-	temp_array2 = new int[number_of_vertices];
-	pnb_list = new int[number_of_vertices];
-	pbflags = new bool[number_of_vertices];
+	//-------
+	// initialize each threads arrays
+#pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
+	for(int i=0; i<NUMBER_OF_HTHREADS; i++)
+	{
+		// these are all used as DIA arrays based on vertexids
+		set_out_single[i] = new int[number_of_vertices];
+		set_in_single[i] = new int[number_of_vertices];
+		temp_array[i] = new int[number_of_vertices];
+		temp_array2[i] = new int[number_of_vertices];
+		pnb_list[i] = new int[number_of_vertices];
+		pbflags[i] = new bool[number_of_vertices];
 
-	memset(set_out_single, 0, sizeof(int)*number_of_vertices);
-	memset(set_in_single, 0, sizeof(int)*number_of_vertices);
-	memset(temp_array, 0, sizeof(int)*number_of_vertices); //out
-	memset(temp_array2, 0, sizeof(int)*number_of_vertices); //in
-	memset(pbflags, 0, sizeof(bool)*number_of_vertices);
+		memset(set_out_single[i], 0, sizeof(int)*number_of_vertices);
+		memset(set_in_single[i], 0, sizeof(int)*number_of_vertices);
+		memset(temp_array[i], 0, sizeof(int)*number_of_vertices); //out
+		memset(temp_array2[i], 0, sizeof(int)*number_of_vertices); //in
+		memset(pbflags[i], 0, sizeof(bool)*number_of_vertices);
+	}
+
+	//-------
+//	int* set_out_single = new int[number_of_vertices];
+//	int* set_in_single = new int[number_of_vertices];
+//	memset(set_out_single, 0, sizeof(int)*number_of_vertices);
+//	memset(set_in_single, 0, sizeof(int)*number_of_vertices);
 
 	// initialize 2hop adj write location
 	int** mpplvl2_nbs = new int*[number_of_vertices]; // mpplvl2_nbs[i] = node i's level-2 neighbors, first element keeps the 2-hop-list length
 
 	// initialize vectors for temp work
-	vector<int> bi_nbs;
-	vector<int> vec_out;
-	vector<int> vec_in;
-	vector<int> temp_vec_out;
-	vector<int> temp_vec_in;
-	vector<int> temp_vec;
+	vector<int> bi_nbs[NUMBER_OF_HTHREADS];
+	vector<int> vec_out[NUMBER_OF_HTHREADS];
+	vector<int> vec_in[NUMBER_OF_HTHREADS];
+	vector<int> temp_vec_out[NUMBER_OF_HTHREADS];
+	vector<int> temp_vec_in[NUMBER_OF_HTHREADS];
+	vector<int> temp_vec[NUMBER_OF_HTHREADS];
 
 	// for each vertex
+#pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
 	for(int i=0; i<number_of_vertices; i++)
 	{
 		// temp array is out adj, temp array 2 is in adj
@@ -159,11 +178,11 @@ void CPU_Graph::GenLevel2NBs()
 		{
 			// set DIA so all vertices which are out adj to vertex i have value 1
 			for(uint64_t j=1; j<=out_size; j++)
-				temp_array[out_neighbors[out_offsets[i] + j - 1]] = 1;
+				temp_array[tid][out_neighbors[out_offsets[i] + j - 1]] = 1;
 
 			// same for in adj
 			for(uint64_t j=1; j<=in_size; j++)
-				temp_array2[in_neighbors[in_offsets[i] + j - 1]] = 1;
+				temp_array2[tid][in_neighbors[in_offsets[i] + j - 1]] = 1;
 
 
 			//get bidirectional connected neighbors, O and I
@@ -174,18 +193,18 @@ void CPU_Graph::GenLevel2NBs()
 				int v = out_neighbors[out_offsets[i] + j - 1];
 
 				// if the out adj is also in adj
-				if(temp_array2[v] == 1)
+				if(temp_array2[tid][v] == 1)
 
 					// add the vertex to bidirectional adj vector
-					bi_nbs.push_back(v);
+					bi_nbs[tid].push_back(v);
 
 				// else the adj is only out
 				else
 				{
 					// add to DIA and vector for out adj
 					// MIKE - do we really need set_out_single and set_in_single? I feel we should just continue to reference temp arrays since the are already DIA
-					set_out_single[v] = 1;
-					vec_out.push_back(v);
+					set_out_single[tid][v] = 1;
+					vec_out[tid].push_back(v);
 				}
 			}
 
@@ -196,11 +215,11 @@ void CPU_Graph::GenLevel2NBs()
 				int v = in_neighbors[in_offsets[i] + j - 1];
 
 				// if in adj is NOT also out adj
-				if(temp_array[v] == 0)
+				if(temp_array[tid][v] == 0)
 				{
 					// add to DIA and vector for in adj
-					set_in_single[v] = 1;
-					vec_in.push_back(v);
+					set_in_single[tid][v] = 1;
+					vec_in[tid].push_back(v);
 				}
 			}
 
@@ -220,23 +239,23 @@ void CPU_Graph::GenLevel2NBs()
 			do {
 				//update So and Si
 				// size of only out and in vertices
-				out_single_size = vec_out.size();
-				in_single_size = vec_in.size();
+				out_single_size = vec_out[tid].size();
+				in_single_size = vec_in[tid].size();
 
 				// for all bi adj
-				for(int j=0; j<bi_nbs.size();j++)
+				for(int j=0; j<bi_nbs[tid].size();j++)
 				{
 					// add back in bi adj to out and in adj
-					vec_out.push_back(bi_nbs[j]);
-					vec_in.push_back(bi_nbs[j]);
+					vec_out[tid].push_back(bi_nbs[tid][j]);
+					vec_in[tid].push_back(bi_nbs[tid][j]);
 				}
 
 				//check the 1-hop neighbors which only connected in one direction
 				// for all out adj
-				for(int j=0; j<vec_out.size();j++)
+				for(int j=0; j<vec_out[tid].size();j++)
 				{
 					// get out adj vertexid
-					int vn = vec_out[j];
+					int vn = vec_out[tid][j];
 
 					// for all out adj of out vertex
 					for(uint64_t k=1; k<=out_offsets[vn + 1] - out_offsets[vn]; k++)
@@ -245,22 +264,22 @@ void CPU_Graph::GenLevel2NBs()
 						nb = out_neighbors[out_offsets[vn] + k - 1];
 
 						// if it is a current valid in adj 
-						if(set_in_single[nb] == round)
+						if(set_in_single[tid][nb] == round)
 						{
 							// continue it as a valid in adj
-							set_in_single[nb]++;
+							set_in_single[tid][nb]++;
 
 							// add it to the next level in adj vector
-							temp_vec_in.push_back(nb);
+							temp_vec_in[tid].push_back(nb);
 						}
 					}
 				}
 
 				// for all in adj, same as last for
-				for(int j=0; j<vec_in.size();j++)
+				for(int j=0; j<vec_in[tid].size();j++)
 				{
 					// get vertexid
-					int vn = vec_in[j];
+					int vn = vec_in[tid][j];
 
 					// for all in adj of in adj
 					for(uint64_t k=1; k<=in_offsets[vn + 1] - in_offsets[vn]; k++)
@@ -269,62 +288,62 @@ void CPU_Graph::GenLevel2NBs()
 						nb = in_neighbors[in_offsets[vn] + k - 1];
 
 						// if vertex is out adj
-						if(set_out_single[nb] == round)
+						if(set_out_single[tid][nb] == round)
 						{
 							// continue as out adj
-							set_out_single[nb]++;
+							set_out_single[tid][nb]++;
 
 							// add out adj to next level vector
-							temp_vec_out.push_back(nb);
+							temp_vec_out[tid].push_back(nb);
 						}
 					}
 				}
 
 				// set out and in vectors as temp next level ones
-				vec_out.swap(temp_vec_out);
-				vec_in.swap(temp_vec_in);
+				vec_out[tid].swap(temp_vec_out[tid]);
+				vec_in[tid].swap(temp_vec_in[tid]);
 
 				// clear temp vectors
-				temp_vec_out.clear();
-				temp_vec_in.clear();
+				temp_vec_out[tid].clear();
+				temp_vec_in[tid].clear();
 
 				// increment round counter
 				round++;
 
 				// continue while some in or out adj has been removed in the last level
-			} while(vec_out.size()<out_single_size || vec_in.size()<in_single_size);
+			} while(vec_out[tid].size()<out_single_size || vec_in[tid].size()<in_single_size);
 
 			//reset single set
 			for(uint64_t j=1; j<=out_size; j++)
-				set_out_single[out_neighbors[out_offsets[i] + j - 1]] = 0;
+				set_out_single[tid][out_neighbors[out_offsets[i] + j - 1]] = 0;
 
 			for(uint64_t j=1; j<=in_size; j++)
-				set_in_single[in_neighbors[in_offsets[i] + j - 1]] = 0;
+				set_in_single[tid][in_neighbors[in_offsets[i] + j - 1]] = 0;
 			//reset gptemp_array
 			for(uint64_t j=1; j<=out_size; j++)
-				temp_array[out_neighbors[out_offsets[i] + j - 1]] = 0;
+				temp_array[tid][out_neighbors[out_offsets[i] + j - 1]] = 0;
 
 			for(uint64_t j=1; j<=in_size; j++)
-				temp_array2[in_neighbors[in_offsets[i] + j - 1]] = 0;
+				temp_array2[tid][in_neighbors[in_offsets[i] + j - 1]] = 0;
 
 			//add bidirectional neighbors into 2hop nbs
 			uint64_t nlist_len = 0;
-			for (int j=0; j<bi_nbs.size(); j++)
+			for (int j=0; j<bi_nbs[tid].size(); j++)
 			{
-				pnb_list[nlist_len++] = bi_nbs[j];
-				pbflags[bi_nbs[j]] = true;
+				pnb_list[tid][nlist_len++] = bi_nbs[tid][j];
+				pbflags[tid][bi_nbs[tid][j]] = true;
 			}
 
 			//add single out & in 1hop neighbors
-			for (int j=0; j<vec_out.size(); j++)
+			for (int j=0; j<vec_out[tid].size(); j++)
 			{
-				pnb_list[nlist_len++] = vec_out[j];
-				pbflags[vec_out[j]] = true;
+				pnb_list[tid][nlist_len++] = vec_out[tid][j];
+				pbflags[tid][vec_out[tid][j]] = true;
 			}
-			for (int j=0; j<vec_in.size(); j++)
+			for (int j=0; j<vec_in[tid].size(); j++)
 			{
-				pnb_list[nlist_len++] = vec_in[j];
-				pbflags[vec_in[j]] = true;
+				pnb_list[tid][nlist_len++] = vec_in[tid][j];
+				pbflags[tid][vec_in[tid][j]] = true;
 			}
 
 			// MIKE - at this point
@@ -332,19 +351,19 @@ void CPU_Graph::GenLevel2NBs()
 			// pbflags: is DIA for each vertex on whether it is a twohop adj or not
 
 			// add back bi out and in adj to out and in adj vectors
-			for(int j=0; j<bi_nbs.size();j++)
+			for(int j=0; j<bi_nbs[tid].size();j++)
 			{
-				vec_out.push_back(bi_nbs[j]);
-				vec_in.push_back(bi_nbs[j]);
+				vec_out[tid].push_back(bi_nbs[tid][j]);
+				vec_in[tid].push_back(bi_nbs[tid][j]);
 			}
 
 			// MIKE - the next steps are performign the four unions of intersections described in the paper to find case B twohop adj
 
 			// for all out adj
-			for (int j=0; j<vec_out.size(); j++)
+			for (int j=0; j<vec_out[tid].size(); j++)
 			{
 				// get vertexid
-				int u = vec_out[j];
+				int u = vec_out[tid][j];
 
 				// for all out adj of out adj
 				for(uint64_t k=1; k<=out_offsets[u + 1] - out_offsets[u]; k++)
@@ -353,21 +372,21 @@ void CPU_Graph::GenLevel2NBs()
 					int v = out_neighbors[out_offsets[u] + k - 1];
 
 					// if vertex is not self and is not already 2hop adj and is not already considered in this step
-					if(v != i && pbflags[v] == false && temp_array[v] != 1)
+					if(v != i && pbflags[tid][v] == false && temp_array[tid][v] != 1)
 					{
 						// add to temp vector and mark as considered
 						// MIKE - do we need temp_vec here? Don't seem to use it
-						temp_vec.push_back(v);
-						temp_array[v]=1;
+						temp_vec[tid].push_back(v);
+						temp_array[tid][v]=1;
 					}
 				}
 			}
 
 			// for all out adj
-			for (int j=0; j<vec_out.size(); j++)
+			for (int j=0; j<vec_out[tid].size(); j++)
 			{
 				// get vertexid
-				int u = vec_out[j];
+				int u = vec_out[tid][j];
 
 				// for all in adj of out adj
 				for(uint64_t k=1; k<=in_offsets[u + 1] - in_offsets[u]; k++)
@@ -376,18 +395,18 @@ void CPU_Graph::GenLevel2NBs()
 					int v = in_neighbors[in_offsets[u] + k - 1];
 
 					// if made it through last step
-					if(temp_array[v] == 1)
+					if(temp_array[tid][v] == 1)
 
 						// mark as passing this step
-						temp_array[v]=2;
+						temp_array[tid][v]=2;
 				}
 			}
 
 			// for all in adj
-			for (int j=0; j<vec_in.size(); j++)
+			for (int j=0; j<vec_in[tid].size(); j++)
 			{
 				// get vertexid
-				int u = vec_in[j];
+				int u = vec_in[tid][j];
 
 				// for all out out adj of in adj
 				for(uint64_t k=1; k<=out_offsets[u + 1] - out_offsets[u]; k++)
@@ -396,18 +415,18 @@ void CPU_Graph::GenLevel2NBs()
 					int v = out_neighbors[out_offsets[u] + k - 1];
 
 					// if vertex passes last step
-					if(temp_array[v] == 2)
+					if(temp_array[tid][v] == 2)
 
 						// mark as passing this step
-						temp_array[v]=3;
+						temp_array[tid][v]=3;
 				}
 			}
 
 			// for all in adj
-			for (int j=0; j<vec_in.size(); j++)
+			for (int j=0; j<vec_in[tid].size(); j++)
 			{
 				// get vertexid
-				int u = vec_in[j];
+				int u = vec_in[tid][j];
 
 				// for all in adj of in adj
 				for(uint64_t k=1; k<=in_offsets[u + 1] - in_offsets[u]; k++)
@@ -416,39 +435,39 @@ void CPU_Graph::GenLevel2NBs()
 					int v = in_neighbors[in_offsets[u] + k - 1];
 
 					// if vertex passed last step and is not alreayd in twohop adj
-					if(temp_array[v] == 3 && pbflags[v] == false)
+					if(temp_array[tid][v] == 3 && pbflags[tid][v] == false)
 					{
 						// add to twohop adj
-						pbflags[v] = true;
-						pnb_list[nlist_len++] = v;
+						pbflags[tid][v] = true;
+						pnb_list[tid][nlist_len++] = v;
 					}
 				}
 			}
 
 			//reset gptemp_array
-			int temp_vec_size = temp_vec.size();
+			int temp_vec_size = temp_vec[tid].size();
 			for(int j=0; j<temp_vec_size; j++)
-				temp_array[temp_vec[j]] = 0;
+				temp_array[tid][temp_vec[tid][j]] = 0;
 
 			// sort twohop adj
 			if(nlist_len>1)
-				qsort(pnb_list, nlist_len, sizeof(int), comp_int);
+				qsort(pnb_list[tid], nlist_len, sizeof(int), comp_int);
 			
 			// allocate and copy final twohop adj location
 			mpplvl2_nbs[i] = new int[nlist_len+1];
 			mpplvl2_nbs[i][0] = nlist_len; //first element keeps the 2-hop-list length
 			if(nlist_len>0)
-				memcpy(&mpplvl2_nbs[i][1], pnb_list, sizeof(int)*nlist_len);
+				memcpy(&mpplvl2_nbs[i][1], pnb_list[tid], sizeof(int)*nlist_len);
 
 			// reset flags
 			for(uint64_t j=0;j<nlist_len;j++)
-				pbflags[pnb_list[j]] = false;
+				pbflags[tid][pnb_list[tid][j]] = false;
 
 			// clear memory
-			bi_nbs.clear();
-			vec_out.clear();
-			vec_in.clear();
-			temp_vec.clear();
+			bi_nbs[tid].clear();
+			vec_out[tid].clear();
+			vec_in[tid].clear();
+			temp_vec[tid].clear();
 		} else {
 			mpplvl2_nbs[i] = new int[1];
 			mpplvl2_nbs[i][0] = 0;
@@ -473,6 +492,16 @@ void CPU_Graph::GenLevel2NBs()
 		}
 	}
 
+	for(int i=0; i<NUMBER_OF_HTHREADS; i++)
+	{
+		delete []pbflags[i];
+		delete []pnb_list[i];
+		delete []set_out_single[i];
+		delete []set_in_single[i];
+		delete []temp_array[i];
+		delete []temp_array2[i];
+		delete[] mpplvl2_nbs[i];
+	}
 	delete []pbflags;
 	delete []pnb_list;
 	delete []set_out_single;
