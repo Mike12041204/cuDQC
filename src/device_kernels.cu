@@ -204,8 +204,6 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
     uint64_t helper4;
     Vertex* src;
     Vertex* dst;
-    uint64_t* srco;
-    uint64_t* dsto;
 
     if(LANE_IDX == 0){
         warp_tasks_count[WIB_IDX] = dd->wtasks_count[WARP_IDX];
@@ -342,18 +340,11 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
     // case 1 - tasks
     if(tasks_offset_write + warp_tasks_count[WIB_IDX] < *dd->EXPAND_THRESHOLD){
         // copy offsets
-        // move loop variable from shared memory to local memory
-        helper1 = warp_tasks_count[WIB_IDX];
-        // change values to be copied before copying
-        for(uint64_t i = LANE_IDX; i < helper1; i += WARP_SIZE){
-            dd->wtasks_offset[WRITE_WARP_TASKS_OFFSET + i + 1] += tasks_write;
+        for(uint64_t i = LANE_IDX; i < warp_tasks_count[WIB_IDX]; i += WARP_SIZE){
+            dd->tasks_offset[tasks_offset_write + i] = 
+                dd->wtasks_offset[WRITE_WARP_TASKS_OFFSET + i + 1] + tasks_write;
         }
-        __syncwarp();
-        // copy offsets and vertices
         if(LANE_IDX == 0){
-            dsto = dd->tasks_offset;
-            srco = dd->wtasks_offset + WRITE_WARP_TASKS_OFFSET + 1;
-            cudaMemcpyAsync(dsto, srco, helper1 * sizeof(uint64_t), cudaMemcpyDeviceToDevice);
             dst = dd->tasks_vertices + tasks_write;
             src = dd->wtasks_vertices + WRITE_WARP_TASKS;
             cudaMemcpyAsync(dst, src, warp_tasks_size[WIB_IDX] * sizeof(Vertex), 
