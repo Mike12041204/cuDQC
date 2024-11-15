@@ -5,9 +5,7 @@ NVCC = nvcc
 # Compiler flags
 # NOTE - -O optimization flags cause bugs, don't use them
 NVCCFLAGS = -gencode arch=compute_80,code=sm_80 -std=c++11 -Xcompiler "-fopenmp" -dc -c
-CXXFLAGS = -std=c++11 -fopenmp -c
 NVCCLDFLAGS := -lmpi -Xcompiler "-fopenmp" -rdc=true -lcudadevrt -arch=sm_80 -std=c++11
-CXXLDFLAGS := -lmpi -fopenmp
 INCLUDES = -Iinc
 
 OBJECTS = program.o src/common.o src/host_functions.o src/Quick_rmnonmax.o src/host_debug.o src/device_kernels.o src/cuTS_MPI.o
