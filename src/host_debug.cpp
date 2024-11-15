@@ -190,35 +190,35 @@ void print_graph(CPU_Graph& hg)
         << " |2hop| = " << hg.number_of_lvl2adj << endl << endl;
 }
 
-// void print_CPU_Graph(CPU_Graph& hg) {
-//     cout << endl << " --- (CPU_Graph)host_graph details --- " << endl;
-//     cout << endl << "|V|: " << hg.number_of_vertices << " |E|: " << hg.number_of_edges << endl;
-//     cout << endl << "Out Offsets:" << endl;
-//     for (int i = 0; i <= hg.number_of_vertices; i++) {
-//         cout << hg.out_offsets[i] << " ";
-//     }
-//     cout << endl << "Out Neighbors:" << endl;
-//     for (int i = 0; i < hg.number_of_edges; i++) {
-//         cout << hg.out_neighbors[i] << " ";
-//     }
-//     cout << endl << "In Offsets:" << endl;
-//     for (int i = 0; i <= hg.number_of_vertices; i++) {
-//         cout << hg.in_offsets[i] << " ";
-//     }
-//     cout << endl << "In Neighbors:" << endl;
-//     for (int i = 0; i < hg.number_of_edges; i++) {
-//         cout << hg.in_neighbors[i] << " ";
-//     }
-//     cout << endl << "Twohop Offsets:" << endl;
-//     for (uint64_t i = 0; i <= hg.number_of_vertices; i++) {
-//         cout << hg.twohop_offsets[i] << " ";
-//     }
-//     cout << endl << "Twohop Neighbors:" << endl;
-//     for (uint64_t i = 0; i < hg.number_of_lvl2adj; i++) {
-//         cout << hg.twohop_neighbors[i] << " ";
-//     }
-//     cout << endl << endl;
-// }
+void print_CPU_Graph(CPU_Graph& hg) {
+    cout << endl << " --- (CPU_Graph)host_graph details --- " << endl;
+    cout << endl << "|V|: " << hg.number_of_vertices << " |E|: " << hg.number_of_edges << endl;
+    cout << endl << "Out Offsets:" << endl;
+    for (int i = 0; i <= hg.number_of_vertices; i++) {
+        cout << hg.out_offsets[i] << " ";
+    }
+    cout << endl << "Out Neighbors:" << endl;
+    for (int i = 0; i < hg.number_of_edges; i++) {
+        cout << hg.out_neighbors[i] << " ";
+    }
+    cout << endl << "In Offsets:" << endl;
+    for (int i = 0; i <= hg.number_of_vertices; i++) {
+        cout << hg.in_offsets[i] << " ";
+    }
+    cout << endl << "In Neighbors:" << endl;
+    for (int i = 0; i < hg.number_of_edges; i++) {
+        cout << hg.in_neighbors[i] << " ";
+    }
+    cout << endl << "Twohop Offsets:" << endl;
+    for (uint64_t i = 0; i <= hg.number_of_vertices; i++) {
+        cout << hg.twohop_offsets[i] << " ";
+    }
+    cout << endl << "Twohop Neighbors:" << endl;
+    for (uint64_t i = 0; i < hg.number_of_lvl2adj; i++) {
+        cout << hg.twohop_neighbors[i] << " ";
+    }
+    cout << endl << endl;
+}
 
 // void print_GPU_Graph(GPU_Data& h_dd, CPU_Graph& hg)
 // {
