@@ -676,411 +676,409 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
 
 // after initialization we can condense graph so we do not have to consider vertices that were
 // pruned in 0th level and thus will not be needed by any task
-// NEW CODE
-// void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_of_candidates)
-// {
-//     map<int, int> vertexid_to_index;
-//     vector<int>* results;
-//     uint64_t pneighbors_start;
-//     uint64_t pneighbors_end;
-//     int pvertexid;
-//     int phelper1;
-//     int phelper2;
-//     int number_of_edges;
-//     uint64_t number_of_lvl2adj;
-
-//     results = new vector<int>[number_of_candidates];
-
-//     number_of_lvl2adj = 0;
-//     number_of_edges = 0;
-//     hg.twohop_offsets[0] = 0;
-
-//     // initialize vertex map
-// 	for(int i = 0; i < number_of_candidates; i++){
-// 		hd.vertex_order_map[vertices[i].vertexid] = i;
-//     }
-
-//     hg.original_id_map = new int[number_of_candidates];
-
-//     // initialize vertexid to index maps
-//     for(int i = 0; i < number_of_candidates; i++){
-//         pvertexid = vertices[i].vertexid;
-//         hg.original_id_map[i] = pvertexid;
-//         vertexid_to_index[pvertexid] = i;
-//     }
-
-//     // condense twohop adj
-//     for(int i = 0; i < number_of_candidates; i++){
-//         pvertexid = vertices[i].vertexid;
-
-//         pneighbors_start = hg.twohop_offsets[pvertexid];
-//         pneighbors_end = hg.twohop_offsets[pvertexid + 1];
-
-//         for(uint64_t j = pneighbors_start; j < pneighbors_end; j++){
-//             phelper1 = hg.twohop_neighbors[j];
-//             phelper2 = hd.vertex_order_map[phelper1];
-
-//             if(phelper2 > -1){
-//                 results[i].push_back(vertexid_to_index[phelper1]);
-//             }
-//         }
-
-//         sort(results[i].begin(), results[i].end());
-//         number_of_lvl2adj += results[i].size();
-
-//         // we calculate twohop adj as biproduct of condensing graph, used for lookahead pruning
-//         vertices[i].lvl2adj = results[i].size();
-//     }
-
-//     // rewrite twohop adj
-//     for(int i = 0; i < number_of_candidates; i++){
-//         hg.twohop_offsets[i + 1] = hg.twohop_offsets[i] + results[i].size();
-
-// 		pneighbors_start = hg.twohop_offsets[i];
-//         pneighbors_end = results[i].size();
-// 		for(uint64_t j = 0; j < pneighbors_end; j++){
-// 			hg.twohop_neighbors[pneighbors_start + j] = results[i].at(j);
-// 		}
-
-//         // reset results
-//         results[i].clear();
-//     }
-
-//     // condense out adj
-//     for(int i = 0; i < number_of_candidates; i++){
-//         pvertexid = vertices[i].vertexid;
-
-//         pneighbors_start = hg.out_offsets[pvertexid];
-//         pneighbors_end = hg.out_offsets[pvertexid + 1];
-
-//         for(uint64_t j = pneighbors_start; j < pneighbors_end; j++){
-//             phelper1 = hg.out_neighbors[j];
-//             phelper2 = hd.vertex_order_map[phelper1];
-
-//             if(phelper2 > -1){
-//                 results[i].push_back(vertexid_to_index[phelper1]);
-//             }
-//         }
-
-//         sort(results[i].begin(), results[i].end());
-//         number_of_edges += results[i].size();
-//     }
-
-//     // rewrite out adj
-//     for(int i = 0; i < number_of_candidates; i++){
-//         hg.out_offsets[i + 1] = hg.out_offsets[i] + results[i].size();
-
-// 		pneighbors_start = hg.out_offsets[i];
-//         pneighbors_end = results[i].size();
-// 		for(uint64_t j = 0; j < pneighbors_end; j++){
-// 			hg.out_neighbors[pneighbors_start + j] = results[i].at(j);
-// 		}
-
-//         // reset results
-//         results[i].clear();
-//     }
-
-//     // condense in adj
-//     for(int i = 0; i < number_of_candidates; i++){
-//         pvertexid = vertices[i].vertexid;
-
-//         pneighbors_start = hg.in_offsets[pvertexid];
-//         pneighbors_end = hg.in_offsets[pvertexid + 1];
-
-//         for(uint64_t j = pneighbors_start; j < pneighbors_end; j++){
-//             phelper1 = hg.in_neighbors[j];
-//             phelper2 = hd.vertex_order_map[phelper1];
-
-//             if(phelper2 > -1){
-//                 results[i].push_back(vertexid_to_index[phelper1]);
-//             }
-//         }
-
-//         sort(results[i].begin(), results[i].end());
-//     }
-
-//     // rewrite in adj
-//     for(int i = 0; i < number_of_candidates; i++){
-//         hg.in_offsets[i + 1] = hg.in_offsets[i] + results[i].size();
-
-// 		pneighbors_start = hg.in_offsets[i];
-//         pneighbors_end = results[i].size();
-// 		for(uint64_t j = 0; j < pneighbors_end; j++){
-// 			hg.in_neighbors[pneighbors_start + j] = results[i].at(j);
-// 		}
-
-//         // reset results
-//         results[i].clear();
-//     }
-
-//     // reset vertex order map
-//     for (int i = 0; i < number_of_candidates; i++) {
-//         hd.vertex_order_map[vertices[i].vertexid] = -1;
-//     }
-
-//     // translate vertex ids to indices
-//     for(int i = 0; i < number_of_candidates; i++){
-// 		vertices[i].vertexid = i;
-//     }
-
-//     // update number of vertices in graph
-// 	hg.number_of_vertices = number_of_candidates;
-//     hg.number_of_edges = number_of_edges;
-//     hg.number_of_lvl2adj = number_of_lvl2adj;
-
-//     delete[] results;
-// }
-
-// after initialization we can condense graph so we do not have to consider vertices that were
-// pruned in 0th level and thus will not be needed by any task
-// OLD CODE
 void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_of_candidates)
 {
-    uint64_t pneighbors_start;          // start of neighbors for pruning
+    map<int, int> vertexid_to_index;
+    vector<int>* results;
+    uint64_t pneighbors_start;
     uint64_t pneighbors_end;
-    int i, j, nvertex_no, norder;
-    int* index2id;
-    int number_of_edges = 0;
-    int number_of_lvl2adj = 0;
-	
-	// initialize vertex map
-	for(i=0;i<number_of_candidates;i++){
+    int pvertexid;
+    int phelper1;
+    int phelper2;
+    int number_of_edges;
+    uint64_t number_of_lvl2adj;
+
+    results = new vector<int>[number_of_candidates];
+
+    number_of_lvl2adj = 0;
+    number_of_edges = 0;
+    hg.twohop_offsets[0] = 0;
+
+    // initialize vertex map
+	for(int i = 0; i < number_of_candidates; i++){
 		hd.vertex_order_map[vertices[i].vertexid] = i;
     }
 
-	// declare and initialize new adj arrays
-	int nlist_len, ncand_nbs, **ppnew_adjlists_o, **ppnew_adjlists_i, **ppnew_lvl2_nbs, v_index;
-	ppnew_adjlists_o = new int*[number_of_candidates];
-	ppnew_adjlists_i = new int*[number_of_candidates];
-	ppnew_lvl2_nbs = new int*[number_of_candidates];
+    hg.original_id_map = new int[number_of_candidates];
 
-    int* gptemp_array = new int[hg.number_of_vertices];
+    // initialize vertexid to index maps
+    for(int i = 0; i < number_of_candidates; i++){
+        pvertexid = vertices[i].vertexid;
+        hg.original_id_map[i] = pvertexid;
+        vertexid_to_index[pvertexid] = i;
+    }
 
-	//translate candidate vertex id to index
+    // condense twohop adj
+    for(int i = 0; i < number_of_candidates; i++){
+        pvertexid = vertices[i].vertexid;
 
-	// id2index[i] = j, means vertex with id i is in position k of vertices
-	map<int, int> id2index_map;
+        pneighbors_start = hg.twohop_offsets[pvertexid];
+        pneighbors_end = hg.twohop_offsets[pvertexid + 1];
 
-	// index2id[i] = j, means that vertex at position i of vertices has id k
-	index2id = new int[number_of_candidates];
+        for(uint64_t j = pneighbors_start; j < pneighbors_end; j++){
+            phelper1 = hg.twohop_neighbors[j];
+            phelper2 = hd.vertex_order_map[phelper1];
 
-	// for all vertices
-	for(i=0;i<number_of_candidates;i++)
-	{
-		// get vertex id
-		nvertex_no = vertices[i].vertexid;
-		
-		// set index2id position i (index in vertices array) to the id of the given vertex
-		index2id[i] = nvertex_no;
-
-		// in id2index map the id of the given vertex to position i (idex in vertices array)
-		id2index_map[nvertex_no] = i;
-	}
-
-    // save index2id in graph to covert back at the end of the program
-    hg.original_id_map = index2id;
-
-	//reset 2hop adj
-	// for all vertices
-	for(i=0;i<number_of_candidates;i++)
-	{
-		nlist_len = 0;
-		ncand_nbs = 0;
-
-		// get vertex id
-		nvertex_no = vertices[i].vertexid;
-
-		// get vertex index in vertices
-		v_index = id2index_map[nvertex_no];
-        pneighbors_start = hg.twohop_offsets[nvertex_no];
-        pneighbors_end = hg.twohop_offsets[nvertex_no + 1];
-
-        // for all twohop adj
-        for(j=pneighbors_start;j<pneighbors_end;j++)
-        {
-            // get index in vertices of twohop adj
-            norder = hd.vertex_order_map[hg.twohop_neighbors[j]];
-
-            // if twohop adj was in vertices
-            if(norder>=0)
-            {
-                //add nb's translated id
-                // add the translated id of the twohop adj to the vertices new twohop adj list
-                gptemp_array[nlist_len++] = id2index_map[hg.twohop_neighbors[j]];
-
-                // not sure why this variable exists has same value as nlist_len
-                ncand_nbs++;
-
-                number_of_lvl2adj++;
+            if(phelper2 > -1){
+                results[i].push_back(vertexid_to_index[phelper1]);
             }
         }
 
-		// if vertex had some twohop adj
-		if(nlist_len>0)
-		{
-			// make new array for vertex
-			ppnew_lvl2_nbs[v_index] = new int[nlist_len+1];
+        sort(results[i].begin(), results[i].end());
+        number_of_lvl2adj += results[i].size();
 
-			// set array size indicator
-			ppnew_lvl2_nbs[v_index][0] = nlist_len;
+        // we calculate twohop adj as biproduct of condensing graph, used for lookahead pruning
+        vertices[i].lvl2adj = results[i].size();
+    }
 
-			// copy twohop adj to array
-			memcpy(&ppnew_lvl2_nbs[v_index][1], gptemp_array, sizeof(int)*nlist_len);
+    // rewrite twohop adj
+    for(int i = 0; i < number_of_candidates; i++){
+        hg.twohop_offsets[i + 1] = hg.twohop_offsets[i] + results[i].size();
 
-			// sort array
-			qsort(&ppnew_lvl2_nbs[v_index][1], ppnew_lvl2_nbs[i][0], sizeof(int), comp_int);
+		pneighbors_start = hg.twohop_offsets[i];
+        pneighbors_end = results[i].size();
+		for(uint64_t j = 0; j < pneighbors_end; j++){
+			hg.twohop_neighbors[pneighbors_start + j] = results[i].at(j);
 		}
 
-		// as byproduct of condensing graph we calculate lvl2adj of vertices
-        // used for lookahead pruning
-		vertices[i].lvl2adj = ncand_nbs;
-	}
+        // reset results
+        results[i].clear();
+    }
 
+    // condense out adj
+    for(int i = 0; i < number_of_candidates; i++){
+        pvertexid = vertices[i].vertexid;
 
-	//reset 1hop adj
-	// for all vertices
-	for(i=0;i<number_of_candidates;i++)
-	{
-		// reset out-direction
-		nlist_len = 0;
-		ncand_nbs = 0;
+        pneighbors_start = hg.out_offsets[pvertexid];
+        pneighbors_end = hg.out_offsets[pvertexid + 1];
 
-		// get vertex id and index
-		nvertex_no = vertices[i].vertexid;
-		v_index = id2index_map[nvertex_no];
+        for(uint64_t j = pneighbors_start; j < pneighbors_end; j++){
+            phelper1 = hg.out_neighbors[j];
+            phelper2 = hd.vertex_order_map[phelper1];
 
-        pneighbors_start = hg.out_offsets[nvertex_no];
-        pneighbors_end = hg.out_offsets[nvertex_no + 1];
-
-        // for all out adj
-        for(j=pneighbors_start;j<pneighbors_end;j++)
-        {
-            // get out adj position in vertices
-            norder = hd.vertex_order_map[hg.out_neighbors[j]];
-
-            // if it exists in vertices
-            if(norder>=0)
-            {
-                // add out adj translated id to new out adj
-                gptemp_array[nlist_len++] = id2index_map[hg.out_neighbors[j]];
-                ncand_nbs++;
-
-                number_of_edges++;
+            if(phelper2 > -1){
+                results[i].push_back(vertexid_to_index[phelper1]);
             }
         }
 
-		//check cand degree
-		if(vertices[i].out_can_deg!=ncand_nbs)
-			printf("Error: inconsistent candidate degree\n");
+        sort(results[i].begin(), results[i].end());
+        number_of_edges += results[i].size();
+    }
 
-		// if some new out adj found copy to new main list
-		if(nlist_len>0)
-		{
-			ppnew_adjlists_o[v_index] = new int[nlist_len+1];
-			ppnew_adjlists_o[v_index][0] = nlist_len;
-			memcpy(&ppnew_adjlists_o[v_index][1], gptemp_array, sizeof(int)*nlist_len);
-			qsort(&ppnew_adjlists_o[v_index][1], ppnew_adjlists_o[i][0], sizeof(int), comp_int);
+    // rewrite out adj
+    for(int i = 0; i < number_of_candidates; i++){
+        hg.out_offsets[i + 1] = hg.out_offsets[i] + results[i].size();
+
+		pneighbors_start = hg.out_offsets[i];
+        pneighbors_end = results[i].size();
+		for(uint64_t j = 0; j < pneighbors_end; j++){
+			hg.out_neighbors[pneighbors_start + j] = results[i].at(j);
 		}
 
-		// reset in-direction
-		nlist_len = 0;
-		ncand_nbs = 0;
+        // reset results
+        results[i].clear();
+    }
 
-        pneighbors_start = hg.in_offsets[nvertex_no];
-        pneighbors_end = hg.in_offsets[nvertex_no + 1];
+    // condense in adj
+    for(int i = 0; i < number_of_candidates; i++){
+        pvertexid = vertices[i].vertexid;
 
-        // for all in adj
-        for(j=pneighbors_start;j<pneighbors_end;j++)
-        {
-            // get position of in adj in vertices
-            norder = hd.vertex_order_map[hg.in_neighbors[j]];
+        pneighbors_start = hg.in_offsets[pvertexid];
+        pneighbors_end = hg.in_offsets[pvertexid + 1];
 
-            // if in adj is in vertices
-            if(norder>=0)
-            {
-                // add in aj translated id to new in adj
-                gptemp_array[nlist_len++] = id2index_map[hg.in_neighbors[j]];
-                ncand_nbs++;
+        for(uint64_t j = pneighbors_start; j < pneighbors_end; j++){
+            phelper1 = hg.in_neighbors[j];
+            phelper2 = hd.vertex_order_map[phelper1];
+
+            if(phelper2 > -1){
+                results[i].push_back(vertexid_to_index[phelper1]);
             }
         }
 
-		//check cand degree
-		if(vertices[i].in_can_deg!=ncand_nbs)
-			printf("Error: inconsistent candidate degree\n");
+        sort(results[i].begin(), results[i].end());
+    }
 
-		// if therer were some in adj copy to new main list
-		if(nlist_len>0)
-		{
-			ppnew_adjlists_i[v_index] = new int[nlist_len+1];
-			ppnew_adjlists_i[v_index][0] = nlist_len;
-			memcpy(&ppnew_adjlists_i[v_index][1], gptemp_array, sizeof(int)*nlist_len);
-			qsort(&ppnew_adjlists_i[v_index][1], ppnew_adjlists_i[i][0], sizeof(int), comp_int);
+    // rewrite in adj
+    for(int i = 0; i < number_of_candidates; i++){
+        hg.in_offsets[i + 1] = hg.in_offsets[i] + results[i].size();
+
+		pneighbors_start = hg.in_offsets[i];
+        pneighbors_end = results[i].size();
+		for(uint64_t j = 0; j < pneighbors_end; j++){
+			hg.in_neighbors[pneighbors_start + j] = results[i].at(j);
 		}
 
-	}
+        // reset results
+        results[i].clear();
+    }
 
     // reset vertex order map
     for (int i = 0; i < number_of_candidates; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = -1;
     }
 
-	//translate pvertex
-	// for all vertices
-	for(i=0;i<number_of_candidates;i++)
-		// convert vertex id to translated id
+    // translate vertex ids to indices
+    for(int i = 0; i < number_of_candidates; i++){
 		vertices[i].vertexid = i;
-
-	// transfer twohop offsets
-	hg.twohop_offsets[0] = 0;
-	for(int i = 0; i < number_of_candidates; i++){
-		hg.twohop_offsets[i + 1] = hg.twohop_offsets[i] + ppnew_lvl2_nbs[i][0];
-	}
-	// transfer twohop neighbors
-	for(int i = 0; i < number_of_candidates; i++){
-		for(uint64_t j = 0; j < hg.twohop_offsets[i + 1] - hg.twohop_offsets[i]; j++){
-			hg.twohop_neighbors[hg.twohop_offsets[i] + j] = ppnew_lvl2_nbs[i][j + 1];
-		}
-	}
-
-    // transfer out offsets
-	hg.out_offsets[0] = 0;
-	for(int i = 0; i < number_of_candidates; i++){
-		hg.out_offsets[i + 1] = hg.out_offsets[i] + ppnew_adjlists_o[i][0];
-	}
-	// transfer out neighbors
-	for(int i = 0; i < number_of_candidates; i++){
-		for(uint64_t j = 0; j < hg.out_offsets[i + 1] - hg.out_offsets[i]; j++){
-			hg.out_neighbors[hg.out_offsets[i] + j] = ppnew_adjlists_o[i][j + 1];
-		}
-	}
-
-    // transfer out offsets
-	hg.in_offsets[0] = 0;
-	for(int i = 0; i < number_of_candidates; i++){
-		hg.in_offsets[i + 1] = hg.in_offsets[i] + ppnew_adjlists_i[i][0];
-	}
-	// transfer out neighbors
-	for(int i = 0; i < number_of_candidates; i++){
-		for(uint64_t j = 0; j < hg.in_offsets[i + 1] - hg.in_offsets[i]; j++){
-			hg.in_neighbors[hg.in_offsets[i] + j] = ppnew_adjlists_i[i][j + 1];
-		}
-	}
-
-    delete[] gptemp_array;
-    for(i=0;i<number_of_candidates;i++){
-        delete[] ppnew_lvl2_nbs[i];
-        delete[] ppnew_adjlists_o[i];
-        delete[] ppnew_adjlists_i[i];
     }
-    delete[] ppnew_lvl2_nbs;
-    delete[] ppnew_adjlists_o;
-    delete[] ppnew_adjlists_i;
 
-	// update number of vertices in graph
+    // update number of vertices in graph
 	hg.number_of_vertices = number_of_candidates;
     hg.number_of_edges = number_of_edges;
     hg.number_of_lvl2adj = number_of_lvl2adj;
+
+    delete[] results;
 }
+
+// // after initialization we can condense graph so we do not have to consider vertices that were
+// // pruned in 0th level and thus will not be needed by any task
+// void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_of_candidates)
+// {
+//     uint64_t pneighbors_start;          // start of neighbors for pruning
+//     uint64_t pneighbors_end;
+//     int i, j, nvertex_no, norder;
+//     int* index2id;
+//     int number_of_edges = 0;
+//     int number_of_lvl2adj = 0;
+	
+// 	// initialize vertex map
+// 	for(i=0;i<number_of_candidates;i++){
+// 		hd.vertex_order_map[vertices[i].vertexid] = i;
+//     }
+
+// 	// declare and initialize new adj arrays
+// 	int nlist_len, ncand_nbs, **ppnew_adjlists_o, **ppnew_adjlists_i, **ppnew_lvl2_nbs, v_index;
+// 	ppnew_adjlists_o = new int*[number_of_candidates];
+// 	ppnew_adjlists_i = new int*[number_of_candidates];
+// 	ppnew_lvl2_nbs = new int*[number_of_candidates];
+
+//     int* gptemp_array = new int[hg.number_of_vertices];
+
+// 	//translate candidate vertex id to index
+
+// 	// id2index[i] = j, means vertex with id i is in position k of vertices
+// 	map<int, int> id2index_map;
+
+// 	// index2id[i] = j, means that vertex at position i of vertices has id k
+// 	index2id = new int[number_of_candidates];
+
+// 	// for all vertices
+// 	for(i=0;i<number_of_candidates;i++)
+// 	{
+// 		// get vertex id
+// 		nvertex_no = vertices[i].vertexid;
+		
+// 		// set index2id position i (index in vertices array) to the id of the given vertex
+// 		index2id[i] = nvertex_no;
+
+// 		// in id2index map the id of the given vertex to position i (idex in vertices array)
+// 		id2index_map[nvertex_no] = i;
+// 	}
+
+//     // save index2id in graph to covert back at the end of the program
+//     hg.original_id_map = index2id;
+
+// 	//reset 2hop adj
+// 	// for all vertices
+// 	for(i=0;i<number_of_candidates;i++)
+// 	{
+// 		nlist_len = 0;
+// 		ncand_nbs = 0;
+
+// 		// get vertex id
+// 		nvertex_no = vertices[i].vertexid;
+
+// 		// get vertex index in vertices
+// 		v_index = id2index_map[nvertex_no];
+//         pneighbors_start = hg.twohop_offsets[nvertex_no];
+//         pneighbors_end = hg.twohop_offsets[nvertex_no + 1];
+
+//         // for all twohop adj
+//         for(j=pneighbors_start;j<pneighbors_end;j++)
+//         {
+//             // get index in vertices of twohop adj
+//             norder = hd.vertex_order_map[hg.twohop_neighbors[j]];
+
+//             // if twohop adj was in vertices
+//             if(norder>=0)
+//             {
+//                 //add nb's translated id
+//                 // add the translated id of the twohop adj to the vertices new twohop adj list
+//                 gptemp_array[nlist_len++] = id2index_map[hg.twohop_neighbors[j]];
+
+//                 // not sure why this variable exists has same value as nlist_len
+//                 ncand_nbs++;
+
+//                 number_of_lvl2adj++;
+//             }
+//         }
+
+// 		// if vertex had some twohop adj
+// 		if(nlist_len>0)
+// 		{
+// 			// make new array for vertex
+// 			ppnew_lvl2_nbs[v_index] = new int[nlist_len+1];
+
+// 			// set array size indicator
+// 			ppnew_lvl2_nbs[v_index][0] = nlist_len;
+
+// 			// copy twohop adj to array
+// 			memcpy(&ppnew_lvl2_nbs[v_index][1], gptemp_array, sizeof(int)*nlist_len);
+
+// 			// sort array
+// 			qsort(&ppnew_lvl2_nbs[v_index][1], ppnew_lvl2_nbs[i][0], sizeof(int), comp_int);
+// 		}
+
+// 		// as byproduct of condensing graph we calculate lvl2adj of vertices
+//         // used for lookahead pruning
+// 		vertices[i].lvl2adj = ncand_nbs;
+// 	}
+
+
+// 	//reset 1hop adj
+// 	// for all vertices
+// 	for(i=0;i<number_of_candidates;i++)
+// 	{
+// 		// reset out-direction
+// 		nlist_len = 0;
+// 		ncand_nbs = 0;
+
+// 		// get vertex id and index
+// 		nvertex_no = vertices[i].vertexid;
+// 		v_index = id2index_map[nvertex_no];
+
+//         pneighbors_start = hg.out_offsets[nvertex_no];
+//         pneighbors_end = hg.out_offsets[nvertex_no + 1];
+
+//         // for all out adj
+//         for(j=pneighbors_start;j<pneighbors_end;j++)
+//         {
+//             // get out adj position in vertices
+//             norder = hd.vertex_order_map[hg.out_neighbors[j]];
+
+//             // if it exists in vertices
+//             if(norder>=0)
+//             {
+//                 // add out adj translated id to new out adj
+//                 gptemp_array[nlist_len++] = id2index_map[hg.out_neighbors[j]];
+//                 ncand_nbs++;
+
+//                 number_of_edges++;
+//             }
+//         }
+
+// 		//check cand degree
+// 		if(vertices[i].out_can_deg!=ncand_nbs)
+// 			printf("Error: inconsistent candidate degree\n");
+
+// 		// if some new out adj found copy to new main list
+// 		if(nlist_len>0)
+// 		{
+// 			ppnew_adjlists_o[v_index] = new int[nlist_len+1];
+// 			ppnew_adjlists_o[v_index][0] = nlist_len;
+// 			memcpy(&ppnew_adjlists_o[v_index][1], gptemp_array, sizeof(int)*nlist_len);
+// 			qsort(&ppnew_adjlists_o[v_index][1], ppnew_adjlists_o[i][0], sizeof(int), comp_int);
+// 		}
+
+// 		// reset in-direction
+// 		nlist_len = 0;
+// 		ncand_nbs = 0;
+
+//         pneighbors_start = hg.in_offsets[nvertex_no];
+//         pneighbors_end = hg.in_offsets[nvertex_no + 1];
+
+//         // for all in adj
+//         for(j=pneighbors_start;j<pneighbors_end;j++)
+//         {
+//             // get position of in adj in vertices
+//             norder = hd.vertex_order_map[hg.in_neighbors[j]];
+
+//             // if in adj is in vertices
+//             if(norder>=0)
+//             {
+//                 // add in aj translated id to new in adj
+//                 gptemp_array[nlist_len++] = id2index_map[hg.in_neighbors[j]];
+//                 ncand_nbs++;
+//             }
+//         }
+
+// 		//check cand degree
+// 		if(vertices[i].in_can_deg!=ncand_nbs)
+// 			printf("Error: inconsistent candidate degree\n");
+
+// 		// if therer were some in adj copy to new main list
+// 		if(nlist_len>0)
+// 		{
+// 			ppnew_adjlists_i[v_index] = new int[nlist_len+1];
+// 			ppnew_adjlists_i[v_index][0] = nlist_len;
+// 			memcpy(&ppnew_adjlists_i[v_index][1], gptemp_array, sizeof(int)*nlist_len);
+// 			qsort(&ppnew_adjlists_i[v_index][1], ppnew_adjlists_i[i][0], sizeof(int), comp_int);
+// 		}
+
+// 	}
+
+//     // reset vertex order map
+//     for (int i = 0; i < number_of_candidates; i++) {
+//         hd.vertex_order_map[vertices[i].vertexid] = -1;
+//     }
+
+// 	//translate pvertex
+// 	// for all vertices
+// 	for(i=0;i<number_of_candidates;i++)
+// 		// convert vertex id to translated id
+// 		vertices[i].vertexid = i;
+
+// 	// transfer twohop offsets
+// 	hg.twohop_offsets[0] = 0;
+// 	for(int i = 0; i < number_of_candidates; i++){
+// 		hg.twohop_offsets[i + 1] = hg.twohop_offsets[i] + ppnew_lvl2_nbs[i][0];
+// 	}
+// 	// transfer twohop neighbors
+// 	for(int i = 0; i < number_of_candidates; i++){
+// 		for(uint64_t j = 0; j < hg.twohop_offsets[i + 1] - hg.twohop_offsets[i]; j++){
+// 			hg.twohop_neighbors[hg.twohop_offsets[i] + j] = ppnew_lvl2_nbs[i][j + 1];
+// 		}
+// 	}
+
+//     // transfer out offsets
+// 	hg.out_offsets[0] = 0;
+// 	for(int i = 0; i < number_of_candidates; i++){
+// 		hg.out_offsets[i + 1] = hg.out_offsets[i] + ppnew_adjlists_o[i][0];
+// 	}
+// 	// transfer out neighbors
+// 	for(int i = 0; i < number_of_candidates; i++){
+// 		for(uint64_t j = 0; j < hg.out_offsets[i + 1] - hg.out_offsets[i]; j++){
+// 			hg.out_neighbors[hg.out_offsets[i] + j] = ppnew_adjlists_o[i][j + 1];
+// 		}
+// 	}
+
+//     // transfer out offsets
+// 	hg.in_offsets[0] = 0;
+// 	for(int i = 0; i < number_of_candidates; i++){
+// 		hg.in_offsets[i + 1] = hg.in_offsets[i] + ppnew_adjlists_i[i][0];
+// 	}
+// 	// transfer out neighbors
+// 	for(int i = 0; i < number_of_candidates; i++){
+// 		for(uint64_t j = 0; j < hg.in_offsets[i + 1] - hg.in_offsets[i]; j++){
+// 			hg.in_neighbors[hg.in_offsets[i] + j] = ppnew_adjlists_i[i][j + 1];
+// 		}
+// 	}
+
+//     delete[] gptemp_array;
+//     for(i=0;i<number_of_candidates;i++){
+//         delete[] ppnew_lvl2_nbs[i];
+//         delete[] ppnew_adjlists_o[i];
+//         delete[] ppnew_adjlists_i[i];
+//     }
+//     delete[] ppnew_lvl2_nbs;
+//     delete[] ppnew_adjlists_o;
+//     delete[] ppnew_adjlists_i;
+
+// 	// update number of vertices in graph
+// 	hg.number_of_vertices = number_of_candidates;
+//     hg.number_of_edges = number_of_edges;
+//     hg.number_of_lvl2adj = number_of_lvl2adj;
+// }
 
 void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss, 
                     int* minimum_out_degrees, int* minimum_in_degrees, 
