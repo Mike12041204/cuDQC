@@ -9,6 +9,7 @@
 void h_calculate_minimum_degrees(CPU_Graph& hg, int* minimum_degrees, double minimum_degree_ratio)
 {
     minimum_degrees[0] = 0;
+    #pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
     for (int i = 1; i <= hg.number_of_vertices; i++) {
         minimum_degrees[i] = ceil(minimum_degree_ratio * (i - 1));
     }
