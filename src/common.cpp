@@ -329,6 +329,7 @@ void CPU_Graph::GenLevel2NBs()
 			size2 = in_offsets[vertexid1 + 1] - in_offsets[vertexid1];
 			start_write = in_offsets[vertexid1];
 
+			#pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
 			for(uint64_t k = 0; k < size2; k++){
 				vertexid2 = in_neighbors[start_write + k];
 
@@ -345,6 +346,7 @@ void CPU_Graph::GenLevel2NBs()
 			size2 = out_offsets[vertexid1 + 1] - out_offsets[vertexid1];
 			start_write = out_offsets[vertexid1];
 
+			#pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
 			for(uint64_t k = 0; k < size2; k++){
 				vertexid2 = out_neighbors[start_write + k];
 
@@ -377,11 +379,13 @@ void CPU_Graph::GenLevel2NBs()
 
 		// reset temp arrays
 		size = temp_int_vector3.size();
+		#pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
 		for(uint64_t j = 0; j < size; j++){
 			vertexid1 = temp_int_vector3.at(j);
 			temp_int_array1[vertexid1] = 0;
 		}
 		size = lvl2adj[i].size();
+		#pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
 		for(uint64_t j = 0; j < size; j++){
 			vertexid1 = lvl2adj[i].at(j);
 			temp_bool_array1[vertexid1] = false;
