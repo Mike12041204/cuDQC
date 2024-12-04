@@ -154,6 +154,7 @@ void CPU_Graph::GenLevel2NBs()
 	number_of_lvl2adj = 0;
 
 	for(int i = 0; i < number_of_vertices; i++){
+
 		out_size = out_offsets[i + 1] - out_offsets[i];
 		in_size = in_offsets[i + 1] - in_offsets[i];
 
@@ -220,7 +221,7 @@ void CPU_Graph::GenLevel2NBs()
 				size2 = out_offsets[vertexid1 + 1] - out_offsets[vertexid1];
 				start_write = out_offsets[vertexid1];
 
-				for(uint64_t k = 0; k < size; k++){
+				for(uint64_t k = 0; k < size2; k++){
 					vertexid2 = out_neighbors[start_write + k];
 
 					if(temp_int_array4[vertexid2] == round){
@@ -237,7 +238,7 @@ void CPU_Graph::GenLevel2NBs()
 				size2 = in_offsets[vertexid1 + 1] - in_offsets[vertexid1];
 				start_write = in_offsets[vertexid1];
 
-				for(uint64_t k = 0; k < size; k++){
+				for(uint64_t k = 0; k < size2; k++){
 					vertexid2 = in_neighbors[start_write + k];
 
 					if(temp_int_array3[vertexid2] == round){
