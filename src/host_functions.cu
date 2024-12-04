@@ -2244,9 +2244,13 @@ void h_fill_from_buffer(CPU_Data& hd, int threshold)
     start_write = write_offsets[*write_count];
 
     // copy tasks data from end of buffer to end of tasks
-    memcpy(&write_vertices[start_write], &hd.buffer_vertices[start_buffer], sizeof(Vertex) * size_buffer);
+    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
+    for(uint64_t i = 0; i < size_buffer; i++){
+        write_vertices[start_write + i] = hd.buffer_vertices[start_buffer + i];
+    }
 
     // handle offsets
+    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for (uint64_t i = 1; i <= write_amount; i++) {
         write_offsets[*write_count + i] = start_write + (hd.buffer_offset[(*hd.buffer_count) - write_amount + i] - start_buffer);
     }
