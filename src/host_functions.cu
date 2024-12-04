@@ -697,6 +697,7 @@ void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_
     hg.twohop_offsets[0] = 0;
 
     // initialize vertex map
+    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
 	for(int i = 0; i < number_of_candidates; i++){
 		hd.vertex_order_map[vertices[i].vertexid] = i;
     }
@@ -815,11 +816,13 @@ void h_condense_graph(CPU_Data& hd, CPU_Graph& hg, Vertex* vertices, int number_
     }
 
     // reset vertex order map
+    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for (int i = 0; i < number_of_candidates; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = -1;
     }
 
     // translate vertex ids to indices
+    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for(int i = 0; i < number_of_candidates; i++){
 		vertices[i].vertexid = i;
     }
