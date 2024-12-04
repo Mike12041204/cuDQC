@@ -202,10 +202,6 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
     uint64_t helper2;
     uint64_t helper3;
     uint64_t helper4;
-    Vertex* src;
-    Vertex* dst;
-    int* srci;
-    int* dsti;
 
     if(LANE_IDX == 0){
         warp_tasks_count[WIB_IDX] = dd->wtasks_count[WARP_IDX];
@@ -346,11 +342,9 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
             dd->tasks_offset[tasks_offset_write + i] = 
                 dd->wtasks_offset[WRITE_WARP_TASKS_OFFSET + i + 1] + tasks_write;
         }
-        if(LANE_IDX == 0){
-            dst = dd->tasks_vertices + tasks_write;
-            src = dd->wtasks_vertices + WRITE_WARP_TASKS;
-            cudaMemcpyAsync(dst, src, warp_tasks_size[WIB_IDX] * sizeof(Vertex), 
-                            cudaMemcpyDeviceToDevice);
+        // copy vertices
+        for(uint64_t i = LANE_IDX; i < warp_tasks_size[WIB_IDX]; i += WARP_SIZE){
+            dd->tasks_vertices[tasks_write + i] = dd->wtasks_vertices[WRITE_WARP_TASKS + i];
         }
     }
     // case 2 - buffer
@@ -362,11 +356,9 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
                 + tasks_write - tasks_end[WIB_IDX] + buffer_start[WIB_IDX];
         }
         // copy vertices
-        if(LANE_IDX == 0){
-            dst = dd->buffer_vertices + buffer_start[WIB_IDX] + tasks_write - tasks_end[WIB_IDX];
-            src = dd->wtasks_vertices + WRITE_WARP_TASKS;
-            cudaMemcpyAsync(dst, src, warp_tasks_size[WIB_IDX] * sizeof(Vertex), 
-                            cudaMemcpyDeviceToDevice);
+        for(uint64_t i = LANE_IDX; i < warp_tasks_size[WIB_IDX]; i += WARP_SIZE){
+            dd->buffer_vertices[buffer_start[WIB_IDX] + tasks_write + i - tasks_end[WIB_IDX]] = 
+                dd->wtasks_vertices[WRITE_WARP_TASKS + i];
         }
     }
     // case 3 - tasks and buffer
@@ -385,15 +377,15 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
                 + tasks_write - tasks_end[WIB_IDX] + buffer_start[WIB_IDX];
         }
         // copy vertices
-        if(LANE_IDX == 0){
-            helper1 = tasks_end[WIB_IDX] - tasks_write;
-            dst = dd->tasks_vertices + tasks_write;
-            src = dd->wtasks_vertices + WRITE_WARP_TASKS;
-            cudaMemcpyAsync(dst, src, helper1 * sizeof(Vertex), cudaMemcpyDeviceToDevice);
-            dst = dd->buffer_vertices + buffer_start[WIB_IDX] + tasks_write - tasks_end[WIB_IDX];
-            src = dd->wtasks_vertices + WRITE_WARP_TASKS;
-            cudaMemcpyAsync(dst, src, (warp_tasks_size[WIB_IDX] - helper1) * sizeof(Vertex), 
-                            cudaMemcpyDeviceToDevice);
+        helper1 = tasks_end[WIB_IDX] - tasks_write;
+        for(uint64_t i = LANE_IDX; i < helper1; i += WARP_SIZE){
+            // to tasks
+            dd->tasks_vertices[tasks_write + i] = dd->wtasks_vertices[WRITE_WARP_TASKS + i];
+        }
+        for(uint64_t i = helper1 + LANE_IDX; i < warp_tasks_size[WIB_IDX]; i += WARP_SIZE){
+            // to buffer
+            dd->buffer_vertices[buffer_start[WIB_IDX] + tasks_write + i - tasks_end[WIB_IDX]] = 
+                dd->wtasks_vertices[WRITE_WARP_TASKS + i];
         }
     }
 
@@ -403,12 +395,9 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
             dd->wcliques_offset[WRITE_WARP_CLIQUES_OFFSET + i + 1] + cliques_start[WIB_IDX] + 
             cliques_write;
     }
-    // copy vertices
-    if(LANE_IDX == 0){
-        dsti = dd->cliques_vertex + cliques_start[WIB_IDX] + cliques_write;
-        srci = dd->wcliques_vertex + WRITE_WARP_CLQIUES;
-        cudaMemcpyAsync(dsti, srci, warp_cliques_size[WIB_IDX] * sizeof(int), 
-                        cudaMemcpyDeviceToDevice);
+    for (uint64_t i = LANE_IDX; i < warp_cliques_size[WIB_IDX]; i += WARP_SIZE) {
+        dd->cliques_vertex[cliques_start[WIB_IDX] + cliques_write + i] = 
+            dd->wcliques_vertex[WRITE_WARP_CLQIUES+ i];
     }
 
     // SET GLOBAL INFORMATION VARIABLES
