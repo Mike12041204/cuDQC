@@ -862,6 +862,7 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
     int lower_bound;
     int upper_bound;
     int success;                  // helper
+    int index;
 
     if ((*hd.current_level) % 2 == 0) {
         read_count = hd.tasks1_count;
@@ -1298,7 +1299,6 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
     min_in_deg = h_get_mindeg(num_mem + 1, minimum_in_degrees, minimum_clique_size);
 
     // initialize vertex order map
-    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for (int i = 0; i < tot_vert; i++) {
         hd.vertex_order_map[read_vertices[start + i].vertexid] = i;
     }
@@ -1333,7 +1333,6 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
     // return if failed found
     if(!success){
         // reset vertex order map
-        #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
         for (int i = 0; i < tot_vert; i++) {
             hd.vertex_order_map[read_vertices[start + i].vertexid] = -1;
         }
@@ -1367,7 +1366,6 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
     // return if failed found
     if(!success){
         // reset vertex order map
-        #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
         for (int i = 0; i < tot_vert; i++) {
             hd.vertex_order_map[read_vertices[start + i].vertexid] = -1;
         }
@@ -1377,7 +1375,6 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
     pneighbors_start = hg.twohop_offsets[pvertexid];
     pneighbors_end = hg.twohop_offsets[pvertexid + 1];
 
-    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for (uint64_t i = pneighbors_start; i < pneighbors_end; i++) {
 
         phelper1 = hd.vertex_order_map[hg.twohop_neighbors[i]];
@@ -1388,7 +1385,6 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
     }
 
     // reset vertex order map
-    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for (int i = 0; i < tot_vert; i++) {
         hd.vertex_order_map[read_vertices[start + i].vertexid] = -1;
     }
