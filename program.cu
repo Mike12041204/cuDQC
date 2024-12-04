@@ -73,11 +73,6 @@ int main(int argc, char* argv[])
     wsize = size;
     grank = rank;
 
-    #pragma omp parallel
-    {
-        printf("Thread %d of %d is running\n", omp_get_thread_num(), omp_get_num_threads());
-    }
-
     // DEBUG
     output = argv[6];
     filename = "DQC-O" + to_string(grank) + "_" + output;
