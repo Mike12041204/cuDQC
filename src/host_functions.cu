@@ -1445,7 +1445,7 @@ void h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
     pneighbors_start = hg.in_offsets[pvertexid];
     pneighbors_end = hg.in_offsets[pvertexid + 1];
 
-    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
+    //#pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for (uint64_t i = pneighbors_start; i < pneighbors_end; i++) {
 
         phelper1 = hd.vertex_order_map[hg.in_neighbors[i]];
