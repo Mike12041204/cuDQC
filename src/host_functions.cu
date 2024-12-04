@@ -507,6 +507,7 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
 
         number_of_candidates = (*hd.remaining_count);
         
+        #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
         for (int i = 0; i < number_of_candidates; i++) {
             vertices[hd.remaining_candidates[i]].out_can_deg = 0;
             vertices[hd.remaining_candidates[i]].in_can_deg = 0;
@@ -522,7 +523,6 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
             pneighbors_start = hg.out_offsets[pvertexid];
             pneighbors_end = hg.out_offsets[pvertexid + 1];
 
-            //#pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
             for (uint64_t j = pneighbors_start; j < pneighbors_end; j++) {
 
                 phelper1 = hg.out_neighbors[j];
@@ -536,7 +536,6 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
             pneighbors_start = hg.in_offsets[pvertexid];
             pneighbors_end = hg.in_offsets[pvertexid + 1];
 
-            //#pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
             for (uint64_t j = pneighbors_start; j < pneighbors_end; j++) {
                 
                 phelper1 = hg.in_neighbors[j];
@@ -634,7 +633,6 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
     pneighbors_start = hg.out_offsets[maximum_degree_index];
     pneighbors_end = hg.out_offsets[maximum_degree_index + 1];
 
-    //#pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
     for (uint64_t i = pneighbors_start; i < pneighbors_end; i++) {
 
         pvertexid = hg.out_neighbors[i];
@@ -647,7 +645,6 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
     pneighbors_start = hg.in_offsets[maximum_degree_index];
     pneighbors_end = hg.in_offsets[maximum_degree_index + 1];
 
-    //#pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
     for (uint64_t i = pneighbors_start; i < pneighbors_end; i++) {
 
         pvertexid = hg.in_neighbors[i];
@@ -667,6 +664,7 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
     // WRITE TO TASKS
     if (total_vertices > 0)
     {
+        #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
         for (int j = 0; j < total_vertices; j++) {
             hd.tasks1_vertices[j] = vertices[j];
         }
