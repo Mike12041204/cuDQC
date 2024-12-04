@@ -204,8 +204,6 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
     uint64_t helper4;
     Vertex* src;
     Vertex* dst;
-    int* srci;
-    int* dsti;
 
     if(LANE_IDX == 0){
         warp_tasks_count[WIB_IDX] = dd->wtasks_count[WARP_IDX];
@@ -403,12 +401,9 @@ __global__ void d_transfer_buffers(GPU_Data* dd, uint64_t* tasks_count, uint64_t
             dd->wcliques_offset[WRITE_WARP_CLIQUES_OFFSET + i + 1] + cliques_start[WIB_IDX] + 
             cliques_write;
     }
-    // copy vertices
-    if(LANE_IDX == 0){
-        dsti = dd->cliques_vertex + cliques_start[WIB_IDX] + cliques_write;
-        srci = dd->wcliques_vertex + WRITE_WARP_CLQIUES;
-        cudaMemcpyAsync(dsti, srci, warp_cliques_size[WIB_IDX] * sizeof(int), 
-                        cudaMemcpyDeviceToDevice);
+    for (uint64_t i = LANE_IDX; i < warp_cliques_size[WIB_IDX]; i += WARP_SIZE) {
+        dd->cliques_vertex[cliques_start[WIB_IDX] + cliques_write + i] = 
+            dd->wcliques_vertex[WRITE_WARP_CLQIUES+ i];
     }
 
     // SET GLOBAL INFORMATION VARIABLES
