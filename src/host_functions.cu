@@ -1431,7 +1431,6 @@ void h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
     pneighbors_start = hg.out_offsets[pvertexid];
     pneighbors_end = hg.out_offsets[pvertexid + 1];
 
-    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for (uint64_t i = pneighbors_start; i < pneighbors_end; i++) {
 
         phelper1 = hd.vertex_order_map[hg.out_neighbors[i]];
@@ -1445,7 +1444,6 @@ void h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
     pneighbors_start = hg.in_offsets[pvertexid];
     pneighbors_end = hg.in_offsets[pvertexid + 1];
 
-    //#pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for (uint64_t i = pneighbors_start; i < pneighbors_end; i++) {
 
         phelper1 = hd.vertex_order_map[hg.in_neighbors[i]];
@@ -1686,6 +1684,7 @@ void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvert
     (*hd.remaining_count) = 0;
 
     // set all candidates as invalid
+    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for (int i = number_of_members; i < total_vertices; i++) {
         vertices[i].label = -1;
     }
