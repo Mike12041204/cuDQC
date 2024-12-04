@@ -951,16 +951,19 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
             number_of_candidates = num_cand;
             total_vertices = tot_vert;
             
-            for (index = 0; index < number_of_members; index++) {
-                vertices[index] = read_vertices[start + index];
+            #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
+            for (int index0 = 0; index0 < number_of_members; index0++) {
+                vertices[index0] = read_vertices[start + index0];
             }
             vertices[number_of_members] = read_vertices[start + total_vertices - 1];
-            for (; index < total_vertices - 1; index++) {
-                vertices[index + 1] = read_vertices[start + index];
+            #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
+            for (int index1 = number_of_members; index1 < total_vertices - 1; index1++) {
+                vertices[index1 + 1] = read_vertices[start + index1];
             }
 
             if (number_of_covered > 0) {
                 // set all covered vertices from previous level as candidates
+                #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
                 for (int j = num_mem + 1; j <= num_mem + number_of_covered; j++) {
                     vertices[j].label = 0;
                 }
