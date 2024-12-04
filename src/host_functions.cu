@@ -982,7 +982,7 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, DS_Sizes& dss,
             // to next iteration
             if (!success) {
                 // only first process needs to check and write clique as all processes do same
-                if (grank) {
+                if (grank == 0) {
                     // check if current set is clique
                     h_check_for_clique(hc, vertices, number_of_members, minimum_out_degrees, 
                                    minimum_in_degrees, minimum_clique_size);
