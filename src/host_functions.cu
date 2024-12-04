@@ -1377,7 +1377,6 @@ void h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int
     pneighbors_start = hg.twohop_offsets[pvertexid];
     pneighbors_end = hg.twohop_offsets[pvertexid + 1];
 
-    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for (uint64_t i = pneighbors_start; i < pneighbors_end; i++) {
 
         phelper1 = hd.vertex_order_map[hg.twohop_neighbors[i]];
