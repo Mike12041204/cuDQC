@@ -1760,6 +1760,7 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
 
     // check whether new bounds are valid
     if(!success){
+        #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
         for (int i = 0; i < total_vertices; i++) {
             hd.vertex_order_map[vertices[i].vertexid] = -1;
         }
@@ -1778,6 +1779,7 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
     }
 
     if(!success){
+        #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
         for (int i = 0; i < total_vertices; i++) {
             hd.vertex_order_map[vertices[i].vertexid] = -1;
         }
@@ -1807,6 +1809,7 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         if ((*hd.remaining_count) < (*hd.removed_count)) {
             
             // reset can degs
+            #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
             for (int i = 0; i < total_vertices; i++) {
                 vertices[i].in_can_deg = 0;
                 vertices[i].out_can_deg = 0;
@@ -1901,7 +1904,8 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
                             minimum_clique_size, success);
 
         // check whether new bounds are valid
-        if(!success){    
+        if(!success){
+            #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
             for (int i = 0; i < total_vertices; i++) {
                 hd.vertex_order_map[vertices[i].vertexid] = -1;
             }
@@ -1919,7 +1923,8 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
             }
         }
 
-        if(!success){    
+        if(!success){
+            #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS) 
             for (int i = 0; i < total_vertices; i++) {
                 hd.vertex_order_map[vertices[i].vertexid] = -1;
             }
@@ -1945,6 +1950,7 @@ void h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         (*hd.remaining_count) = num_val_cands;
     }
 
+    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for (int i = 0; i < total_vertices; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = -1;
     }
