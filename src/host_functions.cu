@@ -1264,7 +1264,6 @@ void h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* r
         // if we havent returned by this point lookahead pruning has succeded and we can write
         // write to cliques
         start_write = hc.cliques_offset[(*hc.cliques_count)];
-        #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
         for (int i = 0; i < tot_vert; i++) {
             hc.cliques_vertex[start_write + i] = read_vertices[start + i].vertexid;
         }
