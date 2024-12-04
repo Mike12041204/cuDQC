@@ -48,6 +48,7 @@ void h_search(CPU_Graph& hg, ofstream& temp_results, DS_Sizes& dss, int* minimum
     mpiVertexBuffer = new Vertex[MAX_MESSAGE];
     // open communication channels
     mpi_irecv_all(grank);
+    #pragma omp parallel for schedule(dynamic, 1) num_threads(NUMBER_OF_HTHREADS)
     for (int i = 0; i < wsize; ++i) {
         global_free_list[i] = false;
     }
@@ -503,6 +504,7 @@ void h_initialize_tasks(CPU_Graph& hg, CPU_Data& hd, int* minimum_out_degrees,
     // DEGREE-BASED PRUNING
     // update while half of vertices have been removed
     while ((*hd.remaining_count) < number_of_candidates / 2) {
+
         number_of_candidates = (*hd.remaining_count);
         
         for (int i = 0; i < number_of_candidates; i++) {
