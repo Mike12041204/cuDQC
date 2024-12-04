@@ -2179,6 +2179,7 @@ void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members
 
     // if clique write to cliques array
     uint64_t start_write = hc.cliques_offset[(*hc.cliques_count)];
+    #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
     for (int i = 0; i < number_of_members; i++) {
         hc.cliques_vertex[start_write + i] = vertices[i].vertexid;
     }
@@ -2192,6 +2193,7 @@ void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex
     if ((*write_count) < CPU_EXPAND_THRESHOLD) {
         uint64_t start_write = write_offsets[*write_count];
 
+        #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
         for (int i = 0; i < total_vertices; i++) {
             write_vertices[start_write + i] = vertices[i];
         }
@@ -2202,6 +2204,7 @@ void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex
     else {
         uint64_t start_write = hd.buffer_offset[(*hd.buffer_count)];
 
+        #pragma omp parallel for schedule(static) num_threads(NUMBER_OF_HTHREADS)
         for (int i = 0; i < total_vertices; i++) {
             hd.buffer_vertices[start_write + i] = vertices[i];
         }
